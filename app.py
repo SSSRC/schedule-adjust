@@ -580,54 +580,62 @@ def main():
         # 💡 スマホで間延びする「四角」をキュッと中央に圧縮する魔法のCSS
         st.markdown("""
         <style>
-            /* 💡 スマホ版：間延び解消と中央寄せの魔法（縦画面の無駄な余白・撲滅版） */
+        /* 💡 スマホ版：すべての行の幅を完全一致させる鉄壁のCSS */
         @media (max-width: 650px) {
-            /* 1. 時間割エリア全体の中身の幅に合わせ、中央に寄せる */
-            [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important; /* 全体を中央寄せ */
-                max-width: 100% !important;
-            }
-
-            /* 2. 行が画面いっぱいに広がるのを防ぎ、中身のサイズにぴたりと合わせる */
-            [data-testid="stHorizontalBlock"] {
+            /* 1. 時間割の各行をピンポイントで狙い、全体の幅を「340px」に強制統一 */
+            [data-testid="stHorizontalBlock"]:has(.tt-day-header),
+            [data-testid="stHorizontalBlock"]:has(.tt-time-cell),
+            [data-testid="stHorizontalBlock"]:has(.tt-end-time) {
                 display: flex !important;
                 flex-direction: row !important;
                 flex-wrap: nowrap !important;
-                width: max-content !important; /* ★ここが重要！画面幅まで広がらない */
-                margin: 0 auto !important;
-                gap: 4px !important; /* 列と列の隙間 */
+                width: 100% !important;
+                max-width: 340px !important; /* ★すべての行がピッタリ同じ幅になります */
+                margin: 0 auto !important;   /* 中央寄せ */
+                gap: 3px !important;         /* 列間の隙間 */
             }
             
-            /* 3. 各列（月〜金）の幅を強制的に固定し、絶対に広げない */
-            [data-testid="column"] {
+            /* 2. 各列（曜日）を中身のサイズを無視して「絶対均等」に分割 */
+            [data-testid="stHorizontalBlock"]:has(.tt-day-header) > [data-testid="column"],
+            [data-testid="stHorizontalBlock"]:has(.tt-time-cell) > [data-testid="column"],
+            [data-testid="stHorizontalBlock"]:has(.tt-end-time) > [data-testid="column"] {
                 min-width: 0 !important;
-                flex: 0 0 46px !important; /* ★均等割ではなく、46pxの固定幅にする */
+                flex: 1 1 0% !important; /* ★均等割りの魔法 */
+                width: 0 !important;
                 padding: 0 !important;
             }
 
-            /* 4. 時間ラベル列（一番左）の幅を固定 */
-            [data-testid="column"]:first-child {
-                flex: 0 0 54px !important; /* 時間表記用のみ少し広く */
+            /* 3. 1列目（時間ラベル）だけ幅を52pxに固定 */
+            [data-testid="stHorizontalBlock"]:has(.tt-day-header) > [data-testid="column"]:first-child,
+            [data-testid="stHorizontalBlock"]:has(.tt-time-cell) > [data-testid="column"]:first-child,
+            [data-testid="stHorizontalBlock"]:has(.tt-end-time) > [data-testid="column"]:first-child {
+                flex: 0 0 52px !important;
+                width: 52px !important;
             }
-
-            /* 5. 各パーツの無駄な余白を削り落とす */
-            .tt-day-header { font-size: 13px !important; padding: 4px 0 !important; border-radius: 4px !important;}
-            .tt-time-cell { font-size: 11px !important; padding: 4px 2px !important; border-left: 2px solid #4CAF50 !important; border-radius: 4px !important;}
-            .tt-time-sub { font-size: 9px !important; display: block; line-height: 1.2; }
-            .status-on, .status-off, .af-status-on { font-size: 11px !important; padding: 4px 0 !important; border-radius: 4px !important;}
             
-            /* チェックボックスの巨大な余白を抹消 */
+            /* 4. セレクトボックス（終了時間）が横に伸びようとするのを防ぐ */
+            [data-testid="stSelectbox"], 
+            [data-testid="stSelectbox"] > div {
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+            div[data-baseweb="select"] {
+                font-size: 10px !important;
+            }
+            
+            /* 5. チェックボックスと文字の余白削り */
             [data-testid="stCheckbox"] {
-                margin: 0 !important;
+                margin: 0 auto !important;
                 padding: 0 !important;
                 display: flex;
                 justify-content: center;
                 width: 100% !important;
             }
             [data-testid="stCheckbox"] label p { display: none !important; }
-            [data-testid="stSelectbox"] { min-width: 0 !important; }
+            .tt-day-header { font-size: 13px !important; padding: 4px 0 !important; }
+            .tt-time-cell { font-size: 11px !important; padding: 4px 2px !important; }
+            .tt-time-sub { font-size: 9px !important; }
+            .status-on, .status-off, .af-status-on { font-size: 10px !important; padding: 3px 0 !important; }
         }
         </style>
         """, unsafe_allow_html=True)
@@ -675,7 +683,7 @@ def main():
         st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
         
         cols = st.columns(col_ratios)
-        cols[0].markdown(f"<div style='text-align:center; font-size:10px; color:#666; padding-top:10px;'>終了時刻</div>", unsafe_allow_html=True)
+        cols[0].markdown(f"<div class='tt-end-time' style='text-align:center; font-size:10px; color:#666; padding-top:10px;'>終了時刻</div>", unsafe_allow_html=True)
         for i in range(5):
             if ui_state[str(i)]["af"]:
                 day_bin = fixed_sched.get(str(i), "0"*96); af_bin = day_bin[74:]; af_end_val = "21:00"

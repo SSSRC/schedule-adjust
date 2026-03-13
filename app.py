@@ -16,25 +16,18 @@ st.set_page_config(page_title="日程調整 Pro", layout="wide")
 # ==========================================
 st.markdown("""
     <style>
-        [data-testid="stStatusWidget"] {
-            visibility: visible !important; display: flex !important; position: fixed !important; top: 50% !important; left: 50% !important;
-            transform: translate(-50%, -50%) !important; background: rgba(255, 255, 255, 0.95) !important; color: #333 !important;
-            padding: 20px 40px !important; border-radius: 12px !important; z-index: 999999 !important; font-size: 22px !important;
-            font-weight: bold !important; box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; border: 2px solid #4CAF50 !important;
-        }
-        [data-testid="stStatusWidget"] label { display: none !important; }
-        [data-testid="stStatusWidget"]::after { content: "⏳ 通信中 / 処理中..."; color: #333; }
-        .stApp, .stApp [data-testid="stAppViewBlockContainer"], 
-        div[data-testid="stVerticalBlock"], div[data-testid="stForm"], iframe { opacity: 1 !important; transition: none !important; filter: none !important; }
+        .stDeployStatus, [data-testid="stStatusWidget"] label { display: none !important; }
+        [data-testid="stStatusWidget"] { visibility: visible !important; display: flex !important; position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: rgba(255, 255, 255, 0.95) !important; color: #333 !important; padding: 20px 40px !important; border-radius: 12px !important; z-index: 999999 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; border: 2px solid #4CAF50 !important; text-align: center !important; justify-content: center !important; }
+        [data-testid="stStatusWidget"]::after { content: "⏳ 通信中 \\A 処理しています..."; white-space: pre-wrap; font-size: 20px !important; font-weight: bold !important; line-height: 1.5 !important; }
+        @media (max-width: 600px) { [data-testid="stStatusWidget"] { padding: 15px 20px !important; width: 80% !important; } [data-testid="stStatusWidget"]::after { font-size: 16px !important; } }
+        .stApp, .stApp [data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"], div[data-testid="stForm"], iframe { opacity: 1 !important; transition: none !important; filter: none !important; }
         .user-header { display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 10px 20px; border-radius: 8px; border-left: 5px solid #4CAF50; margin-bottom: 20px; }
         .event-desc { background: #fff8e1; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
         .event-desc a { color: #2196F3; font-weight: bold; text-decoration: none; }
         .event-desc a:hover { text-decoration: underline; }
-        
         .tt-day-header { font-size: 16px; font-weight: bold; background: #4CAF50; color: white; padding: 8px; border-radius: 6px; text-align: center; }
         .tt-time-cell { font-size: 14px; font-weight: bold; background: #f0f2f6; padding: 10px; border-radius: 6px; text-align: center; border-left: 4px solid #4CAF50;}
         .tt-time-sub { font-size: 11px; color: #666; font-weight: normal; }
-        
         .status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #45a049); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(76,175,80,0.3); letter-spacing: 0.5px;}
         .af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(33,150,243,0.3); letter-spacing: 0.5px;}
         .status-off { color: #9e9e9e; background: #ffffff; padding: 4px 0; border-radius: 6px; border: 1px dashed #d0d0d0; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block;}
@@ -44,7 +37,7 @@ st.markdown("""
 GAS_URL = "https://script.google.com/macros/s/AKfycby9PfO_u89GZwvpOEGSTti6IZ_pjIdLeSnRsuTLxTMuGGLOyV6ZpEb0AfQDzuzvvNuMig/exec"
 
 # ==========================================
-# リッチテキストエディタ
+# コンポーネント (rt_editor, options_editor, grid_editor) の定義
 # ==========================================
 if not os.path.exists("rt_editor"):
     os.makedirs("rt_editor", exist_ok=True)
@@ -95,9 +88,6 @@ if not os.path.exists("rt_editor"):
         """)
 rt_editor = components.declare_component("rt_editor", path="rt_editor")
 
-# ==========================================
-# 複数候補リスト用の巨大ボタンコンポーネント 
-# ==========================================
 if not os.path.exists("options_editor"):
     os.makedirs("options_editor", exist_ok=True)
     with open("options_editor/index.html", "w", encoding="utf-8") as f:
@@ -198,9 +188,6 @@ if not os.path.exists("options_editor"):
         """)
 options_editor = components.declare_component("options_editor", path="options_editor")
 
-# ==========================================
-# カレンダーグリッド用コンポーネント
-# ==========================================
 if not os.path.exists("custom_editor"):
     os.makedirs("custom_editor", exist_ok=True)
     with open("custom_editor/index.html", "w", encoding="utf-8") as f:
@@ -384,6 +371,10 @@ if not os.path.exists("custom_editor"):
         """)
 grid_editor = components.declare_component("grid_editor", path="custom_editor")
 
+
+# ==========================================
+# ユーティリティとメイン処理
+# ==========================================
 async def call_gas(action, payload=None, method="GET"):
     try:
         if method == "POST":
@@ -399,6 +390,31 @@ async def call_gas(action, payload=None, method="GET"):
     except Exception as e: 
         return {"status": "error", "message": str(e)}
 
+# 🚀 爆速化ツール①：キャッシュ付き通信関数
+async def call_gas_cached(action, payload=None, method="GET", ttl=300):
+    if "api_cache" not in st.session_state: st.session_state.api_cache = {}
+    
+    # 検索キーを作成
+    cache_key = f"{action}_{json.dumps(payload, sort_keys=True) if payload else ''}"
+    now = datetime.now()
+    
+    # キャッシュが存在し、かつ期限内なら通信せずに即返す
+    if cache_key in st.session_state.api_cache:
+        cached_res, ts = st.session_state.api_cache[cache_key]
+        if (now - ts).total_seconds() < ttl:
+            return cached_res
+
+    # キャッシュがない場合は実際の通信を実行
+    res = await call_gas(action, payload, method)
+    if res.get("status") == "success":
+        st.session_state.api_cache[cache_key] = (res, now)
+    return res
+
+# 🚀 爆速化ツール②：データ更新時のキャッシュクリア
+def clear_cache():
+    if "api_cache" in st.session_state:
+        st.session_state.api_cache.clear()
+
 def idx_to_time(i): return f"{(i*15)//60:02d}:{(i*15)%60:02d}"
 time_master = [idx_to_time(i) for i in range(96)]
 
@@ -410,9 +426,7 @@ def get_border_top(t_str, event_type="time"):
 
 async def main():
     if "app_initialized" not in st.session_state:
-        init_prog = st.progress(0, text="🚀 システムを初期化中..."); await asyncio.sleep(0.2)
-        init_prog.progress(100, text="✨ 起動完了！"); await asyncio.sleep(0.3)
-        init_prog.empty(); st.session_state.app_initialized = True
+        st.session_state.app_initialized = True
 
     if "auth" not in st.session_state: st.session_state.auth = None
     
@@ -432,10 +446,10 @@ async def main():
                     n = st.text_input("氏名", autocomplete="username")
                     p = st.text_input("PIN", type="password", autocomplete="current-password")
                     if st.form_submit_button("ログイン", use_container_width=True, type="primary"):
-                        prog = st.progress(10, text="📡 認証中..."); await asyncio.sleep(0.1)
+                        prog = st.progress(10, text="📡 認証中...")
                         res = await call_gas("check_auth", {"name": n, "pin": p}, method="POST")
                         if res.get("status") == "success":
-                            prog.progress(100, text="✅ 成功！"); await asyncio.sleep(0.4)
+                            prog.progress(100, text="✅ 成功！")
                             st.session_state.auth = res.get("data"); st.rerun()
                         else:
                             prog.empty(); st.error("認証失敗: 氏名またはPINが間違っています")
@@ -466,11 +480,12 @@ async def main():
                     clean_name = reg_n.replace(" ", "").replace("　", "")
                     if not clean_name or not reg_p or not reg_s: st.warning("氏名、PIN、秘密の合言葉はすべて必須です。")
                     else:
-                        reg_prog = st.progress(10, text="📡 送信中..."); await asyncio.sleep(0.1)
+                        reg_prog = st.progress(10, text="📡 送信中...")
                         payload = {"name": clean_name, "pin": reg_p, "secret_word": reg_s, "group_1": ", ".join(g1), "group_2": ", ".join(g2), "group_3": ", ".join(g3), "group_4": ", ".join(g4)}
                         res = await call_gas("register_user", {"payload": payload}, method="POST")
                         if res.get("status") == "success":
-                            reg_prog.progress(100, text="✨ 登録成功！"); await asyncio.sleep(0.5)
+                            clear_cache() # 💡 キャッシュクリア
+                            reg_prog.progress(100, text="✨ 登録成功！")
                             st.session_state.auth = res.get("data"); st.rerun()
                         else:
                             reg_prog.empty(); st.error(f"エラー: {res.get('message')}")
@@ -482,10 +497,12 @@ async def main():
                     rec_s = st.text_input("秘密の合言葉", type="password")
                     new_p = st.text_input("新しいPIN", type="password", autocomplete="new-password")
                     if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
-                        rec_prog = st.progress(10, text="📡 通信中..."); await asyncio.sleep(0.1)
+                        rec_prog = st.progress(10, text="📡 通信中...")
                         res = await call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
                         if res.get("status") == "success":
-                            rec_prog.progress(100, text="✅ 更新成功！新しいPINでログインできます。"); await asyncio.sleep(1.5); st.rerun()
+                            clear_cache()
+                            rec_prog.progress(100, text="✅ 更新成功！新しいPINでログインできます。")
+                            await asyncio.sleep(1); st.rerun()
                         else:
                             rec_prog.empty(); st.error("氏名または合言葉が間違っています。")
         return
@@ -531,11 +548,12 @@ async def main():
         upd_g4 = st.multiselect("👑 役職", upd_g4_opts, default=safe_def_g4, key="upd_g4")
 
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
-            upd_prog = st.progress(10, text="💾 更新中..."); await asyncio.sleep(0.1)
+            upd_prog = st.progress(10, text="💾 更新中...")
             payload = {"user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4)}
             res = await call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
-                upd_prog.progress(100, text="✨ 更新完了！"); await asyncio.sleep(0.5)
+                clear_cache() # 💡 キャッシュクリア
+                upd_prog.progress(100, text="✨ 更新完了！")
                 st.session_state.auth = res.get("data"); st.rerun()
             else: upd_prog.empty(); st.error("更新に失敗しました。")
         return
@@ -613,11 +631,11 @@ async def main():
                     new_bin[74:end_idx] = ["1"] * (end_idx - 74)
                 new_fixed_sched[wd_str] = "".join(new_bin)
                 
-            upd_prog = st.progress(10, text="💾 データベースへ書き込み中..."); await asyncio.sleep(0.1)
+            upd_prog = st.progress(10, text="💾 データベースへ書き込み中...")
             payload = {"user_id": user['user_id'], "fixed_schedule": new_fixed_sched}
             res = await call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
-                upd_prog.progress(100, text="✨ 保存完了！"); await asyncio.sleep(0.5)
+                upd_prog.progress(100, text="✨ 保存完了！")
                 st.session_state.auth = res.get("data"); st.rerun()
             else:
                 upd_prog.empty(); st.error("更新に失敗しました。")
@@ -636,7 +654,6 @@ async def main():
         ev_title = st.text_input("イベント名")
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 💡 新機能：回答期限の設定
         with st.container(border=True):
             st.markdown("##### ⏳ 回答期限の設定")
             col_d1, col_d2 = st.columns([1, 1])
@@ -652,7 +669,6 @@ async def main():
             ev_type = "time"
             with st.container(border=True):
                 st.markdown("##### 📅 1. カレンダーに表示する【期間】")
-                st.caption("※何日から何日までの日程調整を行うか設定します。")
                 col1, col_m1, col2 = st.columns([10, 1, 10])
                 with col1: ev_start = st.date_input("開始日", label_visibility="collapsed")
                 with col_m1: st.markdown("<div style='text-align:center; font-weight:bold; font-size:18px;'>〜</div>", unsafe_allow_html=True)
@@ -660,7 +676,6 @@ async def main():
                 
             with st.container(border=True):
                 st.markdown("##### ⏰ 2. 1日あたりの対象【時間帯】")
-                st.caption("※参加者が回答できる、毎日の時間枠（何時から何時までか）を設定します。")
                 col3, col_m2, col4 = st.columns([10, 1, 10])
                 with col3: t_start = st.selectbox("開始時刻", time_master, index=36, label_visibility="collapsed")
                 with col_m2: st.markdown("<div style='text-align:center; font-weight:bold; font-size:18px;'>〜</div>", unsafe_allow_html=True)
@@ -674,7 +689,6 @@ async def main():
             ev_type = "options"
             st.info("💡 任意の予定（候補日やイベント案など）をリスト化し、どれに参加できるかアンケートを取るモードです。")
             if "opt_count" not in st.session_state: st.session_state.opt_count = 3
-            
             with st.container(border=True):
                 st.markdown("##### 📅 候補リストを作成")
                 for i in range(st.session_state.opt_count):
@@ -683,7 +697,41 @@ async def main():
                 if st.button("➕ 候補を追加する", use_container_width=True):
                     st.session_state.opt_count += 1
                     st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("##### 👥 参加メンバーの指定")
+            is_all_members = st.checkbox("✅ 全員に公開する（デフォルト）", value=True, key="create_all_members")
+            target_scope_json = ""
             
+            if not is_all_members:
+                # 💡 キャッシュ通信を利用
+                u_res = await call_gas_cached("get_all_users", method="POST", ttl=600)
+                all_u = u_res.get("data", [])
+                
+                all_g1 = list(set([g.strip() for u in all_u for g in u.get('group_1', '').split(',') if g.strip()]))
+                all_g2 = list(set([g.strip() for u in all_u for g in u.get('group_2', '').split(',') if g.strip()]))
+                all_g4 = list(set([g.strip() for u in all_u for g in u.get('group_4', '').split(',') if g.strip()]))
+                
+                st.markdown("<span style='font-size:13px; color:#555;'>※ここで指定したグループや個人のみにイベントが表示されます。</span>", unsafe_allow_html=True)
+                col_t1, col_t2 = st.columns(2)
+                with col_t1:
+                    t_g1 = st.multiselect("🚀 プロジェクト", all_g1, key="tgt_g1")
+                    t_g4 = st.multiselect("👑 役職", all_g4, key="tgt_g4")
+                with col_t2:
+                    t_g2 = st.multiselect("🔧 系", all_g2, key="tgt_g2")
+                    t_users = st.multiselect("👤 特定の個人", all_u, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})", key="tgt_users")
+                
+                target_scope_json = json.dumps({
+                    "groups": t_g1 + t_g2 + t_g4,
+                    "users": [u['user_id'] for u in t_users]
+                })
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("##### 🔒 プライバシー設定")
+            is_private = st.checkbox("🤫 プライベート調整にする（回答者の名前を他の参加者に隠す）", key="create_private")
+
         st.markdown("##### 📝 イベントの説明・備考")
         ev_desc_raw = rt_editor(key="desc_editor")
         ev_desc = ev_desc_raw if ev_desc_raw else ""
@@ -693,6 +741,7 @@ async def main():
             elif ev_type == "time" and ev_start > ev_end: st.error("終了日は開始日以降に設定してください。")
             elif ev_type == "time" and time_master.index(t_start) >= time_master.index(t_end): st.error("終了時刻は開始時刻より後に設定してください。")
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")
+            elif not is_all_members and target_scope_json == '{"groups": [], "users": []}': st.error("対象メンバーを指定するか、「全員に公開する」にチェックを入れてください。")
             else:
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 payload = {
@@ -706,9 +755,12 @@ async def main():
                     "event_type": ev_type,
                     "event_options": json.dumps([o.strip() for o in opts_list if o.strip()]) if ev_type == "options" else "",
                     "deadline": deadline_str,
-                    "auto_close": auto_close
+                    "auto_close": auto_close,
+                    "target_scope": target_scope_json,
+                    "is_private": is_private
                 }
                 await call_gas("create_event", {"payload": payload}, method="POST")
+                clear_cache() # 💡 キャッシュクリア
                 st.success(f"「{ev_title}」を作成しました！")
                 if "opt_count" in st.session_state: del st.session_state.opt_count
         return
@@ -721,19 +773,38 @@ async def main():
         tab_manage, tab_users = st.tabs(["📝 イベント・アーカイブ管理", "👥 ユーザー管理"])
 
         with tab_manage:
-            all_ev_res = await call_gas("get_all_events"); all_events = all_ev_res.get("data", [])
+            # 💡 キャッシュ通信を利用
+            u_res = await call_gas_cached("get_all_users", method="POST", ttl=600)
+            user_map = {u['user_id']: u['name'] for u in u_res.get("data", [])}
+
+            def format_target_scope(scope_str):
+                if not scope_str or not scope_str.startswith('{'): return "全員"
+                try:
+                    scope = json.loads(scope_str)
+                    groups = scope.get("groups", []); users = scope.get("users", [])
+                    user_names = [user_map.get(uid, uid) for uid in users]
+                    res = []
+                    if groups: res.append(f"📁 {', '.join(groups)}")
+                    if user_names: res.append(f"👤 {', '.join(user_names)}")
+                    return " / ".join(res) if res else "全員"
+                except: return "限定"
+
+            # 💡 キャッシュ通信を利用
+            all_ev_res = await call_gas_cached("get_all_events", ttl=60)
+            all_events = all_ev_res.get("data", [])
+            
             if all_events:
                 df_ev = pd.DataFrame(all_events)
                 df_ev['種類'] = df_ev['event_type'].replace({"time": "🕒 時間", "timetable": "🏫 時間割", "options": "📅 予定候補"})
                 df_ev['詳細'] = df_ev.apply(lambda row: f"{idx_to_time(row['start_idx'])}〜{idx_to_time(row['end_idx'])}" if row['event_type']=='time' else ("月〜金" if row['event_type']=='timetable' else "複数候補"), axis=1)
-                
-                # 💡 管理画面にも期限列を追加
                 df_ev['期限'] = df_ev.apply(lambda row: row.get('deadline', ''), axis=1)
-                df_display = df_ev[['event_id', 'title', '種類', '詳細', '期限', 'status', 'description']]
+                df_ev['公開範囲'] = df_ev['target_scope'].apply(format_target_scope)
+                df_ev['秘密'] = df_ev['is_private'].apply(lambda x: "🤫" if x else "-")
+                
+                df_display = df_ev[['event_id', 'title', '種類', '詳細', '期限', '公開範囲', '秘密', 'status']]
                 
                 active_events = [ev for ev in all_events if ev['status'] in ['open', 'closed']]
                 st.subheader("🟢 現在のイベント")
-                
                 html_table_ev = df_display[df_display['status'].isin(['open', 'closed'])].to_html(index=False, border=0, classes="custom-tbl")
                 st.markdown("<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_ev}</div>', unsafe_allow_html=True)
                 
@@ -745,6 +816,7 @@ async def main():
                         new_status = st.selectbox("ステータス", ["open", "closed", "archived"], index=1)
                         if st.form_submit_button("更新する"):
                             await call_gas("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}}, method="POST")
+                            clear_cache() # 💡 キャッシュクリア
                             st.success("更新しました！"); await asyncio.sleep(1); st.rerun()
                 st.subheader("📦 アーカイブ済み")
                 html_table_arch = df_display[df_display['status'] == 'archived'].to_html(index=False, border=0, classes="custom-tbl")
@@ -754,25 +826,18 @@ async def main():
         with tab_users:
             st.subheader("👥 ユーザー一覧と権限管理")
             
-            if "cached_users" not in st.session_state:
-                all_users_res = await call_gas("get_all_users", method="POST")
-                st.session_state.cached_users = all_users_res.get("data", [])
-            all_users = st.session_state.cached_users
+            # 💡 キャッシュ通信を利用
+            u_res_all = await call_gas_cached("get_all_users", method="POST", ttl=600)
+            all_users = u_res_all.get("data", [])
             
             if st.button("🔄 ユーザー一覧を最新に更新"):
-                all_users_res = await call_gas("get_all_users", method="POST")
-                st.session_state.cached_users = all_users_res.get("data", [])
+                clear_cache() # 強制リロード用
                 st.rerun()
 
             if all_users:
                 df_u = pd.DataFrame(all_users)
                 df_u = df_u.rename(columns={"user_id": "ユーザーID", "name": "氏名", "role": "権限", "group_1": "プロジェクト", "group_2": "系", "group_3": "委員会", "group_4": "役職"})
-                df_u["権限"] = df_u["権限"].replace({
-                    "top_admin": "👑 最高管理者", 
-                    "admin": "🛠️ 管理者", 
-                    "user": "📝 ユーザー",
-                    "guest": "👤 ゲスト"
-                })
+                df_u["権限"] = df_u["権限"].replace({"top_admin": "👑 最高管理者", "admin": "🛠️ 管理者", "user": "📝 ユーザー", "guest": "👤 ゲスト"})
                 display_cols = ["ユーザーID", "氏名", "権限", "プロジェクト", "系", "委員会", "役職"]
                 display_cols = [c for c in display_cols if c in df_u.columns]
                 
@@ -782,12 +847,10 @@ async def main():
                 
                 st.markdown("---")
                 st.subheader("🚨 ユーザー情報の更新 (PINリセット等)")
-                
                 tgt_user = st.selectbox("対象ユーザー", all_users, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
                 
                 with st.form("admin_user_update"):
                     new_u_pin = st.text_input("新しいPIN (リセットする場合)", type="password", autocomplete="new-password")
-                    
                     if user["role"] == "top_admin":
                         role_opts = ["guest", "user", "admin"]
                         if tgt_user['role'] == 'top_admin':
@@ -806,7 +869,7 @@ async def main():
                         else:
                             await call_gas("admin_update_user", {"payload": {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}}, method="POST")
                             st.success("情報を更新しました！")
-                            del st.session_state.cached_users
+                            clear_cache() # 💡 キャッシュクリア
                             await asyncio.sleep(1)
                             st.rerun()
 
@@ -820,7 +883,7 @@ async def main():
                         if st.form_submit_button("top_adminを譲渡する", type="primary"):
                             await call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id']}}, method="POST")
                             st.success(f"{new_top['name']} さんに top_admin を譲渡しました。再ログインしてください。")
-                            if "cached_users" in st.session_state: del st.session_state.cached_users
+                            clear_cache()
                             await asyncio.sleep(2)
                             st.session_state.auth = None
                             st.rerun()
@@ -835,13 +898,13 @@ async def main():
     role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(user.get("role"), "👤")
     st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user["name"]}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user["user_id"]}</div></div>', unsafe_allow_html=True)
 
-    ev_res = await call_gas("get_active_events", {"user_id": user["user_id"]})
+    # 💡 キャッシュ通信を利用 (60秒間はリロードなし)
+    ev_res = await call_gas_cached("get_active_events", {"user_id": user["user_id"]}, ttl=60)
     events = ev_res.get("data", [])
     if not events: st.info("現在表示できるイベントはありません。"); return
 
     now_dt = datetime.now()
 
-    # 💡 期限間近の判定を「deadline (回答期限)」ベースに修正
     unanswered_events = [ev for ev in events if not ev.get('is_answered') and ev['status'] == 'open']
     if unanswered_events:
         st.sidebar.markdown("---")
@@ -867,21 +930,17 @@ async def main():
     if st.session_state.get("target_ev_id"):
         for i, ev in enumerate(events):
             if ev['event_id'] == st.session_state.target_ev_id:
-                default_idx = i
-                break
+                default_idx = i; break
 
-    # 💡 プルダウンの表示名にも期限を反映
     def format_ev_name(x):
         dl_str = f" (〜{x['deadline'][5:10]})" if x.get('deadline') else ""
         if x['status'] == 'closed': return f"🔒 {x['title']}"
         if x.get('is_answered'): return f"✅ {x['title']}"
-        
         is_urgent = False
         if x.get('deadline'):
             try:
                 dl = datetime.strptime(x['deadline'], "%Y-%m-%d %H:%M")
-                if 0 <= (dl - now_dt).total_seconds() <= 3 * 24 * 3600:
-                    is_urgent = True
+                if 0 <= (dl - now_dt).total_seconds() <= 3 * 24 * 3600: is_urgent = True
             except: pass
         if is_urgent: return f"🔥 {x['title']} (期限間近!)"
         return f"🔴 {x['title']}{dl_str}"
@@ -890,14 +949,23 @@ async def main():
     st.session_state.target_ev_id = event['event_id']
 
     is_closed = event['status'] == 'closed'
+    is_private_event = event.get('is_private', False)
+    
+    can_view_details = True
+    if is_private_event:
+        if user.get("role") not in ["admin", "top_admin"]:
+            can_view_details = False
+
     if is_closed: 
         st.markdown("<div class='closed-alert' style='background:#ffebee; color:#c62828; padding:10px; border-radius:6px; font-weight:bold; margin-bottom:10px;'>🔒 このイベントは締め切られました。</div>", unsafe_allow_html=True)
     elif event.get('deadline'): 
-        # 💡 回答画面に期限を赤字で目立つように表示
         st.markdown(f"<div style='color: #E91E63; font-weight: bold; margin-bottom: 10px;'>⏳ 回答期限: {event['deadline']}</div>", unsafe_allow_html=True)
         
     if event.get('description'): 
         st.markdown(f"<div class='event-desc'><b>📝 管理者からのメッセージ:</b><br><br>{event['description'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+        
+    if is_private_event:
+        st.info("🤫 **このイベントはプライベート設定されています。** 管理者以外には、誰が回答したかの名前やコメントは表示されず、全体の人数のみが表示されます。")
 
     event_type = event.get('event_type', 'time')
 
@@ -933,7 +1001,6 @@ async def main():
             date_strs = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
             clean_date_labels = ["月曜", "火曜", "水曜", "木曜", "金曜"]
             time_labels = ["1限", "2限", "3限", "4限", "5限", "放課後"]
-            
             scroll_h = "auto"
             cell_h = "50px"
             week_nav_display = "none"
@@ -953,8 +1020,8 @@ async def main():
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
         if "last_ev_id" not in st.session_state or st.session_state.last_ev_id != event['event_id']:
-            load_prog = st.progress(20, text="☁️ データを取得中..."); await asyncio.sleep(0.1)
-            my_res = await call_gas("get_responses", {"event_id": event["event_id"]})
+            # 💡 キャッシュ通信を利用
+            my_res = await call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
             st.session_state.event_responses = my_res.get("data", [])
             
             df = pd.DataFrame(0, index=time_labels, columns=date_strs)
@@ -970,23 +1037,18 @@ async def main():
                             df.loc[time_labels[i], d_id] = v
                             
             st.session_state.df_input = df; st.session_state.my_comment = my_comment; st.session_state.last_ev_id = event['event_id']
-            load_prog.empty()
 
         if event_type == 'time':
             st.markdown("<div style='margin-bottom: 5px; font-weight: bold; color: #333;'>🔍 カレンダーの表示サイズ（マスの縦幅）</div>", unsafe_allow_html=True)
             col_z1, col_z2 = st.columns([1.5, 1])
-            with col_z1:
-                zoom_mode = st.radio("表示サイズ", ["小 (全体を俯瞰)", "標準", "大 (タップしやすい)"], index=1, horizontal=True, label_visibility="collapsed")
-            with col_z2:
-                st.markdown("<div style='font-size:11px; color:#888; margin-top:8px;'>※変更すると未保存の入力はリセットされます。</div>", unsafe_allow_html=True)
-                
+            with col_z1: zoom_mode = st.radio("表示サイズ", ["小 (全体を俯瞰)", "標準", "大 (タップしやすい)"], index=1, horizontal=True, label_visibility="collapsed")
+            with col_z2: st.markdown("<div style='font-size:11px; color:#888; margin-top:8px;'>※変更すると未保存の入力はリセットされます。</div>", unsafe_allow_html=True)
             if zoom_mode.startswith("小"): cell_h = "20px"
             elif zoom_mode.startswith("大"): cell_h = "50px"
             else: cell_h = "36px"
 
         tab_in, tab_graph = st.tabs(["📅 入力", "📊 集計"])
         with tab_in:
-
             m = st.session_state.df_input[date_strs].values.tolist()
             time_opts_html = "".join([f'<option value="{i}">{t}</option>' for i, t in enumerate(time_labels)])
             src_opts_html = "".join([f'<option value="{i}">{l}</option>' for i, l in enumerate(clean_date_labels)])
@@ -1018,7 +1080,6 @@ async def main():
             tools_html, submit_btn_html, pointer_css = "", "", ""
             if not is_closed:
                 tt_btn_text = "🚫 該当日の自分の時間割をすべて × にする" if event_type == "time" else "🚫 自分の時間割をそのまま反映する"
-                
                 tools_html = f"""
                 <div style='display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:10px;'>
                     <div style='display:flex; gap:15px; font-size:14px; font-weight:bold;'>
@@ -1042,7 +1103,6 @@ async def main():
                         <button class="st-btn" onclick="window.doTimetable(this)" style="background:#E91E63; width:100%;">{tt_btn_text}</button>
                     </div>
                 </div>"""
-                
                 submit_btn_html = f"""
                 <div style="margin-top: 20px;">
                     <label style="font-size: 14px; font-weight: 600; color: #333;">📝 自分の備考・コメント (遅刻・早退など)</label>
@@ -1077,6 +1137,7 @@ async def main():
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
             </style>
+            {tools_html}
             <div style='display:flex; justify-content:flex-end; align-items:flex-end; margin-bottom:10px;'>
                 <div style="display:{week_nav_display}; align-items:center; gap: 20px;">
                     <button id="btn-prev" class="page-btn" onclick="window.changeWeek(-1)">◀ 前の週</button>
@@ -1107,6 +1168,7 @@ async def main():
                         all_res.append({"date": d_id, "binary": "".join(bits)})
                     save_prog = st.progress(30, text="💾 スプレッドシートへ送信中...")
                     await call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": st.session_state.my_comment, "responses": all_res}}, method="POST")
+                    clear_cache() # 💡 キャッシュクリア
                     save_prog.progress(100, text="✨ 保存完了！"); await asyncio.sleep(1); save_prog.empty(); st.success("スプレッドシートに保存しました！")
                     
                     if "last_ev_id" in st.session_state: del st.session_state.last_ev_id
@@ -1118,94 +1180,169 @@ async def main():
             with col1: policy = st.radio("「未定(△)」の計算方法", [0.5, 1.0, 0.0], format_func=lambda x: f"{x}人としてカウント", horizontal=True)
             with col2:
                 if st.button("🔄 最新の回答を取得", use_container_width=True):
-                    btn_prog = st.progress(10, text="📥 取得中...")
-                    resp = await call_gas("get_responses", {"event_id": event["event_id"]})
-                    st.session_state.event_responses = resp.get("data", [])
-                    btn_prog.empty()
+                    clear_cache() # 💡 キャッシュクリア
                     st.rerun()
 
-            if st.checkbox("集計グラフを表示", value=True):
-                data = st.session_state.event_responses
-                z = np.zeros((len(time_labels), len(date_strs)))
-                h = [["" for _ in range(len(date_strs))] for _ in range(len(time_labels))]
-                comments_list = []
-                
-                for r in data:
-                    if r.get('comment') and r['comment'].strip() != "":
-                        if {"user": r['user_name'], "comment": r['comment']} not in comments_list: comments_list.append({"user": r['user_name'], "comment": r['comment']})
-                    if r['date'] in date_strs:
-                        c_idx = date_strs.index(r['date']); b = str(r.get('binary', "")).replace("'", "").zfill(96)
-                        for i in range(len(time_labels)):
-                            if event_type == 'time': v = int(b[s_idx+i]) if (s_idx+i) < 96 else 0
-                            else: v = int(b[i]) if i < 96 else 0
-                            
-                            if v == 3: v = 0
-                            
-                            z[i, c_idx] += (1.0 if v==1 else policy if v==2 else 0.0)
-                            if v==1: h[i][c_idx] += f"◯ {r['user_name']}<br>"
-                            elif v==2: h[i][c_idx] += f"△ {r['user_name']}<br>"
-                
-                max_z = np.max(z) if np.max(z) > 0 else 1
-                
-                agg_time_cells = ""
-                for r, t_str in enumerate(time_labels):
-                    b_top = get_border_top(t_str, event_type)
-                    lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
-                    agg_time_cells += f'<div class="agg-time-cell" style="border-top:{b_top}; height:{cell_h};">{lbl}</div>'
+            all_res_data = st.session_state.event_responses
+            all_names = list(set([r['user_name'] for r in all_res_data]))
+            all_g1, all_g2, all_g4 = set(), set(), set()
+            for r in all_res_data:
+                for g in r.get('group_1', '').split(','):
+                    if g.strip(): all_g1.add(g.strip())
+                for g in r.get('group_2', '').split(','):
+                    if g.strip(): all_g2.add(g.strip())
+                for g in r.get('group_4', '').split(','):
+                    if g.strip(): all_g4.add(g.strip())
+
+            with st.expander("🔍 絞り込みフィルター（回答者・時間帯・日付）", expanded=False):
+                with st.form("filter_form"):
+                    st.markdown("<span style='font-size:14px; color:#555;'>指定した条件に合致するデータだけをグラフに表示します。（未選択の場合はすべて表示）</span>", unsafe_allow_html=True)
                     
-                agg_time_col = f'<div class="agg-time-col"><div class="agg-top-left"></div>{agg_time_cells}</div>'
-                
-                agg_day_cols = ""
-                for c, d_str in enumerate(date_strs):
-                    lbl = clean_date_labels[c].replace("(", "<br>(")
-                    cells_html = ""
-                    for r, t_str in enumerate(time_labels):
-                        val = z[r][c]
+                    st.markdown("##### 👥 回答者")
+                    f_col1, f_col2 = st.columns(2)
+                    with f_col1:
+                        f_g1 = st.multiselect("🚀 プロジェクト", list(all_g1))
+                        f_g4 = st.multiselect("👑 役職", list(all_g4))
+                    with f_col2:
+                        f_g2 = st.multiselect("🔧 系", list(all_g2))
+                        f_names = st.multiselect("👤 特定の個人", all_names)
+                        
+                    st.markdown("---")
+                    st.markdown("##### ⏰ 時間帯")
+                    f_time = st.select_slider("グラフに表示する時間帯を切り取る", options=time_labels, value=(time_labels[0], time_labels[-1]))
+                    
+                    if event_type == 'time':
+                        st.markdown("##### 📅 日付・曜日")
+                        f_d_col1, f_d_col2 = st.columns(2)
+                        with f_d_col1:
+                            f_dates = st.date_input("表示する期間", value=(date_objs[0], date_objs[-1]), min_value=date_objs[0], max_value=date_objs[-1])
+                        with f_d_col2:
+                            f_wdays = st.multiselect("表示する曜日", ["月", "火", "水", "木", "金", "土", "日"], default=["月", "火", "水", "木", "金", "土", "日"])
+                    else:
+                        f_dates = None
+                        f_wdays = ["月", "火", "水", "木", "金"]
+
+                    submitted = st.form_submit_button("✅ フィルターを適用して集計", type="primary")
+
+            filtered_data = []
+            for r in all_res_data:
+                u_g1 = [x.strip() for x in r.get('group_1', '').split(',') if x.strip()]
+                u_g2 = [x.strip() for x in r.get('group_2', '').split(',') if x.strip()]
+                u_g4 = [x.strip() for x in r.get('group_4', '').split(',') if x.strip()]
+                if f_names and r['user_name'] not in f_names: continue
+                if f_g1 and not set(f_g1).intersection(set(u_g1)): continue
+                if f_g2 and not set(f_g2).intersection(set(u_g2)): continue
+                if f_g4 and not set(f_g4).intersection(set(u_g4)): continue
+                filtered_data.append(r)
+            
+            t_start_idx = time_labels.index(f_time[0])
+            t_end_idx = time_labels.index(f_time[1])
+            disp_time_labels = time_labels[t_start_idx : t_end_idx + 1]
+
+            disp_date_strs = []
+            disp_clean_date_labels = []
+            if event_type == 'time':
+                d_start = f_dates[0] if isinstance(f_dates, tuple) and len(f_dates) > 0 else date_objs[0]
+                d_end = f_dates[1] if isinstance(f_dates, tuple) and len(f_dates) > 1 else d_start
+                for c, d_obj in enumerate(date_objs):
+                    wd_str = ["月", "火", "水", "木", "金", "土", "日"][d_obj.weekday()]
+                    if d_start <= d_obj <= d_end and wd_str in f_wdays:
+                        disp_date_strs.append(date_strs[c])
+                        disp_clean_date_labels.append(clean_date_labels[c])
+            else:
+                disp_date_strs = date_strs
+                disp_clean_date_labels = clean_date_labels
+
+            unique_all = len(set([r['user_id'] for r in all_res_data]))
+            unique_filtered = len(set([r['user_id'] for r in filtered_data]))
+            if unique_all != unique_filtered:
+                st.info(f"🔍 フィルター適用中： 回答者 **{unique_all}人** 中、条件に合う **{unique_filtered}人** のデータを集計しています。")
+
+            if st.checkbox("集計グラフを表示", value=True):
+                if not disp_date_strs or not disp_time_labels:
+                    st.warning("⚠️ 指定された条件に合う日付または時間帯がありません。フィルター条件を広げてください。")
+                else:
+                    z = np.zeros((len(disp_time_labels), len(disp_date_strs)))
+                    h = [["" for _ in range(len(disp_date_strs))] for _ in range(len(disp_time_labels))]
+                    comments_list = []
+                    
+                    for r in filtered_data:
+                        if can_view_details and r.get('comment') and r['comment'].strip() != "":
+                            if {"user": r['user_name'], "comment": r['comment']} not in comments_list: comments_list.append({"user": r['user_name'], "comment": r['comment']})
+                        if r['date'] in disp_date_strs:
+                            c_idx = disp_date_strs.index(r['date']); b = str(r.get('binary', "")).replace("'", "").zfill(96)
+                            for disp_r, t_str in enumerate(disp_time_labels):
+                                orig_r_idx = time_labels.index(t_str)
+                                if event_type == 'time': v = int(b[s_idx + orig_r_idx]) if (s_idx + orig_r_idx) < 96 else 0
+                                else: v = int(b[orig_r_idx]) if orig_r_idx < 96 else 0
+                                
+                                if v == 3: v = 0
+                                z[disp_r, c_idx] += (1.0 if v==1 else policy if v==2 else 0.0)
+                                if can_view_details:
+                                    if v==1: h[disp_r][c_idx] += f"◯ {r['user_name']}<br>"
+                                    elif v==2: h[disp_r][c_idx] += f"△ {r['user_name']}<br>"
+                    
+                    max_z = np.max(z) if np.max(z) > 0 else 1
+                    
+                    agg_time_cells = ""
+                    for r, t_str in enumerate(disp_time_labels):
                         b_top = get_border_top(t_str, event_type)
-                        if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
-                        else:
-                            ratio = val / max_z
-                            r_col = int(240 - (240 - 46) * ratio); g_col = int(248 - (248 - 125) * ratio); b_col = int(242 - (242 - 50) * ratio)
-                            bg, txt_color, val_txt = f"rgb({r_col}, {g_col}, {b_col})", ("#000" if ratio < 0.6 else "#fff"), f"{val:g}"
-                        tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
+                        lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
+                        agg_time_cells += f'<div class="agg-time-cell" style="border-top:{b_top}; height:{cell_h};">{lbl}</div>'
                         
-                        agg_font_size = "11px" if cell_h == "20px" else "15px"
-                        
-                        cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="tooltip">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
-                    agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
+                    agg_time_col = f'<div class="agg-time-col"><div class="agg-top-left"></div>{agg_time_cells}</div>'
+                    
+                    agg_day_cols = ""
+                    for c, d_str in enumerate(disp_date_strs):
+                        lbl = disp_clean_date_labels[c].replace("(", "<br>(")
+                        cells_html = ""
+                        for r, t_str in enumerate(disp_time_labels):
+                            val = z[r][c]
+                            b_top = get_border_top(t_str, event_type)
+                            if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
+                            else:
+                                ratio = val / max_z
+                                r_col = int(240 - (240 - 46) * ratio); g_col = int(248 - (248 - 125) * ratio); b_col = int(242 - (242 - 50) * ratio)
+                                bg, txt_color, val_txt = f"rgb({r_col}, {g_col}, {b_col})", ("#000" if ratio < 0.6 else "#fff"), f"{val:g}"
+                            
+                            if not can_view_details: tooltip_txt = f"この時間帯は {val_txt} 人が参加可能です"
+                            else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
+                                
+                            agg_font_size = "11px" if cell_h == "20px" else "15px"
+                            cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="tooltip">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
+                        agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
 
-                agg_scroll_h = "680px" if event_type == "time" else "auto"
+                    agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                agg_css = f"""
-                <style>
-                .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; display: flex; background: #fff; }}
-                .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; }}
-                .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
-                .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
-                .agg-day-col {{ flex: 1; min-width: 85px; box-sizing: border-box; }}
-                .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; }}
-                .agg-cell .tooltip {{ visibility: hidden; width: 160px; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: none; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }}
-                .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
-                .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
-                .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
-                </style>
-                """
-                st.markdown(f"{agg_css}<div class='agg-wrapper'>{agg_time_col}{agg_day_cols}</div>", unsafe_allow_html=True)
-                
-                if comments_list:
-                    st.markdown("### 💬 参加者からのコメント")
-                    for c in comments_list: st.info(f"**{c['user']}**: {c['comment']}")
+                    agg_css = f"""
+                    <style>
+                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; display: flex; background: #fff; }}
+                    .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; }}
+                    .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
+                    .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
+                    .agg-day-col {{ flex: 1; min-width: 85px; box-sizing: border-box; }}
+                    .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; }}
+                    .agg-cell .tooltip {{ visibility: hidden; width: 160px; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: none; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }}
+                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
+                    .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
+                    .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
+                    </style>
+                    """
+                    st.markdown(f"{agg_css}<div class='agg-wrapper'>{agg_time_col}{agg_day_cols}</div>", unsafe_allow_html=True)
+                    
+                    if comments_list and can_view_details:
+                        st.markdown("### 💬 参加者からのコメント")
+                        for c in comments_list: st.info(f"**{c['user']}**: {c['comment']}")
 
     # ＝＝＝＝＝ 📅 複数の予定 (候補リスト) モード ＝＝＝＝＝
     elif event_type == 'options':
         opts = json.loads(event.get('event_options', '[]'))
         
         if "last_ev_id" not in st.session_state or st.session_state.last_ev_id != event['event_id']:
-            load_prog = st.progress(20, text="☁️ データを取得中..."); await asyncio.sleep(0.1)
-            my_res = await call_gas("get_responses", {"event_id": event["event_id"]})
+            # 💡 キャッシュ通信を利用
+            my_res = await call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
             st.session_state.event_responses = my_res.get("data", [])
             st.session_state.last_ev_id = event['event_id']
-            load_prog.empty()
 
         tab_in, tab_graph = st.tabs(["📅 入力", "📊 集計"])
         with tab_in:
@@ -1225,6 +1362,7 @@ async def main():
                 res = [{"date": "options", "binary": b_str}]
                 save_prog = st.progress(30, text="💾 スプレッドシートへ送信中...")
                 await call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": user_comment, "responses": res}}, method="POST")
+                clear_cache() # 💡 キャッシュクリア
                 save_prog.progress(100, text="✨ 保存完了！"); await asyncio.sleep(1); save_prog.empty(); st.success("保存しました！")
                 
                 if "last_ev_id" in st.session_state: del st.session_state.last_ev_id
@@ -1236,28 +1374,66 @@ async def main():
             with col1: policy = st.radio("「未定(△)」の計算方法", [0.5, 1.0, 0.0], format_func=lambda x: f"{x}人としてカウント", horizontal=True, key="opt_policy")
             with col2:
                 if st.button("🔄 最新の回答を取得", use_container_width=True, key="opt_refresh"):
-                    btn_prog = st.progress(10, text="📥 取得中...")
-                    resp = await call_gas("get_responses", {"event_id": event["event_id"]})
-                    st.session_state.event_responses = resp.get("data", [])
-                    btn_prog.empty()
+                    clear_cache() # 💡 キャッシュクリア
                     st.rerun()
+
+            all_res_data = st.session_state.event_responses
+            all_names = list(set([r['user_name'] for r in all_res_data]))
+            all_g1, all_g2, all_g4 = set(), set(), set()
+            for r in all_res_data:
+                for g in r.get('group_1', '').split(','):
+                    if g.strip(): all_g1.add(g.strip())
+                for g in r.get('group_2', '').split(','):
+                    if g.strip(): all_g2.add(g.strip())
+                for g in r.get('group_4', '').split(','):
+                    if g.strip(): all_g4.add(g.strip())
+
+            with st.expander("🔍 絞り込みフィルター（回答者）", expanded=False):
+                with st.form("opt_filter_form"):
+                    st.markdown("<span style='font-size:14px; color:#555;'>指定した条件に合致する人の回答だけを集計します。（未選択の場合は全員）</span>", unsafe_allow_html=True)
+                    f_col1, f_col2 = st.columns(2)
+                    with f_col1:
+                        f_g1 = st.multiselect("🚀 プロジェクト", list(all_g1), key="f2_g1")
+                        f_g4 = st.multiselect("👑 役職", list(all_g4), key="f2_g4")
+                    with f_col2:
+                        f_g2 = st.multiselect("🔧 系", list(all_g2), key="f2_g2")
+                        f_names = st.multiselect("👤 特定の個人", all_names, key="f2_names")
+                    
+                    submitted = st.form_submit_button("✅ フィルターを適用して集計", type="primary")
+
+            filtered_data = []
+            for r in all_res_data:
+                u_g1 = [x.strip() for x in r.get('group_1', '').split(',') if x.strip()]
+                u_g2 = [x.strip() for x in r.get('group_2', '').split(',') if x.strip()]
+                u_g4 = [x.strip() for x in r.get('group_4', '').split(',') if x.strip()]
+                if f_names and r['user_name'] not in f_names: continue
+                if f_g1 and not set(f_g1).intersection(set(u_g1)): continue
+                if f_g2 and not set(f_g2).intersection(set(u_g2)): continue
+                if f_g4 and not set(f_g4).intersection(set(u_g4)): continue
+                filtered_data.append(r)
+
+            unique_all = len(set([r['user_id'] for r in all_res_data]))
+            unique_filtered = len(set([r['user_id'] for r in filtered_data]))
+            if unique_all != unique_filtered:
+                st.info(f"🔍 フィルター適用中： 回答者 **{unique_all}人** 中、条件に合う **{unique_filtered}人** のデータを集計しています。")
 
             counts = [0.0] * len(opts)
             details = [[] for _ in range(len(opts))]
             comments_list = []
             
-            for r in st.session_state.event_responses:
-                if r.get('comment') and r['comment'].strip() != "":
+            for r in filtered_data:
+                if can_view_details and r.get('comment') and r['comment'].strip() != "":
                     if {"user": r['user_name'], "comment": r['comment']} not in comments_list: comments_list.append({"user": r['user_name'], "comment": r['comment']})
+                
                 b = str(r.get('binary', "")).replace("'", "").zfill(96)
                 for i in range(len(opts)):
                     v = int(b[i]) if i < len(b) else 0
                     if v == 1:
                         counts[i] += 1.0
-                        details[i].append(f"◯ {r['user_name']}")
+                        if can_view_details: details[i].append(f"◯ {r['user_name']}")
                     elif v == 2:
                         counts[i] += policy
-                        details[i].append(f"△ {r['user_name']}")
+                        if can_view_details: details[i].append(f"△ {r['user_name']}")
                         
             max_c = max(counts) if counts and max(counts) > 0 else 1
             
@@ -1278,14 +1454,15 @@ async def main():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                with st.expander("👥 参加者内訳を見る"):
-                    if details[i]:
-                        for d in details[i]: st.write(d)
-                    else: st.write("参加可能者なし")
+                if can_view_details:
+                    with st.expander("👥 参加者内訳を見る"):
+                        if details[i]:
+                            for d in details[i]: st.write(d)
+                        else: st.write("参加可能者なし")
                 
                 st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
             
-            if comments_list:
+            if comments_list and can_view_details:
                 st.markdown("---")
                 st.markdown("### 💬 参加者からのコメント")
                 for c in comments_list: st.info(f"**{c['user']}**: {c['comment']}")

@@ -570,52 +570,66 @@ def main():
             else: st.error("更新に失敗しました。")
         return
 
-    # ----------------------------------------------------
+   # ----------------------------------------------------
     # ⏰ 時間割設定画面 (💡 リッチデザイン＋スマホ横スクロール対応)
     # ----------------------------------------------------
     if view_mode == "⏰ 時間割設定":
         st.title("⏰ 時間割設定")
         st.info("※ここでチェックした授業・予定は、日程調整画面で「不可(×)」として一括反映できます。")
         
-        # 💡 スマホでカラムを縦に積まず、横並びのままギュッと詰める魔法のCSS
+        # 💡 スマホで間延びする「四角」をキュッと中央に圧縮する魔法のCSS
         st.markdown("""
         <style>
             @media (max-width: 650px) {
+                /* 💡 表全体が横に広がりすぎるのを防ぎ、中央にキュッと寄せる */
+                [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
+                    max-width: 360px !important;
+                    margin: 0 auto !important;
+                }
+                
                 /* カラム強制横並び */
                 [data-testid="stHorizontalBlock"] {
                     display: flex !important;
                     flex-direction: row !important;
                     flex-wrap: nowrap !important;
-                    align-items: flex-start !important;
+                    align-items: center !important;
                     gap: 2px !important;
                 }
-                /* 各列を均等に（余分な空白を削る） */
+                /* 各列を均等に */
                 [data-testid="column"] {
                     min-width: 0 !important; 
-                    flex: 1 1 auto !important;
+                    flex: 1 1 0px !important;
                 }
-                /* 1列目（時間ラベル）の幅を少し持たせる */
+                /* 1列目（時間ラベル）の幅を固定 */
                 [data-testid="column"]:first-child {
                     flex: 0 0 55px !important;
                 }
+                
+                /* 💡 「月」や「1限」の四角の余白を削り、文字とのバランスを整える */
+                .tt-day-header { 
+                    font-size: 13px !important; 
+                    padding: 4px 0px !important; 
+                    border-radius: 4px !important; 
+                }
+                .tt-time-cell { 
+                    font-size: 11px !important; 
+                    padding: 4px 2px !important; 
+                    border-radius: 4px !important; 
+                    border-left: 2px solid #4CAF50 !important;
+                }
+                .tt-time-sub { font-size: 9px !important; }
+                
                 /* チェックボックスの余白削除＆中央寄せ */
                 [data-testid="stCheckbox"] {
-                    margin: 0 !important;
+                    margin: 0 auto !important;
                     padding: 0 !important;
                     width: auto !important;
                     justify-content: center !important;
                 }
                 /* チェックボックス横の「あり」の文字を消す */
-                [data-testid="stCheckbox"] label p {
-                    display: none !important;
-                }
+                [data-testid="stCheckbox"] label p { display: none !important; }
                 /* 終了時間セレクトボックスの幅も圧縮 */
-                [data-testid="stSelectbox"] {
-                    min-width: 0 !important;
-                }
-                /* ヘッダーなどの文字サイズをスマホ向けに最適化 */
-                .tt-day-header { font-size: 13px !important; padding: 4px !important; }
-                .tt-time-cell { font-size: 11px !important; padding: 5px !important; }
+                [data-testid="stSelectbox"] { min-width: 0 !important; }
             }
         </style>
         """, unsafe_allow_html=True)

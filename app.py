@@ -1041,10 +1041,12 @@ def main():
                     if "1" in day_bin[74:]: u_rows.append(5)
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
-        if "last_ev_id" not in st.session_state or st.session_state.last_ev_id != event['event_id']:
-            my_res = call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
-            st.session_state.event_responses = my_res.get("data", [])
-            
+        # 💡 通信一括化に伴う修正: すでに取得済みの回答データからカレンダー用の表を組み立てる
+        if "df_input" not in st.session_state or st.session_state.get("last_build_ev_id") != event['event_id']:
+            # 万が一データがない場合の安全策
+            if "event_responses" not in st.session_state:
+                st.session_state.event_responses = []
+                
             df = pd.DataFrame(0, index=time_labels, columns=date_strs)
             my_comment = ""
             for r in st.session_state.event_responses:
@@ -1057,7 +1059,9 @@ def main():
                             else: v = int(b_str[i]) if i < len(b_str) else 0
                             df.loc[time_labels[i], d_id] = v
                             
-            st.session_state.df_input = df; st.session_state.my_comment = my_comment; st.session_state.last_ev_id = event['event_id']
+            st.session_state.df_input = df
+            st.session_state.my_comment = my_comment
+            st.session_state.last_build_ev_id = event['event_id']
 
         if event_type == 'time':
             st.markdown("<div style='margin-bottom: 5px; font-weight: bold; color: #333;'>🔍 カレンダーの表示サイズ（マスの縦幅）</div>", unsafe_allow_html=True)
@@ -1356,10 +1360,9 @@ def main():
     elif event_type == 'options':
         opts = json.loads(event.get('event_options', '[]'))
         
-        if "last_ev_id" not in st.session_state or st.session_state.last_ev_id != event['event_id']:
-            my_res = call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
-            st.session_state.event_responses = my_res.get("data", [])
-            st.session_state.last_ev_id = event['event_id']
+        # 💡 通信一括化に伴う修正: 余計な通信を削除し、安全策のみ配置
+        if "event_responses" not in st.session_state:
+            st.session_state.event_responses = []
 
         tab_in, tab_graph = st.tabs(["📅 入力", "📊 集計"])
         with tab_in:

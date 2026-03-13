@@ -11,6 +11,9 @@ import numpy as np
 
 st.set_page_config(page_title="日程調整 Pro", layout="wide")
 
+# 💡 ご自身のStreamlitアプリのURLに変更してください
+APP_BASE_URL = "https://schedule-adjust-testing.streamlit.app/"
+
 # ==========================================
 # UX改善: ロード中表示＆時間割テーブル用CSS
 # ==========================================
@@ -447,6 +450,17 @@ def main():
 
     if "auth" not in st.session_state: st.session_state.auth = None
     
+   def main():
+    if "app_initialized" not in st.session_state:
+        st.session_state.app_initialized = True
+
+    # 💡 1. URLに "?event=xxx" があればセッションに記憶し、URLから見えなくする
+    if "event" in st.query_params:
+        st.session_state.jump_to_event = st.query_params["event"]
+        st.query_params.clear()
+
+    if "auth" not in st.session_state: st.session_state.auth = None
+    
     # ==========================================
     # 🔑 未ログイン画面
     # ==========================================
@@ -454,6 +468,11 @@ def main():
         _, col_login, _ = st.columns([1, 2, 1])
         with col_login:
             st.title("日程調整 Pro")
+            
+            # 💡 URLから飛んできた人向けのメッセージ
+            if "jump_to_event" in st.session_state:
+                st.info("👋 イベントへの招待が届いています。ログインまたは新規登録をして回答してください。")
+                
             login_mode = st.radio("メニュー", ["🔑 ログイン", "📝 新規アカウント作成", "🆘 PIN・パスワード復旧"], horizontal=True)
             st.markdown("---")
             
@@ -525,10 +544,19 @@ def main():
     # ==========================================
     user = st.session_state.auth
     
+    # 💡 2. ジャンプ指示があれば、強制的に「日程調整 回答」モードにし、対象イベントをセット
+    default_menu_index = 0
+    if "jump_to_event" in st.session_state:
+        st.session_state.target_ev_id = st.session_state.jump_to_event
+        default_menu_index = 0
+        del st.session_state.jump_to_event
+    
     menu_opts = ["📅 日程調整 回答", "👤 プロフィール設定", "⏰ 時間割設定"]
     if user.get("role") in ["user", "admin", "top_admin"]: menu_opts.append("➕ イベント新規作成")
     if user.get("role") in ["admin", "top_admin"]: menu_opts.append("⚙️ 管理者専用")
-    view_mode = st.sidebar.radio("🔧 メニュー", menu_opts)
+    
+    # 💡 indexを指定して、URLから来た場合は自動で回答画面を開く
+    view_mode = st.sidebar.radio("🔧 メニュー", menu_opts, index=default_menu_index)
 
     # ----------------------------------------------------
     # 👤 プロフィール設定画面
@@ -819,7 +847,7 @@ def main():
             elif ev_type == "time" and time_master.index(t_start) >= time_master.index(t_end): st.error("終了時刻は開始時刻より後に設定してください。")
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")
             elif not is_all_members and target_scope_json == '{"groups": [], "users": []}': st.error("対象メンバーを指定するか、「全員に公開する」にチェックを入れてください。")
-            else:
+        else:
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 payload = {
                     "title": ev_title, 
@@ -836,9 +864,21 @@ def main():
                     "target_scope": target_scope_json,
                     "is_private": is_private
                 }
-                call_gas("create_event", {"payload": payload}, method="POST")
+                # 💡 GASからのレスポンスを変数 res で受け取るように修正
+                res = call_gas("create_event", {"payload": payload}, method="POST")
                 clear_cache()
                 st.success(f"「{ev_title}」を作成しました！")
+                
+                # 💡 GASから返ってきた event_id を取得してURLを表示
+                created_event_id = res.get("event_id") or res.get("data", {}).get("event_id") if isinstance(res, dict) else None
+                
+                if created_event_id:
+                    share_url = f"{APP_BASE_URL}?event={created_event_id}"
+                    st.info("👇 以下の招待リンクをコピーして、参加者に送ってください（右上のアイコンでコピーできます）")
+                    st.code(share_url, language="text")
+                else:
+                    st.warning("※イベントは作成されましたが、連携用のURLを発行できませんでした。GAS側の返り値をご確認ください。")
+                    
                 if "opt_count" in st.session_state: del st.session_state.opt_count
         return
 

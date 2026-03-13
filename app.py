@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import json
-import time
 import urllib.parse
 import os
 from datetime import datetime, timedelta
@@ -25,14 +24,12 @@ st.markdown("""
         .event-desc { background: #fff8e1; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
         .event-desc a { color: #2196F3; font-weight: bold; text-decoration: none; }
         .event-desc a:hover { text-decoration: underline; }
-        
-        /* 💡 時間割設定のスマホ対応（横スクロール）用CSS */
-        .tt-wrapper { overflow-x: auto; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;}
-        .tt-table { width: 100%; min-width: 600px; border-collapse: collapse; }
-        .tt-table th, .tt-table td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; }
-        .tt-table th { font-weight: bold; background: #f8f9fa; color: #333; position: sticky; top: 0; }
-        .tt-table td:first-child { font-weight: bold; background: #f0f2f6; border-right: 2px solid #ddd; text-align: right; padding-right: 15px;}
-        .tt-table td:first-child span { font-size: 11px; color: #666; display: block; font-weight: normal;}
+        .tt-day-header { font-size: 16px; font-weight: bold; background: #4CAF50; color: white; padding: 8px; border-radius: 6px; text-align: center; }
+        .tt-time-cell { font-size: 14px; font-weight: bold; background: #f0f2f6; padding: 10px; border-radius: 6px; text-align: center; border-left: 4px solid #4CAF50;}
+        .tt-time-sub { font-size: 11px; color: #666; font-weight: normal; }
+        .status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #45a049); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(76,175,80,0.3); letter-spacing: 0.5px;}
+        .af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(33,150,243,0.3); letter-spacing: 0.5px;}
+        .status-off { color: #9e9e9e; background: #ffffff; padding: 4px 0; border-radius: 6px; border: 1px dashed #d0d0d0; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -198,15 +195,15 @@ if not os.path.exists("custom_editor"):
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
         .pen-btn { padding: 0; border-radius: 50%; width: 45px; height: 45px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); margin: 0 auto; }
         .pen-btn:hover { opacity: 0.8; }
-        /* 💡 選択中のペンをわかりやすく */
+        /* 💡 選択中のペンをわかりやすく強調 */
         .pen-btn.active { border: 3px solid #333 !important; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
         </style></head><body>
         
         <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.85); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
             <div style="font-size:12px; font-weight:bold; color:#666; text-align:center; pointer-events:none; user-select:none; margin-bottom:-4px;">🖊️ ペン</div>
             <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
-            <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333; border:3px solid transparent;">未定</button>
-            <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:3px solid transparent; outline:1px solid #ccc;">消す</button>
+            <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
+            <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
         </div>
 
         <div id="content"></div><script>
@@ -271,12 +268,8 @@ if not os.path.exists("custom_editor"):
             [0, 1, 2].forEach(m => {
                 const b = document.getElementById('pen-' + m);
                 b.classList.remove('active');
-                if (m === 0) { b.style.border = '3px solid transparent'; b.style.outline = '1px solid #ccc'; } 
-                else { b.style.border = '3px solid transparent'; b.style.outline = 'none'; }
             });
-            const activeBtn = document.getElementById('pen-' + mode);
-            activeBtn.classList.add('active');
-            activeBtn.style.outline = 'none';
+            document.getElementById('pen-' + mode).classList.add('active');
         };
 
         const palette = document.getElementById('palette');
@@ -329,7 +322,7 @@ if not os.path.exists("custom_editor"):
                 const g = document.getElementById('g'); if(!g) return;
                 let down = false;
                 
-                // 💡 ダブルクリックによるトグルを廃止し、選択したペンで確実に上書きするように変更
+                // 💡 ダブルクリックのトグルを廃止し、選んだペンで確実に上書きするように修正
                 g.onmousedown = e => { 
                     if(!e.target.classList.contains('c')) return; 
                     down = true; 
@@ -419,7 +412,7 @@ def get_border_top(t_str, event_type="time"):
     elif t_str.endswith(":30"): return "1px dashed #999"
     else: return "1px solid #f0f0f0"
 
-# 💡 回答期限を日本式にフォーマットする関数
+# 💡 回答期限を日本人にとって見やすいフォーマットに変換する関数
 def format_deadline_jp(date_str):
     if not date_str: return ""
     try:
@@ -559,55 +552,68 @@ def main():
         return
 
     # ----------------------------------------------------
-    # ⏰ 時間割設定画面 (💡スマホ対応のためにHTMLテーブル化)
+    # ⏰ 時間割設定画面 (💡 リッチデザイン＋スマホ横スクロール対応)
     # ----------------------------------------------------
     if view_mode == "⏰ 時間割設定":
         st.title("⏰ 時間割設定")
         st.info("※ここでチェックした授業・予定は、日程調整画面で「不可(×)」として一括反映できます。")
         
-        fixed_sched = user.get("fixed_schedule", {})
+        # 💡 スマホで「月・火・水…」の列が縦に崩れず、そのまま横にスクロールできる魔法のCSS
+        st.markdown("""
+        <style>
+            @media (max-width: 650px) {
+                .main .block-container {
+                    min-width: 650px !important;
+                    overflow-x: auto !important;
+                    padding-bottom: 20px;
+                }
+                [data-testid="stHorizontalBlock"] {
+                    flex-wrap: nowrap !important;
+                }
+            }
+        </style>
+        """, unsafe_allow_html=True)
         
-        # フォームとしてデータを保持する
-        with st.form("timetable_form"):
-            st.markdown("<div class='tt-wrapper'>", unsafe_allow_html=True)
-            
-            days_jp = ["月", "火", "水", "木", "金"]
-            periods = [
-                ("1限", "09:00〜10:30", 36, 42, "p1"), ("2限", "10:45〜12:15", 43, 49, "p2"),
-                ("3限", "13:15〜14:45", 53, 59, "p3"), ("4限", "15:00〜16:30", 60, 66, "p4"), ("5限", "16:45〜18:15", 67, 73, "p5")
-            ]
-            
-            ui_state = {str(i): {} for i in range(5)}
-            
-            # HTMLでテーブル構築
-            table_html = "<table class='tt-table'><thead><tr><th></th>"
-            for d in days_jp: table_html += f"<th>{d}</th>"
-            table_html += "</tr></thead><tbody>"
-            st.markdown(table_html, unsafe_allow_html=True)
+        # 以前のお気に入りデザインを完全復活
+        fixed_sched = user.get("fixed_schedule", {})
+        ui_state = {str(i): {} for i in range(5)}
+        
+        days_jp = ["月", "火", "水", "木", "金"]
+        cols = st.columns([1.5, 1, 1, 1, 1, 1])
+        cols[0].markdown("<div style='padding:8px;'></div>", unsafe_allow_html=True)
+        for i, d in enumerate(days_jp): cols[i+1].markdown(f"<div class='tt-day-header'>{d}</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
-            # 1〜5限の行
-            for p_name, p_time, s_idx, e_idx, p_key in periods:
-                cols = st.columns([1.5, 1, 1, 1, 1, 1])
-                cols[0].markdown(f"<div style='text-align:right; font-weight:bold; padding-top:5px;'>{p_name}<br><span style='font-size:11px; color:#666;'>{p_time}</span></div>", unsafe_allow_html=True)
-                for i in range(5):
-                    day_bin = fixed_sched.get(str(i), "0"*96)
-                    val = (day_bin[s_idx:e_idx] == "1" * (e_idx - s_idx))
-                    ui_state[str(i)][p_key] = cols[i+1].checkbox("あり", value=val, key=f"{p_key}_{i}")
-                st.markdown("<hr style='margin: 0; padding: 0;'>", unsafe_allow_html=True)
-                
-            # 放課後の行
+        periods = [
+            ("1限", "09:00〜10:30", 36, 42, "p1"), ("2限", "10:45〜12:15", 43, 49, "p2"),
+            ("3限", "13:15〜14:45", 53, 59, "p3"), ("4限", "15:00〜16:30", 60, 66, "p4"), ("5限", "16:45〜18:15", 67, 73, "p5")
+        ]
+        for p_name, p_time, s_idx, e_idx, p_key in periods:
             cols = st.columns([1.5, 1, 1, 1, 1, 1])
-            cols[0].markdown(f"<div style='text-align:right; font-weight:bold; padding-top:5px;'>放課後<br><span style='font-size:11px; color:#FF9800;'>18:30〜</span></div>", unsafe_allow_html=True)
+            cols[0].markdown(f"<div class='tt-time-cell'>{p_name}<br><span class='tt-time-sub'>{p_time}</span></div>", unsafe_allow_html=True)
             for i in range(5):
                 day_bin = fixed_sched.get(str(i), "0"*96)
-                af_bin = day_bin[74:]
-                val = "1" in af_bin
-                ui_state[str(i)]["af"] = cols[i+1].checkbox("予定あり", value=val, key=f"af_{i}")
+                val = (day_bin[s_idx:e_idx] == "1" * (e_idx - s_idx))
+                checked = cols[i+1].checkbox(" ", value=val, key=f"{p_key}_{i}", label_visibility="collapsed")
+                ui_state[str(i)][p_key] = checked
+                if checked: cols[i+1].markdown("<div class='status-on'>✏️ 授業あり</div>", unsafe_allow_html=True)
+                else: cols[i+1].markdown("<div class='status-off'>ー なし</div>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 8px 0; border: none; border-bottom: 1px dashed #ddd;'>", unsafe_allow_html=True)
             
-            # 終了時間の行
-            cols = st.columns([1.5, 1, 1, 1, 1, 1])
-            cols[0].markdown(f"<div style='text-align:right; font-size:12px; color:#666; padding-top:10px;'>┗ 終了時間</div>", unsafe_allow_html=True)
-            for i in range(5):
+        cols = st.columns([1.5, 1, 1, 1, 1, 1])
+        cols[0].markdown(f"<div class='tt-time-cell' style='border-left-color:#FF9800;'>放課後<br><span class='tt-time-sub'>18:30〜</span></div>", unsafe_allow_html=True)
+        for i in range(5):
+            day_bin = fixed_sched.get(str(i), "0"*96); af_bin = day_bin[74:]; val = "1" in af_bin
+            checked = cols[i+1].checkbox(" ", value=val, key=f"af_{i}", label_visibility="collapsed")
+            ui_state[str(i)]["af"] = checked
+            if checked: cols[i+1].markdown("<div class='af-status-on'>🌙 予定あり</div>", unsafe_allow_html=True)
+            else: cols[i+1].markdown("<div class='status-off'>ー なし</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
+        
+        cols = st.columns([1.5, 1, 1, 1, 1, 1])
+        cols[0].markdown(f"<div style='text-align:center; font-size:12px; color:#666; padding-top:10px;'>┗ 終了時間</div>", unsafe_allow_html=True)
+        for i in range(5):
+            if ui_state[str(i)]["af"]:
                 day_bin = fixed_sched.get(str(i), "0"*96); af_bin = day_bin[74:]; af_end_val = "21:00"
                 if "1" in af_bin:
                     last_idx = 74 + af_bin.rfind("1")
@@ -615,34 +621,33 @@ def main():
                     else: af_end_val = "23:45"
                 af_opts = [idx_to_time(idx) for idx in range(76, 96)]
                 af_idx = af_opts.index(af_end_val) if af_end_val in af_opts else 8
-                
-                # チェックされていない場合は無効化
-                disabled = not st.session_state.get(f"af_{i}", val) 
-                ui_state[str(i)]["af_end"] = cols[i+1].selectbox("終了", af_opts, index=af_idx, key=f"afe_{i}", label_visibility="collapsed", disabled=disabled)
+                ui_state[str(i)]["af_end"] = cols[i+1].selectbox("終了時間", af_opts, index=af_idx, key=f"afe_{i}", label_visibility="collapsed")
+            else:
+                cols[i+1].markdown("<div style='text-align:center; color:#ccc; padding-top:10px; font-size:12px;'>-</div>", unsafe_allow_html=True)
+                ui_state[str(i)]["af_end"] = "21:00"
 
-            st.markdown("</tbody></table></div>", unsafe_allow_html=True)
-            
-            if st.form_submit_button("💾 時間割を保存する", use_container_width=True, type="primary"):
-                new_fixed_sched = {}
-                for i in range(5):
-                    wd_str = str(i); new_bin = ["0"] * 96
-                    if ui_state[wd_str]["p1"]: new_bin[36:42] = ["1"] * 6
-                    if ui_state[wd_str]["p2"]: new_bin[43:49] = ["1"] * 6
-                    if ui_state[wd_str]["p3"]: new_bin[53:59] = ["1"] * 6
-                    if ui_state[wd_str]["p4"]: new_bin[60:66] = ["1"] * 6
-                    if ui_state[wd_str]["p5"]: new_bin[67:73] = ["1"] * 6
-                    if ui_state[wd_str]["af"]:
-                        end_idx = time_master.index(ui_state[wd_str]["af_end"])
-                        new_bin[74:end_idx] = ["1"] * (end_idx - 74)
-                    new_fixed_sched[wd_str] = "".join(new_bin)
-                    
-                payload = {"user_id": user['user_id'], "fixed_schedule": new_fixed_sched}
-                res = call_gas("update_user", {"payload": payload}, method="POST")
-                if res.get("status") == "success":
-                    st.session_state.auth = res.get("data")
-                    st.rerun()
-                else:
-                    st.error("更新に失敗しました。")
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        if st.button("💾 時間割を保存する", use_container_width=True, type="primary"):
+            new_fixed_sched = {}
+            for i in range(5):
+                wd_str = str(i); new_bin = ["0"] * 96
+                if ui_state[wd_str]["p1"]: new_bin[36:42] = ["1"] * 6
+                if ui_state[wd_str]["p2"]: new_bin[43:49] = ["1"] * 6
+                if ui_state[wd_str]["p3"]: new_bin[53:59] = ["1"] * 6
+                if ui_state[wd_str]["p4"]: new_bin[60:66] = ["1"] * 6
+                if ui_state[wd_str]["p5"]: new_bin[67:73] = ["1"] * 6
+                if ui_state[wd_str]["af"]:
+                    end_idx = time_master.index(ui_state[wd_str]["af_end"])
+                    new_bin[74:end_idx] = ["1"] * (end_idx - 74)
+                new_fixed_sched[wd_str] = "".join(new_bin)
+                
+            payload = {"user_id": user['user_id'], "fixed_schedule": new_fixed_sched}
+            res = call_gas("update_user", {"payload": payload}, method="POST")
+            if res.get("status") == "success":
+                st.session_state.auth = res.get("data")
+                st.rerun()
+            else:
+                st.error("更新に失敗しました。")
         return
 
     # ----------------------------------------------------
@@ -799,7 +804,7 @@ def main():
                 df_ev['種類'] = df_ev['event_type'].replace({"time": "🕒 時間", "timetable": "🏫 時間割", "options": "📅 予定候補"})
                 df_ev['詳細'] = df_ev.apply(lambda row: f"{idx_to_time(row['start_idx'])}〜{idx_to_time(row['end_idx'])}" if row['event_type']=='time' else ("月〜金" if row['event_type']=='timetable' else "複数候補"), axis=1)
                 
-                # 💡 回答期限を日本式にフォーマットして管理画面でも表示
+                # 💡 管理画面のリストも日本式の日付に変換
                 df_ev['期限'] = df_ev['deadline'].apply(format_deadline_jp)
                 
                 df_ev['公開範囲'] = df_ev['target_scope'].apply(format_target_scope)
@@ -897,7 +902,6 @@ def main():
     role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(user.get("role"), "👤")
     st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user["name"]}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user["user_id"]}</div></div>', unsafe_allow_html=True)
 
-    # 🚀 1回の通信でユーザー情報・イベント一覧・回答データを一括取得！
     current_ev_id = st.session_state.get("target_ev_id", "")
     all_data_res = call_gas_cached("get_all_data", {
         "user_id": user["user_id"],
@@ -911,7 +915,6 @@ def main():
         st.session_state.cached_users = payload.get("users", [])
         if payload.get("responses") is not None:
             st.session_state.event_responses = payload.get("responses")
-            st.session_state.last_ev_id = current_ev_id
     else:
         st.error("データの取得に失敗しました。")
 
@@ -964,7 +967,6 @@ def main():
 
     event = st.selectbox("🎯 対象イベント選択", events, index=default_idx, format_func=format_ev_name)
     
-    # 選択したイベントが切り替わったら再取得を促す（エラー防止のため .get() を使用）
     if st.session_state.get("target_ev_id") != event['event_id']:
         st.session_state.target_ev_id = event['event_id']
         st.rerun()
@@ -1041,9 +1043,7 @@ def main():
                     if "1" in day_bin[74:]: u_rows.append(5)
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
-        # 💡 通信一括化に伴う修正: すでに取得済みの回答データからカレンダー用の表を組み立てる
         if "df_input" not in st.session_state or st.session_state.get("last_build_ev_id") != event['event_id']:
-            # 万が一データがない場合の安全策
             if "event_responses" not in st.session_state:
                 st.session_state.event_responses = []
                 
@@ -1360,7 +1360,6 @@ def main():
     elif event_type == 'options':
         opts = json.loads(event.get('event_options', '[]'))
         
-        # 💡 通信一括化に伴う修正: 余計な通信を削除し、安全策のみ配置
         if "event_responses" not in st.session_state:
             st.session_state.event_responses = []
 

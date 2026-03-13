@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import time
 import urllib.parse
 import os
 from datetime import datetime, timedelta
@@ -30,6 +31,17 @@ st.markdown("""
         .status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #45a049); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(76,175,80,0.3); letter-spacing: 0.5px;}
         .af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(33,150,243,0.3); letter-spacing: 0.5px;}
         .status-off { color: #9e9e9e; background: #ffffff; padding: 4px 0; border-radius: 6px; border: 1px dashed #d0d0d0; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block;}
+        
+        /* 💡 時間割設定のスマホ対応（横スクロール＆コンパクト化）用CSS */
+        .tt-wrapper { overflow-x: auto; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;}
+        .tt-table { width: 100%; min-width: 320px; border-collapse: collapse; table-layout: fixed; }
+        .tt-table th, .tt-table td { padding: 8px 2px; text-align: center; border-bottom: 1px solid #eee; }
+        .tt-table th { font-weight: bold; background: #f8f9fa; color: #333; position: sticky; top: 0; font-size: 14px;}
+        .tt-table td:first-child { font-weight: bold; background: #f0f2f6; border-right: 2px solid #ddd; text-align: center; width: 60px; font-size: 12px; padding: 8px 5px;}
+        .tt-table td:first-child span { font-size: 10px; color: #666; display: block; font-weight: normal; letter-spacing: -0.5px;}
+        /* Streamlitのチェックボックスの余白を極限まで削る */
+        .tt-table [data-testid="stCheckbox"] { justify-content: center; margin: 0; padding: 0;}
+        .tt-table [data-testid="stCheckbox"] label { min-height: 0; padding: 0; }
     </style>
 """, unsafe_allow_html=True)
 

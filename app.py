@@ -570,133 +570,122 @@ def main():
             else: st.error("更新に失敗しました。")
         return
 
-   # ----------------------------------------------------
-    # ⏰ 時間割設定画面 (💡 リッチデザイン＋スマホ横スクロール対応)
+    # ----------------------------------------------------
+    # ⏰ 時間割設定画面 (HTML Tableによるスマホ最適化版)
     # ----------------------------------------------------
     if view_mode == "⏰ 時間割設定":
         st.title("⏰ 時間割設定")
         st.info("※ここでチェックした授業・予定は、日程調整画面で「不可(×)」として一括反映できます。")
         
-        # 💡 スマホで間延びする「四角」をキュッと中央に圧縮する魔法のCSS
+        # 💡 カスタムCSS: PCとスマホでデザインを切り替え
         st.markdown("""
         <style>
+            /* 共通スタイル */
+            .custom-tt-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+            .custom-tt-table th, .custom-tt-table td { border: 1px solid #eee; text-align: center; vertical-align: middle; }
+            
+            /* PC版のヘッダー・セル設定 */
+            .tt-header-cell { background: #4CAF50; color: white; font-weight: bold; padding: 12px; border-radius: 4px; }
+            .tt-label-cell { background: #f0f2f6; font-weight: bold; border-left: 5px solid #4CAF50 !important; padding: 10px; }
+            .tt-time-sub-text { font-size: 11px; color: #666; font-weight: normal; display: block; }
+            
+            /* チェックボックスが入るセルのコンテナ */
+            .checkbox-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px; }
+
+            /* スマホ版（650px以下）の最適化 */
             @media (max-width: 650px) {
-                /* 💡 表全体が横に広がりすぎるのを防ぎ、中央にキュッと寄せる */
-                [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
-                    max-width: 360px !important;
-                    margin: 0 auto !important;
-                }
+                .custom-tt-table { width: 100%; max-width: 400px; margin: 0 auto; }
+                .tt-header-cell { padding: 6px 2px; font-size: 13px; }
+                .tt-label-cell { padding: 4px 2px; font-size: 11px; width: 60px !important; border-left-width: 3px !important; }
+                .tt-time-sub-text { font-size: 9px; transform: scale(0.9); }
+                .checkbox-container { padding: 2px; }
                 
-                /* カラム強制横並び */
-                [data-testid="stHorizontalBlock"] {
-                    display: flex !important;
-                    flex-direction: row !important;
-                    flex-wrap: nowrap !important;
-                    align-items: center !important;
-                    gap: 2px !important;
-                }
-                /* 各列を均等に */
-                [data-testid="column"] {
-                    min-width: 0 !important; 
-                    flex: 1 1 0px !important;
-                }
-                /* 1列目（時間ラベル）の幅を固定 */
-                [data-testid="column"]:first-child {
-                    flex: 0 0 55px !important;
-                }
-                
-                /* 💡 「月」や「1限」の四角の余白を削り、文字とのバランスを整える */
-                .tt-day-header { 
-                    font-size: 13px !important; 
-                    padding: 4px 0px !important; 
-                    border-radius: 4px !important; 
-                }
-                .tt-time-cell { 
-                    font-size: 11px !important; 
-                    padding: 4px 2px !important; 
-                    border-radius: 4px !important; 
-                    border-left: 2px solid #4CAF50 !important;
-                }
-                .tt-time-sub { font-size: 9px !important; }
-                
-                /* チェックボックスの余白削除＆中央寄せ */
-                [data-testid="stCheckbox"] {
-                    margin: 0 auto !important;
-                    padding: 0 !important;
-                    width: auto !important;
-                    justify-content: center !important;
-                }
-                /* チェックボックス横の「あり」の文字を消す */
-                [data-testid="stCheckbox"] label p { display: none !important; }
-                /* 終了時間セレクトボックスの幅も圧縮 */
-                [data-testid="stSelectbox"] { min-width: 0 !important; }
+                /* Streamlit標準の余白を強制解除 */
+                [data-testid="stCheckbox"] { margin: 0 !important; padding: 0 !important; }
+                [data-testid="stCheckbox"] label p { display: none !important; } /* 「あり」文字を非表示 */
+                div[data-testid="stVerticalBlock"] > div { padding: 0 !important; }
             }
         </style>
         """, unsafe_allow_html=True)
-        
-        # 以前のお気に入りデザインを完全復活
+
         fixed_sched = user.get("fixed_schedule", {})
         ui_state = {str(i): {} for i in range(5)}
-        
         days_jp = ["月", "火", "水", "木", "金"]
         
-        # 💡 列の比率を変更（左端の「時間」列を少し狭く、曜日列を均等に）
-        cols = st.columns([1.2, 1, 1, 1, 1, 1])
-        
-        cols[0].markdown("<div style='padding:8px;'></div>", unsafe_allow_html=True)
-        for i, d in enumerate(days_jp): cols[i+1].markdown(f"<div class='tt-day-header'>{d}</div>", unsafe_allow_html=True)
-        st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
+        # --- テーブルヘッダーの描画 ---
+        # 1列目は空、2〜6列目に曜日を表示
+        head_cols = st.columns([1.2, 1, 1, 1, 1, 1])
+        head_cols[0].write("")
+        for i, d in enumerate(days_jp):
+            head_cols[i+1].markdown(f"<div class='tt-header-cell'>{d}</div>", unsafe_allow_html=True)
 
+        # --- 各時限の行を描画 ---
         periods = [
-            ("1限", "09:00〜", 36, 42, "p1"), ("2限", "10:45〜", 43, 49, "p2"),
-            ("3限", "13:15〜", 53, 59, "p3"), ("4限", "15:00〜", 60, 66, "p4"), ("5限", "16:45〜", 67, 73, "p5")
+            ("1限", "09:00〜", 36, 42, "p1"),
+            ("2限", "10:45〜", 43, 49, "p2"),
+            ("3限", "13:15〜", 53, 59, "p3"),
+            ("4限", "15:00〜", 60, 66, "p4"),
+            ("5限", "16:45〜", 67, 73, "p5")
         ]
-        
+
         for p_name, p_time, s_idx, e_idx, p_key in periods:
-            # 💡 ループ内でも列の比率を狭めたものに合わせる
-            cols = st.columns([1.2, 1, 1, 1, 1, 1])
-            cols[0].markdown(f"<div class='tt-time-cell'>{p_name}<br><span class='tt-time-sub'>{p_time}</span></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+            row_cols = st.columns([1.2, 1, 1, 1, 1, 1])
+            row_cols[0].markdown(f"<div class='tt-label-cell'>{p_name}<span class='tt-time-sub-text'>{p_time}</span></div>", unsafe_allow_html=True)
+            
             for i in range(5):
                 day_bin = fixed_sched.get(str(i), "0"*96)
                 val = (day_bin[s_idx:e_idx] == "1" * (e_idx - s_idx))
-                checked = cols[i+1].checkbox(" ", value=val, key=f"{p_key}_{i}", label_visibility="collapsed")
-                ui_state[str(i)][p_key] = checked
-                if checked: cols[i+1].markdown("<div class='status-on'>✔︎ あり</div>", unsafe_allow_html=True)
-                else: cols[i+1].markdown("<div class='status-off'>-</div>", unsafe_allow_html=True)
-            st.markdown("<hr style='margin: 4px 0; border: none; border-bottom: 1px dashed #ddd;'>", unsafe_allow_html=True)
-            
-        cols = st.columns([1.2, 1, 1, 1, 1, 1])
-        cols[0].markdown(f"<div class='tt-time-cell' style='border-left-color:#FF9800;'>放課後<br><span class='tt-time-sub'>18:30〜</span></div>", unsafe_allow_html=True)
+                with row_cols[i+1]:
+                    checked = st.checkbox(" ", value=val, key=f"fixed_{p_key}_{i}", label_visibility="collapsed")
+                    ui_state[str(i)][p_key] = checked
+                    if checked:
+                        st.markdown("<div class='status-on' style='margin-top:0;'>✔︎</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div class='status-off' style='margin-top:0;'>-</div>", unsafe_allow_html=True)
+
+        # --- 放課後行 ---
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        af_cols = st.columns([1.2, 1, 1, 1, 1, 1])
+        af_cols[0].markdown(f"<div class='tt-label-cell' style='border-left-color:#FF9800;'>放課後<span class='tt-time-sub-text'>18:30〜</span></div>", unsafe_allow_html=True)
         for i in range(5):
-            day_bin = fixed_sched.get(str(i), "0"*96); af_bin = day_bin[74:]; val = "1" in af_bin
-            checked = cols[i+1].checkbox(" ", value=val, key=f"af_{i}", label_visibility="collapsed")
-            ui_state[str(i)]["af"] = checked
-            if checked: cols[i+1].markdown("<div class='af-status-on'>🌙 予定</div>", unsafe_allow_html=True)
-            else: cols[i+1].markdown("<div class='status-off'>-</div>", unsafe_allow_html=True)
-        st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
-        
-        cols = st.columns([1.2, 1, 1, 1, 1, 1])
-        cols[0].markdown(f"<div style='text-align:center; font-size:10px; color:#666; padding-top:10px;'>終了時刻</div>", unsafe_allow_html=True)
+            day_bin = fixed_sched.get(str(i), "0"*96)
+            val = "1" in day_bin[74:]
+            with af_cols[i+1]:
+                checked = st.checkbox(" ", value=val, key=f"fixed_af_{i}", label_visibility="collapsed")
+                ui_state[str(i)]["af"] = checked
+                if checked:
+                    st.markdown("<div class='af-status-on' style='margin-top:0;'>🌙</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div class='status-off' style='margin-top:0;'>-</div>", unsafe_allow_html=True)
+
+        # --- 終了時間選択（スマホではコンパクトに） ---
+        st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
+        end_cols = st.columns([1.2, 1, 1, 1, 1, 1])
+        end_cols[0].markdown("<div style='text-align:center; font-size:10px; color:#666;'>終了時刻</div>", unsafe_allow_html=True)
         for i in range(5):
             if ui_state[str(i)]["af"]:
-                day_bin = fixed_sched.get(str(i), "0"*96); af_bin = day_bin[74:]; af_end_val = "21:00"
+                day_bin = fixed_sched.get(str(i), "0"*96)
+                af_bin = day_bin[74:]
+                af_end_val = "21:00"
                 if "1" in af_bin:
                     last_idx = 74 + af_bin.rfind("1")
-                    if last_idx + 1 < len(time_master): af_end_val = time_master[last_idx + 1]
-                    else: af_end_val = "23:45"
+                    af_end_val = time_master[min(last_idx + 1, 95)]
+                
                 af_opts = [idx_to_time(idx) for idx in range(76, 96)]
                 af_idx = af_opts.index(af_end_val) if af_end_val in af_opts else 8
-                ui_state[str(i)]["af_end"] = cols[i+1].selectbox("終了時間", af_opts, index=af_idx, key=f"afe_{i}", label_visibility="collapsed")
+                ui_state[str(i)]["af_end"] = end_cols[i+1].selectbox(" ", af_opts, index=af_idx, key=f"fixed_afe_{i}", label_visibility="collapsed")
             else:
-                cols[i+1].markdown("<div style='text-align:center; color:#ccc; padding-top:10px; font-size:12px;'>-</div>", unsafe_allow_html=True)
+                end_cols[i+1].markdown("<div style='text-align:center; color:#ccc;'>-</div>", unsafe_allow_html=True)
                 ui_state[str(i)]["af_end"] = "21:00"
 
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        # ・・・（保存ボタン以降の処理はそのまま変更なし）・・・
+        # --- 保存処理 ---
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("💾 時間割を保存する", use_container_width=True, type="primary"):
             new_fixed_sched = {}
             for i in range(5):
-                wd_str = str(i); new_bin = ["0"] * 96
+                wd_str = str(i)
+                new_bin = ["0"] * 96
                 if ui_state[wd_str]["p1"]: new_bin[36:42] = ["1"] * 6
                 if ui_state[wd_str]["p2"]: new_bin[43:49] = ["1"] * 6
                 if ui_state[wd_str]["p3"]: new_bin[53:59] = ["1"] * 6
@@ -711,6 +700,8 @@ def main():
             res = call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
                 st.session_state.auth = res.get("data")
+                st.success("時間割を保存しました！")
+                time.sleep(1)
                 st.rerun()
             else:
                 st.error("更新に失敗しました。")

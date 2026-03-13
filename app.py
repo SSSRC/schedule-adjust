@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import json
-import time
 import urllib.parse
 import os
 from datetime import datetime, timedelta
@@ -37,7 +36,7 @@ st.markdown("""
 GAS_URL = "https://script.google.com/macros/s/AKfycby9PfO_u89GZwvpOEGSTti6IZ_pjIdLeSnRsuTLxTMuGGLOyV6ZpEb0AfQDzuzvvNuMig/exec"
 
 # ==========================================
-# コンポーネント (rt_editor, options_editor, grid_editor) の定義
+# コンポーネント (rt_editor, options_editor, grid_editor)
 # ==========================================
 if not os.path.exists("rt_editor"):
     os.makedirs("rt_editor", exist_ok=True)
@@ -373,7 +372,7 @@ grid_editor = components.declare_component("grid_editor", path="custom_editor")
 
 
 # ==========================================
-# ユーティリティとメイン処理（🚀 サーバー仕様へ最適化）
+# ユーティリティとメイン処理（🚀 余計な演出を削除）
 # ==========================================
 def call_gas(action, payload=None, method="GET"):
     try:
@@ -396,7 +395,8 @@ def call_gas(action, payload=None, method="GET"):
     except Exception as e: 
         return {"status": "error", "message": str(e)}
 
-def call_gas_cached(action, payload=None, method="GET", ttl=300):
+# 💡 TTL（キャッシュの有効期限）を長く設定（ユーザー一覧などは10分間再取得しない）
+def call_gas_cached(action, payload=None, method="GET", ttl=600):
     if "api_cache" not in st.session_state: st.session_state.api_cache = {}
     cache_key = f"{action}_{json.dumps(payload, sort_keys=True) if payload else ''}"
     now = datetime.now()
@@ -421,11 +421,6 @@ def get_border_top(t_str, event_type="time"):
 
 def main():
     if "app_initialized" not in st.session_state:
-        init_prog = st.progress(0, text="🚀 システムを初期化中...")
-        time.sleep(0.1)
-        init_prog.progress(100, text="✨ 起動完了！")
-        time.sleep(0.1)
-        init_prog.empty()
         st.session_state.app_initialized = True
 
     if "auth" not in st.session_state: st.session_state.auth = None
@@ -446,14 +441,12 @@ def main():
                     n = st.text_input("氏名", autocomplete="username")
                     p = st.text_input("PIN", type="password", autocomplete="current-password")
                     if st.form_submit_button("ログイン", use_container_width=True, type="primary"):
-                        prog = st.progress(10, text="📡 認証中...")
                         res = call_gas("check_auth", {"name": n, "pin": p}, method="POST")
                         if res.get("status") == "success":
-                            prog.progress(100, text="✅ 成功！")
-                            time.sleep(0.2)
-                            st.session_state.auth = res.get("data"); st.rerun()
+                            st.session_state.auth = res.get("data")
+                            st.rerun()
                         else:
-                            prog.empty(); st.error("認証失敗: 氏名またはPINが間違っています")
+                            st.error("認証失敗: 氏名またはPINが間違っています")
             
             elif login_mode == "📝 新規アカウント作成":
                 st.subheader("新規アカウント作成")
@@ -481,16 +474,14 @@ def main():
                     clean_name = reg_n.replace(" ", "").replace("　", "")
                     if not clean_name or not reg_p or not reg_s: st.warning("氏名、PIN、秘密の合言葉はすべて必須です。")
                     else:
-                        reg_prog = st.progress(10, text="📡 送信中...")
                         payload = {"name": clean_name, "pin": reg_p, "secret_word": reg_s, "group_1": ", ".join(g1), "group_2": ", ".join(g2), "group_3": ", ".join(g3), "group_4": ", ".join(g4)}
                         res = call_gas("register_user", {"payload": payload}, method="POST")
                         if res.get("status") == "success":
                             clear_cache()
-                            reg_prog.progress(100, text="✨ 登録成功！")
-                            time.sleep(0.3)
-                            st.session_state.auth = res.get("data"); st.rerun()
+                            st.session_state.auth = res.get("data")
+                            st.rerun()
                         else:
-                            reg_prog.empty(); st.error(f"エラー: {res.get('message')}")
+                            st.error(f"エラー: {res.get('message')}")
             
             elif login_mode == "🆘 PIN・パスワード復旧":
                 st.subheader("PINの再設定")
@@ -499,14 +490,12 @@ def main():
                     rec_s = st.text_input("秘密の合言葉", type="password")
                     new_p = st.text_input("新しいPIN", type="password", autocomplete="new-password")
                     if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
-                        rec_prog = st.progress(10, text="📡 通信中...")
                         res = call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
                         if res.get("status") == "success":
                             clear_cache()
-                            rec_prog.progress(100, text="✅ 更新成功！新しいPINでログインできます。")
-                            time.sleep(1.5); st.rerun()
+                            st.success("✅ 更新成功！新しいPINでログインできます。")
                         else:
-                            rec_prog.empty(); st.error("氏名または合言葉が間違っています。")
+                            st.error("氏名または合言葉が間違っています。")
         return
 
     # ==========================================
@@ -550,15 +539,13 @@ def main():
         upd_g4 = st.multiselect("👑 役職", upd_g4_opts, default=safe_def_g4, key="upd_g4")
 
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
-            upd_prog = st.progress(10, text="💾 更新中...")
             payload = {"user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4)}
             res = call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
                 clear_cache()
-                upd_prog.progress(100, text="✨ 更新完了！")
-                time.sleep(0.3)
-                st.session_state.auth = res.get("data"); st.rerun()
-            else: upd_prog.empty(); st.error("更新に失敗しました。")
+                st.session_state.auth = res.get("data")
+                st.rerun()
+            else: st.error("更新に失敗しました。")
         return
 
     # ----------------------------------------------------
@@ -634,15 +621,13 @@ def main():
                     new_bin[74:end_idx] = ["1"] * (end_idx - 74)
                 new_fixed_sched[wd_str] = "".join(new_bin)
                 
-            upd_prog = st.progress(10, text="💾 データベースへ書き込み中...")
             payload = {"user_id": user['user_id'], "fixed_schedule": new_fixed_sched}
             res = call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
-                upd_prog.progress(100, text="✨ 保存完了！")
-                time.sleep(0.3)
-                st.session_state.auth = res.get("data"); st.rerun()
+                st.session_state.auth = res.get("data")
+                st.rerun()
             else:
-                upd_prog.empty(); st.error("更新に失敗しました。")
+                st.error("更新に失敗しました。")
         return
 
     # ----------------------------------------------------
@@ -709,6 +694,7 @@ def main():
             target_scope_json = ""
             
             if not is_all_members:
+                # ユーザーリストは長時間キャッシュしておく
                 u_res = call_gas_cached("get_all_users", method="POST", ttl=600)
                 all_u = u_res.get("data", [])
                 
@@ -791,6 +777,7 @@ def main():
                     return " / ".join(res) if res else "全員"
                 except: return "限定"
 
+            # 💡 イベントリストの取得
             all_ev_res = call_gas_cached("get_all_events", ttl=60)
             all_events = all_ev_res.get("data", [])
             
@@ -818,7 +805,7 @@ def main():
                         if st.form_submit_button("更新する"):
                             call_gas("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}}, method="POST")
                             clear_cache()
-                            st.success("更新しました！"); time.sleep(1); st.rerun()
+                            st.rerun()
                 st.subheader("📦 アーカイブ済み")
                 html_table_arch = df_display[df_display['status'] == 'archived'].to_html(index=False, border=0, classes="custom-tbl")
                 st.markdown(f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_arch}</div>', unsafe_allow_html=True)
@@ -868,9 +855,8 @@ def main():
                             st.error("最高管理者の権限は変更できません。")
                         else:
                             call_gas("admin_update_user", {"payload": {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}}, method="POST")
-                            st.success("情報を更新しました！")
                             clear_cache()
-                            time.sleep(1); st.rerun()
+                            st.rerun()
 
                 if user["role"] == "top_admin":
                     st.markdown("---")
@@ -881,9 +867,9 @@ def main():
                         new_top = st.selectbox("譲渡先ユーザー", candidates, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
                         if st.form_submit_button("top_adminを譲渡する", type="primary"):
                             call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id']}}, method="POST")
-                            st.success(f"{new_top['name']} さんに top_admin を譲渡しました。再ログインしてください。")
                             clear_cache()
-                            time.sleep(2); st.session_state.auth = None; st.rerun()
+                            st.session_state.auth = None
+                            st.rerun()
         return
 
     # ----------------------------------------------------
@@ -1161,11 +1147,9 @@ def main():
                             if event_type == 'time': bits[s_idx + t_idx] = str(int(st.session_state.df_input.loc[time_labels[t_idx], d_id]))
                             else: bits[t_idx] = str(int(st.session_state.df_input.loc[time_labels[t_idx], d_id]))
                         all_res.append({"date": d_id, "binary": "".join(bits)})
-                    save_prog = st.progress(30, text="💾 スプレッドシートへ送信中...")
+                    
                     call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": st.session_state.my_comment, "responses": all_res}}, method="POST")
                     clear_cache()
-                    save_prog.progress(100, text="✨ 保存完了！"); time.sleep(0.5); save_prog.empty(); st.success("スプレッドシートに保存しました！")
-                    
                     if "last_ev_id" in st.session_state: del st.session_state.last_ev_id
                     st.rerun()
 
@@ -1354,11 +1338,8 @@ def main():
                 user_comment = raw.get("comment", "")
                 
                 res = [{"date": "options", "binary": b_str}]
-                save_prog = st.progress(30, text="💾 スプレッドシートへ送信中...")
                 call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": user_comment, "responses": res}}, method="POST")
                 clear_cache()
-                save_prog.progress(100, text="✨ 保存完了！"); time.sleep(0.5); save_prog.empty(); st.success("保存しました！")
-                
                 if "last_ev_id" in st.session_state: del st.session_state.last_ev_id
                 st.rerun()
 

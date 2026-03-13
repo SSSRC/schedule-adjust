@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 import json
-import asyncio
+import time
 import urllib.parse
 import os
 from datetime import datetime, timedelta
-from pyodide.http import pyfetch
+import requests
 import streamlit.components.v1 as components
 import numpy as np
 
@@ -373,47 +373,42 @@ grid_editor = components.declare_component("grid_editor", path="custom_editor")
 
 
 # ==========================================
-# ユーティリティとメイン処理
+# ユーティリティとメイン処理（🚀 サーバー仕様へ最適化）
 # ==========================================
-async def call_gas(action, payload=None, method="GET"):
+def call_gas(action, payload=None, method="GET"):
     try:
         if method == "POST":
-            p = payload or {}; p["action"] = action
-            res = await pyfetch(GAS_URL, method="POST", body=json.dumps(p))
+            p = payload or {}
+            p["action"] = action
+            res = requests.post(GAS_URL, json=p)
+            return res.json()
         else:
             params = {"action": action}
-            if payload: params.update(payload)
+            if payload:
+                for k, v in payload.items():
+                    if isinstance(v, (dict, list)):
+                        params[k] = json.dumps(v)
+                    else:
+                        params[k] = v
             params["_t"] = datetime.now().timestamp() 
-            url = f"{GAS_URL}?{urllib.parse.urlencode(params)}"
-            res = await pyfetch(url, method="GET")
-        return await res.json()
+            res = requests.get(GAS_URL, params=params)
+            return res.json()
     except Exception as e: 
         return {"status": "error", "message": str(e)}
 
-# 🚀 爆速化ツール①：キャッシュ付き通信関数
-async def call_gas_cached(action, payload=None, method="GET", ttl=300):
+def call_gas_cached(action, payload=None, method="GET", ttl=300):
     if "api_cache" not in st.session_state: st.session_state.api_cache = {}
-    
-    # 検索キーを作成
     cache_key = f"{action}_{json.dumps(payload, sort_keys=True) if payload else ''}"
     now = datetime.now()
-    
-    # キャッシュが存在し、かつ期限内なら通信せずに即返す
     if cache_key in st.session_state.api_cache:
         cached_res, ts = st.session_state.api_cache[cache_key]
-        if (now - ts).total_seconds() < ttl:
-            return cached_res
-
-    # キャッシュがない場合は実際の通信を実行
-    res = await call_gas(action, payload, method)
-    if res.get("status") == "success":
-        st.session_state.api_cache[cache_key] = (res, now)
+        if (now - ts).total_seconds() < ttl: return cached_res
+    res = call_gas(action, payload, method)
+    if res.get("status") == "success": st.session_state.api_cache[cache_key] = (res, now)
     return res
 
-# 🚀 爆速化ツール②：データ更新時のキャッシュクリア
 def clear_cache():
-    if "api_cache" in st.session_state:
-        st.session_state.api_cache.clear()
+    if "api_cache" in st.session_state: st.session_state.api_cache.clear()
 
 def idx_to_time(i): return f"{(i*15)//60:02d}:{(i*15)%60:02d}"
 time_master = [idx_to_time(i) for i in range(96)]
@@ -424,8 +419,13 @@ def get_border_top(t_str, event_type="time"):
     elif t_str.endswith(":30"): return "1px dashed #999"
     else: return "1px solid #f0f0f0"
 
-async def main():
+def main():
     if "app_initialized" not in st.session_state:
+        init_prog = st.progress(0, text="🚀 システムを初期化中...")
+        time.sleep(0.1)
+        init_prog.progress(100, text="✨ 起動完了！")
+        time.sleep(0.1)
+        init_prog.empty()
         st.session_state.app_initialized = True
 
     if "auth" not in st.session_state: st.session_state.auth = None
@@ -447,9 +447,10 @@ async def main():
                     p = st.text_input("PIN", type="password", autocomplete="current-password")
                     if st.form_submit_button("ログイン", use_container_width=True, type="primary"):
                         prog = st.progress(10, text="📡 認証中...")
-                        res = await call_gas("check_auth", {"name": n, "pin": p}, method="POST")
+                        res = call_gas("check_auth", {"name": n, "pin": p}, method="POST")
                         if res.get("status") == "success":
                             prog.progress(100, text="✅ 成功！")
+                            time.sleep(0.2)
                             st.session_state.auth = res.get("data"); st.rerun()
                         else:
                             prog.empty(); st.error("認証失敗: 氏名またはPINが間違っています")
@@ -482,10 +483,11 @@ async def main():
                     else:
                         reg_prog = st.progress(10, text="📡 送信中...")
                         payload = {"name": clean_name, "pin": reg_p, "secret_word": reg_s, "group_1": ", ".join(g1), "group_2": ", ".join(g2), "group_3": ", ".join(g3), "group_4": ", ".join(g4)}
-                        res = await call_gas("register_user", {"payload": payload}, method="POST")
+                        res = call_gas("register_user", {"payload": payload}, method="POST")
                         if res.get("status") == "success":
-                            clear_cache() # 💡 キャッシュクリア
+                            clear_cache()
                             reg_prog.progress(100, text="✨ 登録成功！")
+                            time.sleep(0.3)
                             st.session_state.auth = res.get("data"); st.rerun()
                         else:
                             reg_prog.empty(); st.error(f"エラー: {res.get('message')}")
@@ -498,11 +500,11 @@ async def main():
                     new_p = st.text_input("新しいPIN", type="password", autocomplete="new-password")
                     if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
                         rec_prog = st.progress(10, text="📡 通信中...")
-                        res = await call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
+                        res = call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
                         if res.get("status") == "success":
                             clear_cache()
                             rec_prog.progress(100, text="✅ 更新成功！新しいPINでログインできます。")
-                            await asyncio.sleep(1); st.rerun()
+                            time.sleep(1.5); st.rerun()
                         else:
                             rec_prog.empty(); st.error("氏名または合言葉が間違っています。")
         return
@@ -550,10 +552,11 @@ async def main():
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
             upd_prog = st.progress(10, text="💾 更新中...")
             payload = {"user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4)}
-            res = await call_gas("update_user", {"payload": payload}, method="POST")
+            res = call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
-                clear_cache() # 💡 キャッシュクリア
+                clear_cache()
                 upd_prog.progress(100, text="✨ 更新完了！")
+                time.sleep(0.3)
                 st.session_state.auth = res.get("data"); st.rerun()
             else: upd_prog.empty(); st.error("更新に失敗しました。")
         return
@@ -633,9 +636,10 @@ async def main():
                 
             upd_prog = st.progress(10, text="💾 データベースへ書き込み中...")
             payload = {"user_id": user['user_id'], "fixed_schedule": new_fixed_sched}
-            res = await call_gas("update_user", {"payload": payload}, method="POST")
+            res = call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
                 upd_prog.progress(100, text="✨ 保存完了！")
+                time.sleep(0.3)
                 st.session_state.auth = res.get("data"); st.rerun()
             else:
                 upd_prog.empty(); st.error("更新に失敗しました。")
@@ -705,8 +709,7 @@ async def main():
             target_scope_json = ""
             
             if not is_all_members:
-                # 💡 キャッシュ通信を利用
-                u_res = await call_gas_cached("get_all_users", method="POST", ttl=600)
+                u_res = call_gas_cached("get_all_users", method="POST", ttl=600)
                 all_u = u_res.get("data", [])
                 
                 all_g1 = list(set([g.strip() for u in all_u for g in u.get('group_1', '').split(',') if g.strip()]))
@@ -759,8 +762,8 @@ async def main():
                     "target_scope": target_scope_json,
                     "is_private": is_private
                 }
-                await call_gas("create_event", {"payload": payload}, method="POST")
-                clear_cache() # 💡 キャッシュクリア
+                call_gas("create_event", {"payload": payload}, method="POST")
+                clear_cache()
                 st.success(f"「{ev_title}」を作成しました！")
                 if "opt_count" in st.session_state: del st.session_state.opt_count
         return
@@ -773,8 +776,7 @@ async def main():
         tab_manage, tab_users = st.tabs(["📝 イベント・アーカイブ管理", "👥 ユーザー管理"])
 
         with tab_manage:
-            # 💡 キャッシュ通信を利用
-            u_res = await call_gas_cached("get_all_users", method="POST", ttl=600)
+            u_res = call_gas_cached("get_all_users", method="POST", ttl=600)
             user_map = {u['user_id']: u['name'] for u in u_res.get("data", [])}
 
             def format_target_scope(scope_str):
@@ -789,8 +791,7 @@ async def main():
                     return " / ".join(res) if res else "全員"
                 except: return "限定"
 
-            # 💡 キャッシュ通信を利用
-            all_ev_res = await call_gas_cached("get_all_events", ttl=60)
+            all_ev_res = call_gas_cached("get_all_events", ttl=60)
             all_events = all_ev_res.get("data", [])
             
             if all_events:
@@ -815,9 +816,9 @@ async def main():
                         target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x['title']} ({x['status']})")
                         new_status = st.selectbox("ステータス", ["open", "closed", "archived"], index=1)
                         if st.form_submit_button("更新する"):
-                            await call_gas("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}}, method="POST")
-                            clear_cache() # 💡 キャッシュクリア
-                            st.success("更新しました！"); await asyncio.sleep(1); st.rerun()
+                            call_gas("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}}, method="POST")
+                            clear_cache()
+                            st.success("更新しました！"); time.sleep(1); st.rerun()
                 st.subheader("📦 アーカイブ済み")
                 html_table_arch = df_display[df_display['status'] == 'archived'].to_html(index=False, border=0, classes="custom-tbl")
                 st.markdown(f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_arch}</div>', unsafe_allow_html=True)
@@ -826,12 +827,11 @@ async def main():
         with tab_users:
             st.subheader("👥 ユーザー一覧と権限管理")
             
-            # 💡 キャッシュ通信を利用
-            u_res_all = await call_gas_cached("get_all_users", method="POST", ttl=600)
+            u_res_all = call_gas_cached("get_all_users", method="POST", ttl=600)
             all_users = u_res_all.get("data", [])
             
             if st.button("🔄 ユーザー一覧を最新に更新"):
-                clear_cache() # 強制リロード用
+                clear_cache()
                 st.rerun()
 
             if all_users:
@@ -867,11 +867,10 @@ async def main():
                         if tgt_user['role'] == 'top_admin' and new_u_role != 'top_admin':
                             st.error("最高管理者の権限は変更できません。")
                         else:
-                            await call_gas("admin_update_user", {"payload": {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}}, method="POST")
+                            call_gas("admin_update_user", {"payload": {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}}, method="POST")
                             st.success("情報を更新しました！")
-                            clear_cache() # 💡 キャッシュクリア
-                            await asyncio.sleep(1)
-                            st.rerun()
+                            clear_cache()
+                            time.sleep(1); st.rerun()
 
                 if user["role"] == "top_admin":
                     st.markdown("---")
@@ -881,12 +880,10 @@ async def main():
                         candidates = [u for u in all_users if u['user_id'] != user['user_id']]
                         new_top = st.selectbox("譲渡先ユーザー", candidates, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
                         if st.form_submit_button("top_adminを譲渡する", type="primary"):
-                            await call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id']}}, method="POST")
+                            call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id']}}, method="POST")
                             st.success(f"{new_top['name']} さんに top_admin を譲渡しました。再ログインしてください。")
                             clear_cache()
-                            await asyncio.sleep(2)
-                            st.session_state.auth = None
-                            st.rerun()
+                            time.sleep(2); st.session_state.auth = None; st.rerun()
         return
 
     # ----------------------------------------------------
@@ -898,8 +895,7 @@ async def main():
     role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(user.get("role"), "👤")
     st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user["name"]}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user["user_id"]}</div></div>', unsafe_allow_html=True)
 
-    # 💡 キャッシュ通信を利用 (60秒間はリロードなし)
-    ev_res = await call_gas_cached("get_active_events", {"user_id": user["user_id"]}, ttl=60)
+    ev_res = call_gas_cached("get_active_events", {"user_id": user["user_id"]}, ttl=60)
     events = ev_res.get("data", [])
     if not events: st.info("現在表示できるイベントはありません。"); return
 
@@ -1020,8 +1016,7 @@ async def main():
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
         if "last_ev_id" not in st.session_state or st.session_state.last_ev_id != event['event_id']:
-            # 💡 キャッシュ通信を利用
-            my_res = await call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
+            my_res = call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
             st.session_state.event_responses = my_res.get("data", [])
             
             df = pd.DataFrame(0, index=time_labels, columns=date_strs)
@@ -1167,9 +1162,9 @@ async def main():
                             else: bits[t_idx] = str(int(st.session_state.df_input.loc[time_labels[t_idx], d_id]))
                         all_res.append({"date": d_id, "binary": "".join(bits)})
                     save_prog = st.progress(30, text="💾 スプレッドシートへ送信中...")
-                    await call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": st.session_state.my_comment, "responses": all_res}}, method="POST")
-                    clear_cache() # 💡 キャッシュクリア
-                    save_prog.progress(100, text="✨ 保存完了！"); await asyncio.sleep(1); save_prog.empty(); st.success("スプレッドシートに保存しました！")
+                    call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": st.session_state.my_comment, "responses": all_res}}, method="POST")
+                    clear_cache()
+                    save_prog.progress(100, text="✨ 保存完了！"); time.sleep(0.5); save_prog.empty(); st.success("スプレッドシートに保存しました！")
                     
                     if "last_ev_id" in st.session_state: del st.session_state.last_ev_id
                     st.rerun()
@@ -1180,7 +1175,7 @@ async def main():
             with col1: policy = st.radio("「未定(△)」の計算方法", [0.5, 1.0, 0.0], format_func=lambda x: f"{x}人としてカウント", horizontal=True)
             with col2:
                 if st.button("🔄 最新の回答を取得", use_container_width=True):
-                    clear_cache() # 💡 キャッシュクリア
+                    clear_cache()
                     st.rerun()
 
             all_res_data = st.session_state.event_responses
@@ -1339,8 +1334,7 @@ async def main():
         opts = json.loads(event.get('event_options', '[]'))
         
         if "last_ev_id" not in st.session_state or st.session_state.last_ev_id != event['event_id']:
-            # 💡 キャッシュ通信を利用
-            my_res = await call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
+            my_res = call_gas_cached("get_responses", {"event_id": event["event_id"]}, ttl=60)
             st.session_state.event_responses = my_res.get("data", [])
             st.session_state.last_ev_id = event['event_id']
 
@@ -1361,9 +1355,9 @@ async def main():
                 
                 res = [{"date": "options", "binary": b_str}]
                 save_prog = st.progress(30, text="💾 スプレッドシートへ送信中...")
-                await call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": user_comment, "responses": res}}, method="POST")
-                clear_cache() # 💡 キャッシュクリア
-                save_prog.progress(100, text="✨ 保存完了！"); await asyncio.sleep(1); save_prog.empty(); st.success("保存しました！")
+                call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": user_comment, "responses": res}}, method="POST")
+                clear_cache()
+                save_prog.progress(100, text="✨ 保存完了！"); time.sleep(0.5); save_prog.empty(); st.success("保存しました！")
                 
                 if "last_ev_id" in st.session_state: del st.session_state.last_ev_id
                 st.rerun()
@@ -1374,7 +1368,7 @@ async def main():
             with col1: policy = st.radio("「未定(△)」の計算方法", [0.5, 1.0, 0.0], format_func=lambda x: f"{x}人としてカウント", horizontal=True, key="opt_policy")
             with col2:
                 if st.button("🔄 最新の回答を取得", use_container_width=True, key="opt_refresh"):
-                    clear_cache() # 💡 キャッシュクリア
+                    clear_cache()
                     st.rerun()
 
             all_res_data = st.session_state.event_responses
@@ -1467,4 +1461,5 @@ async def main():
                 st.markdown("### 💬 参加者からのコメント")
                 for c in comments_list: st.info(f"**{c['user']}**: {c['comment']}")
 
-await main()
+if __name__ == "__main__":
+    main()

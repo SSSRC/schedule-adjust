@@ -444,8 +444,6 @@ def format_deadline_jp(date_str):
     except:
         return date_str
 
-
-    
 def main():
     if "app_initialized" not in st.session_state:
         st.session_state.app_initialized = True

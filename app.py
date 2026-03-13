@@ -881,9 +881,36 @@ def main():
     role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(user.get("role"), "👤")
     st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user["name"]}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user["user_id"]}</div></div>', unsafe_allow_html=True)
 
-    ev_res = call_gas_cached("get_active_events", {"user_id": user["user_id"]}, ttl=60)
-    events = ev_res.get("data", [])
-    if not events: st.info("現在表示できるイベントはありません。"); return
+    # ============================================================
+    # 🚀 ここから変更：1回の通信で必要なデータを全取得！
+    # ============================================================
+    current_ev_id = st.session_state.get("target_ev_id", "")
+    
+    # get_all_data を呼び出して、ユーザー情報・イベント一覧・回答データを一括で受け取る
+    all_data_res = call_gas_cached("get_all_data", {
+        "user_id": user["user_id"],
+        "event_id": current_ev_id
+    }, ttl=60)
+    
+    events = []
+    if all_data_res.get("status") == "success":
+        payload = all_data_res.get("data", {})
+        events = payload.get("events", [])
+        
+        # ユーザー一覧もここでキャッシュしておく（管理者画面や作成画面で再利用するため）
+        st.session_state.cached_users = payload.get("users", [])
+        
+        # 回答データが含まれていれば、事前にセットしておく（後続の通信をスキップさせる罠）
+        if payload.get("responses") is not None:
+            st.session_state.event_responses = payload.get("responses")
+            st.session_state.last_ev_id = current_ev_id
+    else:
+        st.error("データの取得に失敗しました。")
+
+    if not events: 
+        st.info("現在表示できるイベントはありません。")
+        return
+    # ============================================================
 
     now_dt = datetime.now()
 

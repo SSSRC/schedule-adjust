@@ -1051,7 +1051,7 @@ def main():
                 except: pass
             
             icon = "🔥" if is_urgent else "🔴"
-            # 💡 タイトルの後ろに締め切り時間を追加
+            # 💡 サイドバーでも統一された日本式の日時を表示
             dl_text = format_deadline_jp(u_ev.get('deadline'))
             if st.sidebar.button(f"{icon} {u_ev['title']} (〜{dl_text})", key=f"btn_jump_{u_ev['event_id']}", use_container_width=True):
                 st.session_state.target_ev_id = u_ev['event_id']

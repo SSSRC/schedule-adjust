@@ -522,17 +522,36 @@ def main():
             
             elif login_mode == "🆘 PIN・パスワード復旧":
                 st.subheader("PINの再設定")
-                with st.form("recovery_auth_form"):
-                    rec_n = st.text_input("氏名", autocomplete="username")
-                    rec_s = st.text_input("秘密の合言葉", type="password")
-                    new_p = st.text_input("新しいPIN", type="password", autocomplete="new-password")
-                    if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
-                        res = call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
-                        if res.get("status") == "success":
-                            clear_cache()
-                            st.success("✅ 更新成功！新しいPINでログインできます。")
+                
+                # --- 手順1: 合言葉がわかる場合（自動復旧） ---
+                with st.expander("🔑 秘密の合言葉を使って自分で復旧する", expanded=True):
+                    with st.form("recovery_auth_form"):
+                        st.markdown("<small>登録時に設定した合言葉がわかる方はこちら</small>", unsafe_allow_html=True)
+                        rec_n = st.text_input("氏名", autocomplete="username")
+                        rec_s = st.text_input("秘密の合言葉", type="password")
+                        new_p = st.text_input("設定したい新しいPIN", type="password", autocomplete="new-password")
+                        if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
+                            res = call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
+                            if res.get("status") == "success":
+                                clear_cache()
+                                st.success("✅ 更新成功！新しいPINでログインできます。")
+                            else:
+                                st.error("氏名または合言葉が間違っています。")
+                
+                # --- 手順2: 合言葉も忘れた場合（管理者にSOS） ---
+                with st.expander("🆘 合言葉も忘れたので、管理者にリセットを依頼する"):
+                    st.write("管理者のSlack/Discordへ通知を送り、PINのリセットを依頼します。")
+                    req_name = st.text_input("あなたのお名前（フルネーム）", key="req_pin_name")
+                    if st.button("🚀 管理者にリセット依頼を送る", use_container_width=True):
+                        if not req_name:
+                            st.warning("お名前を入力してください。")
                         else:
-                            st.error("氏名または合言葉が間違っています。")
+                            # request_pin_reset アクションを呼び出す
+                            res = call_gas("request_pin_reset", {"payload": {"name": req_name}}, method="POST")
+                            if res.get("status") == "success":
+                                st.success(f"✅ {req_name}さん、管理者に通知を送りました。対応をお待ちください。")
+                            else:
+                                st.error("送信に失敗しました。時間をおいて再度お試しください。")
         return
 
     # ==========================================

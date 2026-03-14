@@ -438,14 +438,27 @@ def get_border_top(t_str, event_type="time"):
 def format_deadline_jp(date_str):
     if not date_str or str(date_str).strip() == "" or date_str == "None": 
         return "期限なし"
+    
     try:
-        # pd.to_datetimeを使うことで、GASからの様々な形式を柔軟にパース
-        dt = pd.to_datetime(date_str)
+        # 💡 デバッグ用：うまくいかない場合は以下のコメントアウトを外すと、
+        # 実際にどんな文字が来ているか画面で確認できます。
+        # st.write(f"DEBUG: 受信データ '{date_str}'")
+
+        # 1. 括弧（Japan Standard Timeなど）が含まれると解析に失敗するので除去
+        clean_str = str(date_str).split(' (')[0] 
+        
+        # 2. Pandasで解析
+        dt = pd.to_datetime(clean_str)
+        
+        # 3. 日本語の曜日を設定
         wday = ["月", "火", "水", "木", "金", "土", "日"][dt.weekday()]
-        # 日本人が直感的に理解しやすい「3/14(土) 10:00」形式
+        
+        # 4. 見やすい形式で返す
         return f"{dt.month}/{dt.day}({wday}) {dt.strftime('%H:%M')}"
-    except:
-        # 解析に失敗した場合は、念のため元の文字列を返す
+        
+    except Exception as e:
+        # 💡 解析に失敗した場合、原因を画面に出す（本番では消してOK）
+        # st.error(f"解析エラー: {e} / 元データ: {date_str}")
         return str(date_str)
 
 def main():

@@ -614,8 +614,18 @@ def main():
         upd_g3 = st.multiselect("🏢 委員会", ["執行部", "新入生教育", "広報", "イベント", "会計"], default=safe_def_g3, key="upd_g3")
         upd_g4 = st.multiselect("👑 役職", upd_g4_opts, default=safe_def_g4, key="upd_g4")
 
+        # 💡 iCal URLの設定欄を追加
+        st.markdown("---")
+        st.markdown("##### 📅 外部カレンダー連携 (任意)")
+        st.write("GoogleカレンダーやiPhoneの「非公開URL（iCal形式 / .ics）」を設定しておくと、日程調整の際に自分の予定を自動でグレーアウトできます。")
+        upd_cal_url = st.text_input("カレンダーの非公開URL", value=user.get('calendar_url', ''), placeholder="https://calendar.google.com/calendar/ical/.../basic.ics")
+
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
-            payload = {"user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4)}
+            # 💡 URLも保存対象に含める
+            payload = {
+                "user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), 
+                "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4), "calendar_url": upd_cal_url
+            }
             res = call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
                 clear_cache()
@@ -1265,17 +1275,22 @@ def main():
                 st.markdown("##### 📅 カレンダー連携")
                 c_import1, c_import2 = st.columns([3, 1])
                 with c_import1:
-                    st.write("Googleカレンダーの予定を読み込んで、自動で「授業等(グレー)」として反映します。")
+                    st.write("プロフィールに設定したカレンダーの予定を読み込んで、自動で「授業等(グレー)」として反映します。")
                 with c_import2:
                     if st.button("🔄 カレンダーから取得", use_container_width=True):
-                        with st.spinner("Googleカレンダーを確認中..."):
-                            # GASの import_google_calendar アクションを呼び出し
-                            res = call_gas("import_google_calendar", {
-                                "payload": {
-                                    "start_date": event['start_date'],
-                                    "end_date": event['end_date']
-                                }
-                            }, method="POST")
+                        # 💡 URLが設定されているかチェック
+                        user_cal_url = user.get('calendar_url', '')
+                        if not user_cal_url or "http" not in user_cal_url:
+                            st.warning("プロフィール画面でカレンダーの非公開URLを設定してください。")
+                        else:
+                            with st.spinner("予定を取得中..."):
+                                res = call_gas("import_google_calendar", {
+                                    "payload": {
+                                        "start_date": event['start_date'],
+                                        "end_date": event['end_date'],
+                                        "ical_url": user_cal_url  # 💡 GASにURLを渡す
+                                    }
+                                }, method="POST")
                             
                             if res.get("status") == "success":
                                 # 💡 data の中にある busy_slots を取得

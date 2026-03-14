@@ -1271,8 +1271,10 @@ def main():
                         with st.spinner("Googleカレンダーを確認中..."):
                             # GASの import_google_calendar アクションを呼び出し
                             res = call_gas("import_google_calendar", {
-                                "start_date": event['start_date'],
-                                "end_date": event['end_date']
+                                "payload": {
+                                    "start_date": event['start_date'],
+                                    "end_date": event['end_date']
+                                }
                             }, method="POST")
                             
                             if res.get("status") == "success":

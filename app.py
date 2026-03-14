@@ -864,9 +864,16 @@ def main():
                 res = call_gas("create_event", {"payload": payload}, method="POST")
                 clear_cache()
                 st.success(f"「{ev_title}」を作成しました！")
-                
-                # 💡 GASから返ってきた event_id を取得してURLを表示
-                created_event_id = res.get("event_id") or res.get("data", {}).get("event_id") if isinstance(res, dict) else None
+            
+                # 💡 res["data"] が辞書（dict）である場合のみ get を試みる安全な書き方
+                created_event_id = None
+                if isinstance(res, dict):
+                    data_content = res.get("data")
+                    if isinstance(data_content, dict):
+                        created_event_id = data_content.get("event_id")
+                    else:
+                        # 万が一GASからIDが直接返ってきた場合（旧仕様など）の予備
+                        created_event_id = res.get("event_id")
                 
                 if created_event_id:
                     share_url = f"{APP_BASE_URL}?event={created_event_id}"

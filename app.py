@@ -1027,7 +1027,15 @@ def main():
 
     now_dt = datetime.now()
 
-    unanswered_events = [ev for ev in events if not ev.get('is_answered') and ev['status'] == 'open']
+    # 💡 修正：同じevent_idが複数ある場合にエラーにならないよう、重複を除去する
+    unanswered_events = []
+    seen_ids = set()
+    for ev in events:
+        eid = ev.get('event_id')
+        if not ev.get('is_answered') and ev['status'] == 'open' and eid not in seen_ids:
+            unanswered_events.append(ev)
+            seen_ids.add(eid)
+            
     if unanswered_events:
         st.sidebar.markdown("---")
         st.sidebar.markdown(f"<div style='color:#FF4B4B; font-weight:bold; padding-bottom: 5px;'>📢 未回答の予定 ({len(unanswered_events)}件)</div>", unsafe_allow_html=True)

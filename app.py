@@ -539,17 +539,15 @@ def main():
                                 st.error("氏名または合言葉が間違っています。")
                 
                 # --- 手順2: 合言葉も忘れた場合（管理者にSOS） ---
-                with st.expander("🆘 合言葉も忘れたので、管理者にリセットを依頼する"):
+                with st.expander("🆘 合言葉も忘れたので、管理者に依頼する"):
                     st.write("管理者のSlack/Discordへ通知を送り、PINのリセットを依頼します。")
-                    req_name = st.text_input("あなたのお名前（フルネーム）", key="req_pin_name")
+                    req_name = st.text_input("あなたのお名前", key="req_pin_name")
                     if st.button("🚀 管理者にリセット依頼を送る", use_container_width=True):
-                        if not req_name:
-                            st.warning("お名前を入力してください。")
+                        if not req_name: st.warning("名前を入力してください。")
                         else:
-                # ユーザー向けには丁寧なメッセージだけを出す
-                st.error("🛑 送信に失敗しました。管理者へ直接連絡してください。")
-                # 管理者だけが確認したい場合は、以下をコメントアウトしておく
-                # st.json(res)
+                            res = call_gas("request_pin_reset", {"payload": {"name": req_name}}, method="POST")
+                            if res.get("status") == "success": st.success(f"✅ {req_name}さん、管理者に通知を送りました。")
+                            else: st.error("送信に失敗しました。管理者へ直接連絡してください。")
         return
 
     # ==========================================

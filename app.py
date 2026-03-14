@@ -1109,25 +1109,28 @@ def main():
             st.session_state.target_ev_id = events[0]['event_id']
 
     def format_ev_name(x):
-        # 💡 共通の期限ラベルを作成
-        dl_label = f" [締切: {format_deadline_jp(x.get('deadline'))}]"
+        # 💡 日本語に変換した期限を取得
+        dl_str = format_deadline_jp(x.get('deadline'))
         
-        # ステータスに応じたアイコン
+        # アイコンの決定
         if x['status'] == 'closed': 
-            return f"🔒 {x['title']}{dl_label}"
-        
-        if x.get('is_answered'): 
-            return f"✅ {x['title']}{dl_label}"
-            
-        is_urgent = False
-        if x.get('deadline'):
+            icon = "🔒"
+        elif x.get('is_answered'): 
+            icon = "✅"
+        else:
+            # 緊急判定（ここでも柔軟なパースを使用）
+            is_urgent = False
             try:
-                dl = pd.to_datetime(x['deadline'])
-                if 0 <= (dl - now_dt).total_seconds() <= 3 * 24 * 3600: is_urgent = True
+                if x.get('deadline'):
+                    dl_dt = pd.to_datetime(x['deadline'])
+                    if dl_dt.tzinfo is not None: dl_dt = dl_dt.tz_convert(None)
+                    if 0 <= (dl_dt - now_dt).total_seconds() <= 3 * 24 * 3600:
+                        is_urgent = True
             except: pass
+            icon = "🔥" if is_urgent else "🔴"
             
-        if is_urgent: return f"🔥 {x['title']} (急ぎ!){dl_label}"
-        return f"🔴 {x['title']}{dl_label}"
+        # [締切: 3/14(土) 10:00] のような形式で表示
+        return f"{icon} {x['title']} [締切: {dl_str}]"
 
     event = st.selectbox("🎯 対象イベント選択", events, index=default_idx, format_func=format_ev_name)
     

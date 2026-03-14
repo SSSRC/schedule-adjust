@@ -436,15 +436,17 @@ def get_border_top(t_str, event_type="time"):
 
 # 💡 回答期限を日本人にとって最も見やすいフォーマット（月/日(曜) 時:分）に変換
 def format_deadline_jp(date_str):
-    if not date_str or date_str == "": return "期限なし"
+    if not date_str or str(date_str).strip() == "" or date_str == "None": 
+        return "期限なし"
     try:
-        # 秒が含まれる場合や日付のみの場合など、柔軟に対応できるようにパース
+        # pd.to_datetimeを使うことで、GASからの様々な形式を柔軟にパース
         dt = pd.to_datetime(date_str)
         wday = ["月", "火", "水", "木", "金", "土", "日"][dt.weekday()]
-        # 2026年などはあえて省き、直近の予定として見やすくします（例: 3/14(土) 23:59）
+        # 日本人が直感的に理解しやすい「3/14(土) 10:00」形式
         return f"{dt.month}/{dt.day}({wday}) {dt.strftime('%H:%M')}"
     except:
-        return date_str
+        # 解析に失敗した場合は、念のため元の文字列を返す
+        return str(date_str)
 
 def main():
     if "app_initialized" not in st.session_state:
@@ -1067,10 +1069,20 @@ def main():
             is_urgent = False
             if u_ev.get('deadline'):
                 try:
-                    dl = datetime.strptime(u_ev['deadline'], "%Y-%m-%d %H:%M")
-                    if 0 <= (dl - now_dt).total_seconds() <= 3 * 24 * 3600:
+                    # 💡 柔軟な解析に切り替え
+                    dl_dt = pd.to_datetime(u_ev['deadline'])
+                    # タイムゾーンの競合を防ぐためtz-naiveに統一
+                    if dl_dt.tzinfo is not None:
+                        dl_dt = dl_dt.tz_convert(None)
+                    
+                    if 0 <= (dl_dt - now_dt).total_seconds() <= 3 * 24 * 3600:
                         is_urgent = True
                 except: pass
+            
+            icon = "🔥" if is_urgent else "🔴"
+            # 💡 強化した関数で日本語表示にする
+            dl_text = format_deadline_jp(u_ev.get('deadline'))
+            if st.sidebar.button(f"{icon} {u_ev['title']} (〜{dl_text})", key=f"btn_jump_{u_ev['event_id']}", use_container_width=True):
             
             icon = "🔥" if is_urgent else "🔴"
             # 💡 サイドバーでも統一された日本式の日時を表示

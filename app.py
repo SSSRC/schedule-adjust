@@ -434,13 +434,15 @@ def get_border_top(t_str, event_type="time"):
     elif t_str.endswith(":30"): return "1px dashed #999"
     else: return "1px solid #f0f0f0"
 
-# 💡 回答期限を日本人にとって見やすいフォーマットに変換する関数
+# 💡 回答期限を日本人にとって最も見やすいフォーマット（月/日(曜) 時:分）に変換
 def format_deadline_jp(date_str):
-    if not date_str: return ""
+    if not date_str or date_str == "": return "期限なし"
     try:
-        dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+        # 秒が含まれる場合や日付のみの場合など、柔軟に対応できるようにパース
+        dt = pd.to_datetime(date_str)
         wday = ["月", "火", "水", "木", "金", "土", "日"][dt.weekday()]
-        return f"{dt.year}年{dt.month}月{dt.day}日({wday}) {dt.strftime('%H:%M')}"
+        # 2026年などはあえて省き、直近の予定として見やすくします（例: 3/14(土) 23:59）
+        return f"{dt.month}/{dt.day}({wday}) {dt.strftime('%H:%M')}"
     except:
         return date_str
 
@@ -1049,7 +1051,9 @@ def main():
                 except: pass
             
             icon = "🔥" if is_urgent else "🔴"
-            if st.sidebar.button(f"{icon} {u_ev['title']}", key=f"btn_jump_{u_ev['event_id']}", use_container_width=True):
+            # 💡 タイトルの後ろに締め切り時間を追加
+            dl_text = format_deadline_jp(u_ev.get('deadline'))
+            if st.sidebar.button(f"{icon} {u_ev['title']} (〜{dl_text})", key=f"btn_jump_{u_ev['event_id']}", use_container_width=True):
                 st.session_state.target_ev_id = u_ev['event_id']
                 st.rerun()
 
@@ -1071,18 +1075,25 @@ def main():
             st.session_state.target_ev_id = events[0]['event_id']
 
     def format_ev_name(x):
-        # 💡 セレクトボックス内の期限も日本式に
-        dl_str = f" (〜{format_deadline_jp(x['deadline'])})" if x.get('deadline') else ""
-        if x['status'] == 'closed': return f"🔒 {x['title']}"
-        if x.get('is_answered'): return f"✅ {x['title']}"
+        # 💡 共通の期限ラベルを作成
+        dl_label = f" [締切: {format_deadline_jp(x.get('deadline'))}]"
+        
+        # ステータスに応じたアイコン
+        if x['status'] == 'closed': 
+            return f"🔒 {x['title']}{dl_label}"
+        
+        if x.get('is_answered'): 
+            return f"✅ {x['title']}{dl_label}"
+            
         is_urgent = False
         if x.get('deadline'):
             try:
-                dl = datetime.strptime(x['deadline'], "%Y-%m-%d %H:%M")
+                dl = pd.to_datetime(x['deadline'])
                 if 0 <= (dl - now_dt).total_seconds() <= 3 * 24 * 3600: is_urgent = True
             except: pass
-        if is_urgent: return f"🔥 {x['title']} (期限間近!)"
-        return f"🔴 {x['title']}{dl_str}"
+            
+        if is_urgent: return f"🔥 {x['title']} (急ぎ!){dl_label}"
+        return f"🔴 {x['title']}{dl_label}"
 
     event = st.selectbox("🎯 対象イベント選択", events, index=default_idx, format_func=format_ev_name)
     

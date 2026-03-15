@@ -55,7 +55,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-GAS_URL = "https://script.google.com/macros/s/AKfycby9PfO_u89GZwvpOEGSTti6IZ_pjIdLeSnRsuTLxTMuGGLOyV6ZpEb0AfQDzuzvvNuMig/exec"
+GAS_URL = "https://script.google.com/macros/s/AKfycbx8GCHdyb9DDFIUajiKjceSn20-rfuEtsqrxCm-dD_pYsKou2Ie8mDkaM4oX3sKRX4SDQ/exec"
 
 # ==========================================
 # コンポーネント (rt_editor, options_editor, grid_editor)

@@ -1119,28 +1119,38 @@ def main():
                     st.subheader("👑 最高管理者 (top_admin) の譲渡")
                     st.warning("⚠️ この操作を実行すると、あなたは `admin` に降格し、元に戻すことはできません。")
                     
-                    # 💡 formを廃止し、テスト通知と譲渡を別々のステップにする
                     candidates = [u for u in all_users if u['user_id'] != user['user_id']]
                     new_top = st.selectbox("譲渡先ユーザー", candidates, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
                     
-                    st.markdown("<span style='font-size:13px; color:#555;'>PINリセットなどのSOSを受け取るための、新しい管理者のSlackメンションID（例: <code>&lt;@U12345678&gt;</code>）を入力してください。</span>", unsafe_allow_html=True)
-                    new_slack_id = st.text_input("SlackメンションID")
+                    # 💡 UIのテキストを @○○ 形式の案内に変更
+                    st.markdown("<span style='font-size:13px; color:#555;'>PINリセットなどのSOSを受け取るための、新しい管理者の<b>Slackメンバー名（例: <code>@taro.yamada</code>）</b>を入力してください。<br>※Slackのプロフィールを開き、表示名の下にある「@」から始まる英数字の名前です。</span>", unsafe_allow_html=True)
+                    new_slack_id = st.text_input("Slackメンバー名 (@から入力)")
                     
                     if st.button("🔔 テスト通知を送信"):
                         if new_slack_id:
-                            res = call_gas("test_slack_mention", {"payload": {"slack_id": new_slack_id}}, method="POST")
+                            # 💡 @を付け忘れた場合は自動で補完する
+                            mention_str = new_slack_id.strip()
+                            if not mention_str.startswith("@") and not mention_str.startswith("<"):
+                                mention_str = "@" + mention_str
+
+                            res = call_gas("test_slack_mention", {"payload": {"slack_id": mention_str}}, method="POST")
                             if res.get("status") == "success":
-                                st.success("Slackにテスト通知を送信しました！メンションが青くなっているか確認してください。")
+                                st.success(f"Slackにテスト通知を送信しました！「{mention_str}」が青色になって通知が来ているか確認してください。")
                             else:
                                 st.error("テスト通知の送信に失敗しました。")
                         else:
-                            st.warning("SlackメンションIDを入力してください。")
+                            st.warning("Slackメンバー名を入力してください。")
                     
                     confirm_transfer = st.checkbox("✅ Slackでテスト通知が届いたことを確認しました")
                     
                     if confirm_transfer:
                         if st.button("🚀 top_adminを譲渡する", type="primary"):
-                            call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id'], "slack_id": new_slack_id}}, method="POST")
+                            # 💡 譲渡時も @ を自動補完
+                            mention_str = new_slack_id.strip()
+                            if not mention_str.startswith("@") and not mention_str.startswith("<"):
+                                mention_str = "@" + mention_str
+                                
+                            call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id'], "slack_id": mention_str}}, method="POST")
                             clear_cache()
                             st.session_state.auth = None
                             st.rerun()

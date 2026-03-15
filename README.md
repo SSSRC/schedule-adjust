@@ -29,7 +29,26 @@ Streamlit × Google Apps Script (GAS) で構築された、プロジェクト・
   - Custom HTML/JavaScript (グリッドエディタ、リッチテキストエディタ)
 
 ## 📦 構成図
+graph TD
+    subgraph "Client Side (Streamlit Cloud)"
+        A[User Browser] -- "Interact" --> B(Streamlit App)
+        B -- "Custom Component" --> C[Grid Editor / Rich Text]
+    end
 
+    subgraph "External Integration"
+        G[Google Calendar / iCal] -- "Fetch .ics" --> D
+    end
+
+    subgraph "Backend (Google Cloud)"
+        B -- "JSON API (POST/GET)" --> D{Google Apps Script}
+        D -- "Read/Write" --> E[(Google Sheets)]
+        D -- "Webhook" --> F[Slack / Discord]
+    end
+
+    style B fill:#ff4b4b,color:#fff
+    style D fill:#4285f4,color:#fff
+    style E fill:#34a853,color:#fff
+    style F fill:#4b114b,color:#fff
 
 
 ## 🚀 使い方

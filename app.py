@@ -896,6 +896,17 @@ def main():
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")
             elif not is_all_members and target_scope_json == '{"groups": [], "users": []}': st.error("対象メンバーを指定するか、「全員に公開する」にチェックを入れてください。")
             else:
+                # 💡 メンションテキストの生成
+                mention_text = ""
+                if is_all_members:
+                    mention_text = "<!channel>"  # Slackの仕様で「全体」は <!channel> と書きます
+                else:
+                    mentions = []
+                    if "衛星" in t_g1: mentions.append("@cubesat")
+                    if "ロケット" in t_g1: mentions.append("@rocket")
+                    if "BizSat" in t_g1: mentions.append("@biz-sat")
+                    mention_text = " ".join(mentions)
+
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 payload = {
                     "title": ev_title, 
@@ -910,7 +921,8 @@ def main():
                     "deadline": deadline_str,
                     "auto_close": auto_close,
                     "target_scope": target_scope_json,
-                    "is_private": is_private
+                    "is_private": is_private,
+                    "mention_text": mention_text  # 💡 作成したメンションをGASへ送る
                 }
                 # 💡 GASからのレスポンスを変数 res で受け取るように修正
                 res = call_gas("create_event", {"payload": payload}, method="POST")

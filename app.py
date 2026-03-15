@@ -472,6 +472,16 @@ def main():
 
     if "auth" not in st.session_state: st.session_state.auth = None
     
+    # 💡 グループの並び順（マスター）を定義
+    MASTER_G1 = ["衛星", "ロケット", "BizSat"]
+    MASTER_G2 = ["ミッション系", "電源系", "構造系", "通信系", "姿勢系", "熱系", "C＆DH系", "COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系"]
+    MASTER_G3 = ["執行部", "新入生教育", "広報", "イベント", "会計"]
+    MASTER_G4_OPTS = ["PMs (衛星)", "PMs (ロケット)", "シスマネ", "系長"]
+
+    # リストをマスターの順番に並び替える補助関数
+    def sort_groups(lst, master):
+        return sorted(lst, key=lambda x: master.index(x) if x in master else 999)
+    
     # ==========================================
     # 🔑 未ログイン画面
     # ==========================================
@@ -627,7 +637,6 @@ def main():
                 "user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), 
                 "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4), "calendar_url": upd_cal_url
             }
-            # デバッグコードを削除し、直接送信
             res = call_gas("update_user", {"payload": payload}, method="POST")
             
             if res.get("status") == "success":
@@ -827,18 +836,17 @@ def main():
                 u_res = call_gas_cached("get_all_users", method="POST", ttl=600)
                 all_u = u_res.get("data", [])
                 
-                all_g1 = list(set([g.strip() for u in all_u for g in u.get('group_1', '').split(',') if g.strip()]))
-                all_g2 = list(set([g.strip() for u in all_u for g in u.get('group_2', '').split(',') if g.strip()]))
-                all_g3 = list(set([g.strip() for u in all_u for g in u.get('group_3', '').split(',') if g.strip()]))
-                
-                g4_display_opts = ["PMs (衛星)", "PMs (ロケット)", "シスマネ", "系長"]
+                # 💡 並び替え関数を通してリストを取得
+                all_g1 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_1', '').split(',') if g.strip()])), MASTER_G1)
+                all_g2 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_2', '').split(',') if g.strip()])), MASTER_G2)
+                all_g3 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_3', '').split(',') if g.strip()])), MASTER_G3)
                 
                 st.markdown("<span style='font-size:13px; color:#555;'>※ここで指定したグループや個人のみにイベントが表示されます。</span>", unsafe_allow_html=True)
                 col_t1, col_t2 = st.columns(2)
                 with col_t1:
                     t_g1 = st.multiselect("🚀 プロジェクト", all_g1, key="tgt_g1")
                     t_g3 = st.multiselect("🏢 委員会", all_g3, key="tgt_g3")
-                    t_g4 = st.multiselect("👑 役職", g4_display_opts, key="tgt_g4")
+                    t_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS, key="tgt_g4")
                 with col_t2:
                     t_g2 = st.multiselect("🔧 系", all_g2, key="tgt_g2")
                     t_users = st.multiselect("👤 特定の個人", all_u, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})", key="tgt_users")
@@ -980,13 +988,16 @@ def main():
                 df_ev['期限'] = df_ev['deadline'].apply(format_deadline_jp)
                 df_ev['公開範囲'] = df_ev['target_scope'].apply(format_target_scope)
                 df_ev['秘密'] = df_ev['is_private'].apply(lambda x: "🤫" if x else "-")
+                # 💡 管理者画面に「招待URL」の列を追加
+                df_ev['招待URL'] = df_ev['event_id'].apply(lambda x: f"{APP_BASE_URL}?event={x}")
                 
-                df_display = df_ev[['event_id', 'title', '種類', '詳細', '期限', '公開範囲', '秘密', 'status']]
+                df_display = df_ev[['event_id', 'title', '種類', '詳細', '期限', '公開範囲', '秘密', '招待URL', 'status']]
                 
                 active_events = [ev for ev in all_events if ev['status'] in ['open', 'closed']]
                 st.subheader("🟢 現在のイベント")
                 html_table_ev = df_display[df_display['status'].isin(['open', 'closed'])].to_html(index=False, border=0, classes="custom-tbl")
-                st.markdown("<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_ev}</div>', unsafe_allow_html=True)
+                # URL列が長くなりすぎないように折り返しのCSS(word-break)を追加
+                st.markdown("<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; word-break: break-all; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_ev}</div>', unsafe_allow_html=True)
                 
                 st.markdown("---")
                 st.subheader("⚙️ ステータス手動変更")
@@ -1021,7 +1032,7 @@ def main():
                 display_cols = [c for c in display_cols if c in df_u.columns]
                 
                 html_table = df_u[display_cols].to_html(index=False, border=0, classes="custom-tbl")
-                table_html = "<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; color: #333; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; color: #333; } .custom-tbl tr:hover { background-color: #f8f9fa; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px;">{html_table}</div>'
+                table_html = "<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; color: #333; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; color: #333; word-break: break-all; } .custom-tbl tr:hover { background-color: #f8f9fa; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px;">{html_table}</div>'
                 st.markdown(table_html, unsafe_allow_html=True)
                 
                 st.markdown("---")
@@ -1184,6 +1195,10 @@ def main():
         
     if is_private_event:
         st.info("🤫 **このイベントはプライベート設定されています。** 管理者以外には、誰が回答したかの名前やコメントは表示されず、全体の人数のみが表示されます。")
+
+    # 💡 招待URLを画面上に常設し、いつでもコピーできるように追加
+    st.markdown("##### 🔗 このイベントの招待URL")
+    st.code(f"{APP_BASE_URL}?event={event['event_id']}", language="text")
 
     event_type = event.get('event_type', 'time')
 
@@ -1451,6 +1466,11 @@ def main():
                 for g in r.get('group_4', '').split(','):
                     if g.strip(): all_g4.add(g.strip())
 
+            # 💡 マスターに基づいてリストを並び替える
+            all_g1_sorted = sort_groups(list(all_g1), MASTER_G1)
+            all_g2_sorted = sort_groups(list(all_g2), MASTER_G2)
+            all_g3_sorted = sort_groups(list(all_g3), MASTER_G3)
+
             with st.expander("🔍 絞り込みフィルター（回答者・時間帯・日付）", expanded=False):
                 with st.form("filter_form"):
                     st.markdown("<span style='font-size:14px; color:#555;'>指定した条件に合致するデータだけをグラフに表示します。（未選択の場合はすべて表示）</span>", unsafe_allow_html=True)
@@ -1458,12 +1478,13 @@ def main():
                     st.markdown("##### 👥 回答者")
                     f_col1, f_col2 = st.columns(2)
                     with f_col1:
-                        f_g1 = st.multiselect("🚀 プロジェクト", list(all_g1))
-                        f_g3 = st.multiselect("🏢 委員会", list(all_g3))
-                        f_g4 = st.multiselect("👑 役職", ["PMs (衛星)", "PMs (ロケット)", "シスマネ", "系長"])
+                        f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted)
+                        f_g3 = st.multiselect("🏢 委員会", all_g3_sorted)
+                        f_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS)
                     with f_col2:
-                        f_g2 = st.multiselect("🔧 系", list(all_g2))
-                        f_names = st.multiselect("👤 特定の個人", all_names)
+                        f_g2 = st.multiselect("🔧 系", all_g2_sorted)
+                        # 💡 名前は五十音順(アルファベット順)に並べる
+                        f_names = st.multiselect("👤 特定の個人", sorted(all_names))
                         
                     st.markdown("---")
                     st.markdown("##### ⏰ 時間帯")
@@ -1654,17 +1675,22 @@ def main():
                 for g in r.get('group_4', '').split(','):
                     if g.strip(): all_g4.add(g.strip())
 
+            # 💡 マスターに基づいてリストを並び替える
+            all_g1_sorted = sort_groups(list(all_g1), MASTER_G1)
+            all_g2_sorted = sort_groups(list(all_g2), MASTER_G2)
+            all_g3_sorted = sort_groups(list(all_g3), MASTER_G3)
+
             with st.expander("🔍 絞り込みフィルター（回答者）", expanded=False):
                 with st.form("opt_filter_form"):
                     st.markdown("<span style='font-size:14px; color:#555;'>指定した条件に合致する人の回答だけを集計します。（未選択の場合は全員）</span>", unsafe_allow_html=True)
                     f_col1, f_col2 = st.columns(2)
                     with f_col1:
-                        f_g1 = st.multiselect("🚀 プロジェクト", list(all_g1), key="f2_g1")
-                        f_g3 = st.multiselect("🏢 委員会", list(all_g3), key="f2_g3")
-                        f_g4 = st.multiselect("👑 役職", ["PMs (衛星)", "PMs (ロケット)", "シスマネ", "系長"], key="f2_g4")
+                        f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted, key="f2_g1")
+                        f_g3 = st.multiselect("🏢 委員会", all_g3_sorted, key="f2_g3")
+                        f_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS, key="f2_g4")
                     with f_col2:
-                        f_g2 = st.multiselect("🔧 系", list(all_g2), key="f2_g2")
-                        f_names = st.multiselect("👤 特定の個人", all_names, key="f2_names")
+                        f_g2 = st.multiselect("🔧 系", all_g2_sorted, key="f2_g2")
+                        f_names = st.multiselect("👤 特定の個人", sorted(all_names), key="f2_names")
                     
                     submitted = st.form_submit_button("✅ フィルターを適用して集計", type="primary")
 

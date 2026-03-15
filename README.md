@@ -57,4 +57,4 @@ Streamlit × Google Apps Script (GAS) で構築された、プロジェクト・
    - `app.py` 内の `GAS_URL` と `APP_BASE_URL` を自身の環境に合わせて書き換え。
 
 ---
-Produced by Your Name / Organization
+Produced by Tomoki Ueno / SSSRC

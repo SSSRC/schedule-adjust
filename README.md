@@ -1,4 +1,4 @@
-# 📅 日程調整 Pro (Schedule Adjust Pro)
+# 📅 SSScheduler
 
 Streamlit × Google Apps Script (GAS) で構築された、プロジェクト・団体向けの高機能日程調整ツールです。  
 独自のカスタムコンポーネント（Custom HTML/JS）を採用することで、Streamlit特有の再読み込みラグを排除し、スマートフォンからも爆速で快適な入力UIを実現しています。
@@ -99,4 +99,6 @@ graph TD
 3. [Streamlit Community Cloud](https://streamlit.io/cloud) にログインし、「New app」から該当リポジトリを選択してデプロイします。
 
 ---
-*Created and maintained by [Tomoki Ueno / SSSRC]*
+*Developed by: Tomoki Ueno (SSSRC)
+Powered by: Streamlit & Google Apps Script
+Assistant: Gemini 3 Flash (AI)*

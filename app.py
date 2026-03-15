@@ -511,10 +511,10 @@ def main():
                 g1 = st.multiselect("🚀 プロジェクト", ["衛星", "ロケット", "BizSat"], key="reg_g1")
                 g2_opts, g4_opts = [], []
                 if "衛星" in g1:
-                    g2_opts.extend(["ミッション", "電源", "構造 (衛星)", "通信", "姿勢", "熱", "C＆DH"])
+                    g2_opts.extend(["ミッション系", "電源系", "構造系", "通信系", "姿勢系", "熱系", "C＆DH系"])
                     g4_opts.extend(["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ", "PMs (衛星)"])
                 if "ロケット" in g1:
-                    g2_opts.extend(["燃焼", "推進", "構造 (ロケット)", "電装"])
+                    g2_opts.extend(["COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系"])
                     g4_opts.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "PMs (ロケット)"])
                 
                 g2_opts = list(dict.fromkeys(g2_opts)); g4_opts = list(dict.fromkeys(g4_opts))
@@ -592,17 +592,27 @@ def main():
         st.write("所属グループの更新を行います。（未所属にする場合は選択を解除してください）")
         
         def_g1 = [x for x in user.get('group_1', '').split(', ') if x]
-        def_g2 = [x for x in user.get('group_2', '').split(', ') if x]
+        
+        # 💡 古い名前で登録されているデータを新しい名前に変換して読み込む
+        old_to_new_g2 = {
+            "通信": "通信系", "熱": "熱系", "構造 (衛星)": "構造系", "構造（衛星）": "構造系",
+            "ミッション": "ミッション系", "姿勢": "姿勢系", "電源": "電源系", "C＆DH": "C＆DH系",
+            "電装": "COLOURS電装系", "構造 (ロケット)": "COLOURS構造系", "構造（ロケット）": "COLOURS構造系",
+            "推進": "COLOURS推進系", "燃焼": "COLOURS燃焼系"
+        }
+        raw_def_g2 = [x.strip() for x in user.get('group_2', '').split(',') if x.strip()]
+        def_g2 = [old_to_new_g2.get(x, x) for x in raw_def_g2]
+        
         def_g3 = [x for x in user.get('group_3', '').split(', ') if x]
         def_g4 = [x for x in user.get('group_4', '').split(', ') if x]
 
         upd_g1 = st.multiselect("🚀 プロジェクト", ["衛星", "ロケット", "BizSat"], default=def_g1, key="upd_g1")
         upd_g2_opts, upd_g4_opts = [], []
         if "衛星" in upd_g1:
-            upd_g2_opts.extend(["ミッション", "電源", "構造 (衛星)", "通信", "姿勢", "熱", "C＆DH"])
+            upd_g2_opts.extend(["ミッション系", "電源系", "構造系", "通信系", "姿勢系", "熱系", "C＆DH系"])
             upd_g4_opts.extend(["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ", "PMs (衛星)"])
         if "ロケット" in upd_g1:
-            upd_g2_opts.extend(["燃焼", "推進", "構造 (ロケット)", "電装"])
+            upd_g2_opts.extend(["COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系"])
             upd_g4_opts.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "PMs (ロケット)"])
         
         upd_g2_opts = list(dict.fromkeys(upd_g2_opts)); upd_g4_opts = list(dict.fromkeys(upd_g4_opts))
@@ -899,12 +909,30 @@ def main():
                 # 💡 メンションテキストの生成
                 mention_text = ""
                 if is_all_members:
-                    mention_text = "<!channel>"  # Slackの仕様で「全体」は <!channel> と書きます
+                    mention_text = "<!channel>"  # Slackの仕様で全体通知は <!channel>
                 else:
                     mentions = []
+                    # group_1 (プロジェクト)
                     if "衛星" in t_g1: mentions.append("@cubesat")
                     if "ロケット" in t_g1: mentions.append("@rocket")
                     if "BizSat" in t_g1: mentions.append("@biz-sat")
+                    
+                    # group_2 (系) ※古い名前が残っているケースも想定して両方で判定
+                    if "通信系" in t_g2 or "通信" in t_g2: mentions.append("@com")
+                    if "熱系" in t_g2 or "熱" in t_g2: mentions.append("@heat")
+                    if "構造系" in t_g2 or "構造 (衛星)" in t_g2: mentions.append("@str")
+                    if "ミッション系" in t_g2 or "ミッション" in t_g2: mentions.append("@mission")
+                    if "姿勢系" in t_g2 or "姿勢" in t_g2: mentions.append("@shisei")
+                    if "電源系" in t_g2 or "電源" in t_g2: mentions.append("@eps")
+                    if "C＆DH系" in t_g2 or "C＆DH" in t_g2: mentions.append("@cdh")
+                    
+                    if "COLOURS電装系" in t_g2 or "電装" in t_g2: mentions.append("@avionics")
+                    if "COLOURS構造系" in t_g2 or "構造 (ロケット)" in t_g2: mentions.append("@structure")
+                    if "COLOURS推進系" in t_g2 or "推進" in t_g2: mentions.append("@simu")
+                    if "COLOURS燃焼系" in t_g2 or "燃焼" in t_g2: mentions.append("@combustion")
+                    
+                    # 重複したメンションを削除して結合
+                    mentions = list(dict.fromkeys(mentions))
                     mention_text = " ".join(mentions)
 
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
@@ -922,7 +950,7 @@ def main():
                     "auto_close": auto_close,
                     "target_scope": target_scope_json,
                     "is_private": is_private,
-                    "mention_text": mention_text  # 💡 作成したメンションをGASへ送る
+                    "mention_text": mention_text  # 💡 GASへメンションテキストを送信
                 }
                 # 💡 GASからのレスポンスを変数 res で受け取るように修正
                 res = call_gas("create_event", {"payload": payload}, method="POST")

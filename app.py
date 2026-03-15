@@ -1118,11 +1118,29 @@ def main():
                     st.markdown("---")
                     st.subheader("👑 最高管理者 (top_admin) の譲渡")
                     st.warning("⚠️ この操作を実行すると、あなたは `admin` に降格し、元に戻すことはできません。")
-                    with st.form("transfer_top_admin_form"):
-                        candidates = [u for u in all_users if u['user_id'] != user['user_id']]
-                        new_top = st.selectbox("譲渡先ユーザー", candidates, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
-                        if st.form_submit_button("top_adminを譲渡する", type="primary"):
-                            call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id']}}, method="POST")
+                    
+                    # 💡 formを廃止し、テスト通知と譲渡を別々のステップにする
+                    candidates = [u for u in all_users if u['user_id'] != user['user_id']]
+                    new_top = st.selectbox("譲渡先ユーザー", candidates, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
+                    
+                    st.markdown("<span style='font-size:13px; color:#555;'>PINリセットなどのSOSを受け取るための、新しい管理者のSlackメンションID（例: <code>&lt;@U12345678&gt;</code>）を入力してください。</span>", unsafe_allow_html=True)
+                    new_slack_id = st.text_input("SlackメンションID")
+                    
+                    if st.button("🔔 テスト通知を送信"):
+                        if new_slack_id:
+                            res = call_gas("test_slack_mention", {"payload": {"slack_id": new_slack_id}}, method="POST")
+                            if res.get("status") == "success":
+                                st.success("Slackにテスト通知を送信しました！メンションが青くなっているか確認してください。")
+                            else:
+                                st.error("テスト通知の送信に失敗しました。")
+                        else:
+                            st.warning("SlackメンションIDを入力してください。")
+                    
+                    confirm_transfer = st.checkbox("✅ Slackでテスト通知が届いたことを確認しました")
+                    
+                    if confirm_transfer:
+                        if st.button("🚀 top_adminを譲渡する", type="primary"):
+                            call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id'], "slack_id": new_slack_id}}, method="POST")
                             clear_cache()
                             st.session_state.auth = None
                             st.rerun()

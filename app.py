@@ -626,14 +626,26 @@ def main():
                 "user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), 
                 "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4), "calendar_url": upd_cal_url
             }
+            
+            # 🔍 デバッグ用：送信データを画面に表示
+            st.info(f"【デバッグ：送信データ】\n{payload}")
+            
             res = call_gas("update_user", {"payload": payload}, method="POST")
+            
+            # 🔍 デバッグ用：GASからの返り値を画面に表示
+            st.warning(f"【デバッグ：受信データ】\n{res}")
+            
             if res.get("status") == "success":
                 clear_cache()
                 st.session_state.auth = res.get("data")
+                
+                # 💡 保存完了メッセージを表示し、ユーザーが読むために2秒待機してからリロード
+                st.success("✅ プロフィールを保存しました！")
+                time.sleep(3)  # 3秒間だけデバッグ画面と成功メッセージを停止して見せる
                 st.rerun()
-            else: st.error("更新に失敗しました。")
+            else: 
+                st.error(f"更新に失敗しました: {res.get('message')}")
         return
-
    # ----------------------------------------------------
     # ⏰ 時間割設定画面
     # ----------------------------------------------------

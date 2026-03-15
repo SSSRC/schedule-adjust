@@ -1555,7 +1555,7 @@ def main():
 
                     submitted = st.form_submit_button("✅ フィルターを適用して集計", type="primary")
 
-           filtered_data = []
+            filtered_data = []
             for r in all_res_data:
                 u_g1 = [x.strip() for x in r.get('group_1', '').split(',') if x.strip()]
                 u_g2 = [x.strip() for x in r.get('group_2', '').split(',') if x.strip()]

@@ -8,11 +8,14 @@ from datetime import datetime, timedelta
 import requests
 import streamlit.components.v1 as components
 import numpy as np
+from google.oauth2 import service_account
+from google.cloud import firestore
+import threading
 
 st.set_page_config(page_title="SSScheduler", layout="wide")
 
 # 💡 ご自身のStreamlitアプリのURLに変更してください
-APP_BASE_URL = "https://schedule-adjust-testing.streamlit.app/"
+APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 
 # ==========================================
 # UX改善: ロード中表示＆時間割テーブル用CSS
@@ -56,6 +59,173 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 GAS_URL = "https://script.google.com/macros/s/AKfycbx8GCHdyb9DDFIUajiKjceSn20-rfuEtsqrxCm-dD_pYsKou2Ie8mDkaM4oX3sKRX4SDQ/exec"
+
+# ==========================================
+# Firebase の初期化 ＆ 高速連携関数
+# ==========================================
+@st.cache_resource
+def get_firestore_client():
+    key_dict = dict(st.secrets["firebase"])
+    # 💡 Streamlit Secretsの改行文字エスケープ対策
+    if "private_key" in key_dict:
+        key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+    creds = service_account.Credentials.from_service_account_info(key_dict)
+    db = firestore.Client(credentials=creds, project=key_dict["project_id"])
+    return db
+
+db = get_firestore_client()
+
+# --- 裏側でGASにバックアップを送る非同期関数 ---
+def backup_to_gas_async(action, payload=None):
+    def _call():
+        try:
+            p = payload or {}
+            p["action"] = action
+            requests.post(GAS_URL, json=p)
+        except Exception as e:
+            print(f"GAS backup failed: {e}")
+    threading.Thread(target=_call).start()
+
+# --- 回答データのハイブリッド保存関数 ---
+def save_response_hybrid(payload):
+    try:
+        event_id = payload["event_id"]
+        user_id = payload["user_id"]
+        
+        # コメントやセルの詳細（メモ）をまとめて保存
+        cell_details_dict = json.loads(payload.get("cell_details", "{}"))
+        if payload.get("comment"):
+            cell_details_dict["global_comment"] = payload["comment"]
+            
+        final_cell_details_str = json.dumps(cell_details_dict, separators=(',', ':'))
+        payload["cell_details"] = final_cell_details_str
+        
+        doc_ref = db.collection("responses").document(f"{event_id}_{user_id}")
+        data = {
+            "event_id": event_id,
+            "user_id": user_id,
+            "cell_details": final_cell_details_str,
+            "responses": payload.get("responses", []), 
+            "updated_at": firestore.SERVER_TIMESTAMP
+        }
+        doc_ref.set(data)
+    except Exception as e:
+        st.error(f"Firestoreへの保存に失敗しました: {e}")
+        return False
+
+    backup_to_gas_async("submit_binary_response", payload)
+    return True
+
+# --- [爆速] メインデータの取得関数 ---
+def get_app_data_from_firestore(user):
+    user_id = str(user.get("user_id", ""))
+    
+    all_users = [doc.to_dict() for doc in db.collection("users").stream()]
+    user_map = {str(u.get("user_id", "")): u for u in all_users}
+    
+    answered_ids = set()
+    if user_id:
+        ans_docs = db.collection("responses").where("user_id", "==", user_id).stream()
+        for doc in ans_docs:
+            answered_ids.add(doc.to_dict().get("event_id"))
+
+    now = datetime.now()
+    active_events = []
+    
+    # ユーザーの所属属性をリスト化（権限マッチ用）
+    user_groups = []
+    for g_key in ['group_1', 'group_2', 'group_3', 'group_4']:
+        user_groups.extend([g.strip() for g in str(user.get(g_key,"")).split(",") if g.strip()])
+    
+    # シスマネや系長などの役職を「上位概念」として展開
+    expanded_user_groups = set(user_groups)
+    if any(m in user_groups for m in ["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ"]):
+        expanded_user_groups.add("シスマネ")
+    if any(k in user_groups for k in ["燃焼系長", "推進系長", "構造系長", "電装系長"]):
+        expanded_user_groups.add("系長")
+        
+    all_events_docs = db.collection("events").stream()
+    for doc in all_events_docs:
+        ev = doc.to_dict()
+        if ev.get("status") not in ["open", "closed"]: 
+            continue
+        
+        # 互換性確保
+        ev_type = ev.get("type") or ev.get("event_type", "time")
+        ev_close_time = ev.get("close_time") or ev.get("deadline", "")
+        
+        if ev.get("status") == "open" and ev.get("auto_close") and ev_close_time:
+            try:
+                dl_dt = pd.to_datetime(ev_close_time, errors='coerce')
+                if pd.notna(dl_dt):
+                    if dl_dt.tzinfo is not None:
+                        dl_dt = dl_dt.tz_convert(None)
+                    else:
+                        dl_dt = dl_dt.tz_localize(None)
+                        
+                    if now > dl_dt:
+                        ev["status"] = "closed"
+                        db.collection("events").document(ev["event_id"]).update({"status": "closed"})
+                        backup_to_gas_async("update_event_status", {"event_id": ev["event_id"], "status": "closed"})
+            except: 
+                pass
+
+        is_target = True
+        scope_str = ev.get("target_scope", "")
+        if scope_str and scope_str.startswith("{"):
+            try:
+                scope = json.loads(scope_str)
+                t_groups = scope.get("groups", [])
+                t_users = scope.get("users", [])
+                if t_groups or t_users:
+                    in_group = any(g in expanded_user_groups for g in t_groups)
+                    in_user = user_id in t_users
+                    if not in_group and not in_user:
+                        is_target = False
+            except: 
+                pass
+            
+        if is_target:
+            ev["is_answered"] = ev["event_id"] in answered_ids
+            # 旧型式のキー補完
+            if "deadline" not in ev and "close_time" in ev: ev["deadline"] = ev["close_time"]
+            if "event_type" not in ev and "type" in ev: ev["event_type"] = ev["type"]
+            active_events.append(ev)
+
+    return all_users, active_events, user_map
+
+# --- [爆速] イベントの回答詳細の取得関数 ---
+def fetch_responses_for_event(event_id, user_map):
+    docs = db.collection("responses").where("event_id", "==", event_id).stream()
+    flat_responses = []
+    for doc in docs:
+        data = doc.to_dict()
+        uid = str(data.get("user_id"))
+        uinfo = user_map.get(uid, {})
+        
+        cell_details_str = data.get("cell_details", "{}")
+        try:
+            cell_details_dict = json.loads(cell_details_str)
+            comment = cell_details_dict.get("global_comment", data.get("comment", ""))
+        except:
+            comment = data.get("comment", "")
+        
+        for r in data.get("responses", []):
+            b_data = r.get("binary_data") or r.get("binary", "")
+            flat_responses.append({
+                "user_id": uid,
+                "user_name": uinfo.get("name", "不明"),
+                "group_1": uinfo.get("group_1", ""),
+                "group_2": uinfo.get("group_2", ""),
+                "group_3": uinfo.get("group_3", ""),
+                "group_4": uinfo.get("group_4", ""),
+                "date": r.get("date"),
+                "binary_data": b_data,
+                "binary": b_data, # 互換用
+                "comment": comment,
+                "cell_details": cell_details_str
+            })
+    return flat_responses
 
 # ==========================================
 # コンポーネント (rt_editor, options_editor, grid_editor)
@@ -138,8 +308,9 @@ if not os.path.exists("options_editor"):
         window.addEventListener("message", function(event) {
             if (event.data.type === "streamlit:render") {
                 const args = event.data.args;
-                if(window.lastEventId === args.eventId) return; 
+                if(window.lastEventId === args.eventId && window.lastSaveTs === args.saveTs) return; 
                 window.lastEventId = args.eventId;
+                window.lastSaveTs = args.saveTs;
                 
                 const opts = args.options;
                 const myAnsBin = args.myAnsBin;
@@ -181,7 +352,7 @@ if not os.path.exists("options_editor"):
                 }
                 
                 document.getElementById("content").innerHTML = html;
-                setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50}), 150);
+                setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.getElementById('content').scrollHeight + 50}), 150);
             }
         });
         
@@ -217,8 +388,25 @@ if not os.path.exists("custom_editor"):
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
         .pen-btn { padding: 0; border-radius: 50%; width: 45px; height: 45px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); margin: 0 auto; }
         .pen-btn:hover { opacity: 0.8; }
-        /* 💡 選択中のペンをわかりやすく強調 */
         .pen-btn.active { border: 3px solid #333 !important; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+        
+        /* 💡 セルのコメント機能用スタイル */
+        #detail-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;justify-content:center;align-items:center;backdrop-filter:blur(2px);}
+        .modal-content{background:#fff;width:320px;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);position:relative;}
+        .modal-title{font-size:16px;font-weight:bold;color:#333;margin-bottom:10px;border-bottom:2px solid #4CAF50;padding-bottom:5px;}
+        .modal-label{font-size:12px;font-weight:bold;color:#666;margin-top:15px;display:block;}
+        .modal-input{width:100%;padding:8px;margin-top:5px;border:1px solid #ccc;border-radius:6px;font-size:14px;}
+        .status-switch{display:flex;gap:8px;margin-top:5px;}
+        .sw-btn{flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;background:#f9f9f9;color:#555;transition:0.2s;}
+        .sw-btn.active[data-v="1"]{background:#4CAF50;color:white;border-color:#4CAF50;}
+        .sw-btn.active[data-v="2"]{background:#FFEB3B;color:#333;border-color:#FBC02D;}
+        .sw-btn.active[data-v="0"]{background:#fff;color:#333;border-color:#999;}
+        .modal-btns{display:flex;gap:10px;margin-top:20px;}
+        .modal-btn-save{flex:1;background:#4CAF50;color:white;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;}
+        .memo-icon{position:absolute;top:1px;right:2px;font-size:10px;line-height:1;filter:drop-shadow(1px 1px 1px rgba(255,255,255,0.8));pointer-events:none;}
+        .c{position:relative;transition:filter 0.1s;}
+        @keyframes pressAnim{0%{transform:scale(1);filter:brightness(1);} 100%{transform:scale(0.92);filter:brightness(0.8);box-shadow:inset 0 4px 8px rgba(0,0,0,0.3);}}
+        .pressing{animation:pressAnim 0.4s forwards;z-index:100;}
         </style></head><body>
         
         <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.85); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
@@ -226,6 +414,25 @@ if not os.path.exists("custom_editor"):
             <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
             <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
+            <div style="font-size:10px; color:#888; text-align:center; line-height:1.2; margin-top:-5px;">※長押しで<br>メモ入力</div>
+        </div>
+
+        <div id="detail-modal">
+            <div class="modal-content" id="modal-content-box">
+                <div class="modal-title" id="modal-cell-title">詳細設定</div>
+                <label class="modal-label">🚥 予定のステータス</label>
+                <div class="status-switch">
+                    <button class="sw-btn" data-v="1" onclick="setModalStatus(1)">◯ 可</button>
+                    <button class="sw-btn" data-v="2" onclick="setModalStatus(2)">△ 未定</button>
+                    <button class="sw-btn" data-v="0" onclick="setModalStatus(0)">× 不可</button>
+                </div>
+                <label class="modal-label">📝 補足コメント (任意)</label>
+                <input type="text" id="modal-note" class="modal-input" placeholder="例: 13:30に移動開始, 20分遅延">
+                <div class="modal-btns">
+                    <button class="modal-btn-save" onclick="saveModal()">💾 保存して閉じる</button>
+                </div>
+                <div style="text-align:center; font-size:10px; color:#999; margin-top:10px;">※枠外をタップでキャンセル</div>
+            </div>
         </div>
 
         <div id="content"></div><script>
@@ -234,12 +441,77 @@ if not os.path.exists("custom_editor"):
         function setComponentValue(value) { sendMessageToStreamlitClient("streamlit:setComponentValue", {value: value, dataType: "json"}); }
         
         let currentWeek = 0; let totalDays = 0; let numRows = 0; let unavailColRows = {};
+        window.cellDetails = {};
+        let modalStatus = 1;
+        let editingCell = null;
+
+        const modalBg = document.getElementById('detail-modal');
+        modalBg.addEventListener('mousedown', function(e) { if(e.target === this) closeModal(); });
+        modalBg.addEventListener('touchstart', function(e) { if(e.target === this) closeModal(); }, {passive: true});
+
+        window.setModalStatus = function(v) {
+            modalStatus = v;
+            document.querySelectorAll('.sw-btn').forEach(b => {
+                b.classList.toggle('active', parseInt(b.dataset.v) === v);
+            });
+        };
+
+        window.openModal = function(cell) {
+            editingCell = cell;
+            const r = cell.dataset.r; const c = cell.dataset.c; const key = `${r}_${c}`;
+            const detail = window.cellDetails[key] || {note: ""};
+            setModalStatus(parseInt(cell.dataset.v) || 1);
+            document.getElementById('modal-note').value = detail.note || "";
+            document.getElementById('detail-modal').style.display = 'flex';
+        };
+
+        window.closeModal = function() {
+            document.getElementById('detail-modal').style.display = 'none';
+            if (editingCell) { editingCell.classList.remove('pressing'); editingCell = null; }
+        };
+
+        window.saveModal = function() {
+            if(!editingCell) return;
+            const r = editingCell.dataset.r; const c = editingCell.dataset.c; const key = `${r}_${c}`;
+            const note = document.getElementById('modal-note').value.trim();
+            if(note || modalStatus === 0) {
+                window.cellDetails[key] = {note: note};
+                window.upd(editingCell, modalStatus);
+            } else {
+                delete window.cellDetails[key];
+                window.upd(editingCell, modalStatus);
+            }
+            closeModal();
+        };
+
         window.upd = function(el, v) { 
             el.dataset.v = v; 
+            const key = `${el.dataset.r}_${el.dataset.c}`;
+            let detail = window.cellDetails[key];
+            
+            if (v == 0) {
+                if (detail && (detail.note === "バイト/サークル等" || detail.note === "バイト/私用")) { }
+                else { delete window.cellDetails[key]; detail = null; }
+            }
+
+            let note = detail ? detail.note : "";
+
             if (v == 1) { el.style.background = '#4CAF50'; el.style.backgroundImage = 'none'; }
             else if (v == 2) { el.style.background = '#FFEB3B'; el.style.backgroundImage = 'none'; }
             else if (v == 3) { el.style.background = '#e0e0e0'; el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,.7) 5px, rgba(255,255,255,.7) 10px)'; }
             else { el.style.background = '#fff'; el.style.backgroundImage = 'none'; }
+            
+            if (v == 0 && (note === "バイト/サークル等" || note === "バイト/私用")) {
+                el.style.backgroundImage = `repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px)`;
+            }
+
+            const existingIcon = el.querySelector('.memo-icon');
+            const hasManualSetting = detail && detail.note !== "";
+            if (hasManualSetting) {
+                if (!existingIcon) el.insertAdjacentHTML('beforeend', '<div class="memo-icon">💬</div>');
+            } else {
+                if (existingIcon) existingIcon.remove();
+            }
         };
         
         window.renderWeek = function() {
@@ -334,6 +606,7 @@ if not os.path.exists("custom_editor"):
                 const args = event.data.args; 
                 document.getElementById("content").innerHTML = args.html_code;
                 totalDays = args.cols; numRows = args.rows; unavailColRows = args.unavailColRows || {};
+                window.cellDetails = args.cellDetails || {};
                 
                 if(window.lastEventId !== args.eventId) { currentWeek = 0; window.lastEventId = args.eventId; }
                 window.renderWeek();
@@ -343,44 +616,72 @@ if not os.path.exists("custom_editor"):
                 
                 const g = document.getElementById('g'); if(!g) return;
                 let down = false;
+                let pressTimer = null;
+                let isLongPress = false;
+                let startX = 0, startY = 0;
                 
-                // 💡 ダブルクリックのトグルを廃止し、選んだペンで確実に上書きするように修正
-                g.onmousedown = e => { 
-                    if(!e.target.classList.contains('c')) return; 
-                    down = true; 
-                    window.upd(e.target, selectedMode); 
+                const handleStart = (e, x, y) => {
+                    const cell = e.target.closest('.c');
+                    if(!cell) return;
+                    down = true;
+                    isLongPress = false;
+                    startX = x; startY = y;
+                    window.upd(cell, selectedMode);
+                    cell.classList.add('pressing');
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        down = false;
+                        cell.classList.remove('pressing');
+                        openModal(cell);
+                    }, 400); // 💡 長押しの時間（ミリ秒）
                 };
-                g.onmouseover = e => { 
-                    if(down && e.target.classList.contains('c')) window.upd(e.target, selectedMode); 
+
+                const handleMove = (e, x, y) => {
+                    if(!down) return;
+                    if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) {
+                        clearTimeout(pressTimer);
+                        document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                    }
+                    if(!isLongPress) {
+                        const cell = document.elementFromPoint(x, y)?.closest('.c');
+                        if(cell) window.upd(cell, selectedMode);
+                    }
                 };
-                window.onmouseup = () => { if(down) down=false; isDraggingPalette = false; }; 
-                window.onmouseleave = () => { if(down) down=false; isDraggingPalette = false; }; 
+
+                const handleEnd = () => {
+                    if (down && pressTimer) clearTimeout(pressTimer);
+                    document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                    down = false;
+                };
+
+                g.onmousedown = e => handleStart(e, e.clientX, e.clientY);
+                g.onmousemove = e => handleMove(e, e.clientX, e.clientY);
+                window.onmouseup = handleEnd;
+                window.onmouseleave = handleEnd; 
 
                 g.addEventListener('touchstart', e => { 
-                    const touch = e.touches[0]; 
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY); 
-                    if(target && target.classList.contains('c')) { 
-                        down = true; 
-                        window.upd(target, selectedMode); 
+                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
+                    if(!isLongPress) e.preventDefault();
+                }, {passive: false});
+                g.addEventListener('touchmove', e => { 
+                    if(down) { 
+                        handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
                         e.preventDefault(); 
                     } 
                 }, {passive: false});
-                g.addEventListener('touchmove', e => { 
-                    if(!down) return; 
-                    const touch = e.touches[0]; 
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY); 
-                    if(target && target.classList.contains('c')) window.upd(target, selectedMode); 
-                    e.preventDefault(); 
-                }, {passive: false});
-                g.addEventListener('touchend', () => { down = false; isDraggingPalette = false; });
+                g.addEventListener('touchend', handleEnd);
                 
                 const btn = document.getElementById("submit-btn");
                 if(btn) { btn.onclick = () => { 
                     const res = Array.from({length: numRows}, (_, r) => Array.from({length: totalDays}, (_, c) => parseInt(document.querySelector(`[data-r="${r}"][data-c="${c}"]`).dataset.v))); 
                     const commentText = document.getElementById("comment-box").value; 
-                    setComponentValue({ data: res, comment: commentText, trigger_save: true, ts: Date.now() }); 
+                    setComponentValue({ data: res, comment: commentText, cell_details: window.cellDetails, trigger_save: true, ts: Date.now() }); 
                     btn.innerText = "⏳ 保存処理中..."; btn.style.backgroundColor = "#ff7b7b"; btn.style.pointerEvents = "none"; palette.style.display = 'none'; 
                 }; }
+
+                document.querySelectorAll('.c').forEach(cell => {
+                    window.upd(cell, cell.dataset.v);
+                });
             }
         }); init(); </script></body></html>
         """)
@@ -411,17 +712,6 @@ def call_gas(action, payload=None, method="GET"):
     except Exception as e: 
         return {"status": "error", "message": str(e)}
 
-def call_gas_cached(action, payload=None, method="GET", ttl=600):
-    if "api_cache" not in st.session_state: st.session_state.api_cache = {}
-    cache_key = f"{action}_{json.dumps(payload, sort_keys=True) if payload else ''}"
-    now = datetime.now()
-    if cache_key in st.session_state.api_cache:
-        cached_res, ts = st.session_state.api_cache[cache_key]
-        if (now - ts).total_seconds() < ttl: return cached_res
-    res = call_gas(action, payload, method)
-    if res.get("status") == "success": st.session_state.api_cache[cache_key] = (res, now)
-    return res
-
 def clear_cache():
     if "api_cache" in st.session_state: st.session_state.api_cache.clear()
 
@@ -434,38 +724,26 @@ def get_border_top(t_str, event_type="time"):
     elif t_str.endswith(":30"): return "1px dashed #999"
     else: return "1px solid #f0f0f0"
 
-# 💡 回答期限を日本人にとって最も見やすいフォーマット（月/日(曜) 時:分）に変換
 def format_deadline_jp(date_str):
     if not date_str or str(date_str).strip() == "" or date_str == "None": 
         return "期限なし"
     
     try:
-        # 💡 デバッグ用：うまくいかない場合は以下のコメントアウトを外すと、
-        # 実際にどんな文字が来ているか画面で確認できます。
-        # st.write(f"DEBUG: 受信データ '{date_str}'")
-
-        # 1. 括弧（Japan Standard Timeなど）が含まれると解析に失敗するので除去
         clean_str = str(date_str).split(' (')[0] 
-        
-        # 2. Pandasで解析
         dt = pd.to_datetime(clean_str)
-        
-        # 3. 日本語の曜日を設定
         wday = ["月", "火", "水", "木", "金", "土", "日"][dt.weekday()]
-        
-        # 4. 見やすい形式で返す
         return f"{dt.month}/{dt.day}({wday}) {dt.strftime('%H:%M')}"
-        
-    except Exception as e:
-        # 💡 解析に失敗した場合、原因を画面に出す（本番では消してOK）
-        # st.error(f"解析エラー: {e} / 元データ: {date_str}")
+    except:
         return str(date_str)
 
 def main():
     if "app_initialized" not in st.session_state:
         st.session_state.app_initialized = True
 
-    # 💡 1. URLに "?event=xxx" があればセッションに記憶し、URLから見えなくする
+    if st.session_state.get("save_success_msg"):
+        st.toast(st.session_state.save_success_msg, icon="✅")
+        st.session_state.save_success_msg = None
+
     if "event" in st.query_params:
         st.session_state.jump_to_event = st.query_params["event"]
         st.query_params.clear()
@@ -478,7 +756,6 @@ def main():
     MASTER_G3 = ["執行部", "新入生教育", "広報", "イベント", "会計"]
     MASTER_G4_OPTS = ["PMs (衛星)", "PMs (ロケット)", "シスマネ", "系長"]
 
-    # リストをマスターの順番に並び替える補助関数
     def sort_groups(lst, master):
         return sorted(lst, key=lambda x: master.index(x) if x in master else 999)
     
@@ -538,8 +815,9 @@ def main():
                         payload = {"name": clean_name, "pin": reg_p, "secret_word": reg_s, "group_1": ", ".join(g1), "group_2": ", ".join(g2), "group_3": ", ".join(g3), "group_4": ", ".join(g4)}
                         res = call_gas("register_user", {"payload": payload}, method="POST")
                         if res.get("status") == "success":
-                            clear_cache()
-                            st.session_state.auth = res.get("data")
+                            new_u = res.get("data")
+                            db.collection("users").document(str(new_u["user_id"])).set(new_u)
+                            st.session_state.auth = new_u
                             st.rerun()
                         else:
                             st.error(f"エラー: {res.get('message')}")
@@ -555,13 +833,12 @@ def main():
                         if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
                             res = call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
                             if res.get("status") == "success":
-                                clear_cache()
                                 st.success("✅ 更新成功！新しいPINでログインできます。")
                             else:
                                 st.error("氏名または合言葉が間違っています。")
                 
                 with st.expander("🆘 合言葉も忘れたので、管理者に依頼する"):
-                    st.write("管理者のSlack/Discordへ通知を送り、PINのリセットを依頼します。")
+                    st.write("管理者のSlackへ通知を送り、PINのリセットを依頼します。")
                     req_name = st.text_input("あなたのお名前", key="req_pin_name")
                     if st.button("🚀 管理者にリセット依頼を送る", use_container_width=True):
                         if not req_name: st.warning("名前を入力してください。")
@@ -640,8 +917,9 @@ def main():
             res = call_gas("update_user", {"payload": payload}, method="POST")
             
             if res.get("status") == "success":
-                clear_cache()
-                st.session_state.auth = res.get("data")
+                updated_u = res.get("data")
+                db.collection("users").document(str(updated_u["user_id"])).update(updated_u)
+                st.session_state.auth = updated_u
                 st.success("✅ プロフィールを保存しました！")
                 time.sleep(1.5)
                 st.rerun()
@@ -763,7 +1041,9 @@ def main():
             payload = {"user_id": user['user_id'], "fixed_schedule": new_fixed_sched}
             res = call_gas("update_user", {"payload": payload}, method="POST")
             if res.get("status") == "success":
-                st.session_state.auth = res.get("data")
+                updated_u = res.get("data")
+                db.collection("users").document(str(updated_u["user_id"])).update(updated_u)
+                st.session_state.auth = updated_u
                 st.rerun()
             else:
                 st.error("更新に失敗しました。")
@@ -833,10 +1113,8 @@ def main():
             target_scope_json = ""
             
             if not is_all_members:
-                u_res = call_gas_cached("get_all_users", method="POST", ttl=600)
-                all_u = u_res.get("data", [])
+                all_u = [d.to_dict() for d in db.collection("users").stream()]
                 
-                # 💡 並び替え関数を通してリストを取得
                 all_g1 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_1', '').split(',') if g.strip()])), MASTER_G1)
                 all_g2 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_2', '').split(',') if g.strip()])), MASTER_G2)
                 all_g3 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_3', '').split(',') if g.strip()])), MASTER_G3)
@@ -849,8 +1127,7 @@ def main():
                     t_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS, key="tgt_g4")
                 with col_t2:
                     t_g2 = st.multiselect("🔧 系", all_g2, key="tgt_g2")
-                    # 名前を五十音順にソート
-                    t_users = st.multiselect("👤 特定の個人", sorted(all_u, key=lambda x: x['name']), format_func=lambda x: f"{x['name']} (ID: {x['user_id']})", key="tgt_users")
+                    t_users = st.multiselect("👤 特定の個人", sorted(all_u, key=lambda x: x.get('name', '')), format_func=lambda x: f"{x.get('name')} (ID: {x.get('user_id')})", key="tgt_users")
                 
                 expanded_g4 = []
                 for g in t_g4:
@@ -935,8 +1212,8 @@ def main():
                     "skip_slack": skip_slack,
                     "mention_text": mention_text
                 }
+                
                 res = call_gas("create_event", {"payload": payload}, method="POST")
-                clear_cache()
                 st.success(f"「{ev_title}」を作成しました！")
             
                 created_event_id = None
@@ -948,6 +1225,8 @@ def main():
                         created_event_id = res.get("event_id")
                 
                 if created_event_id:
+                    payload["event_id"] = created_event_id
+                    db.collection("events").document(created_event_id).set(payload)
                     share_url = f"{APP_BASE_URL}?event={created_event_id}"
                     st.info("👇 以下の招待リンクをコピーして、参加者に送ってください（右上のアイコンでコピーできます）")
                     st.code(share_url, language="text")
@@ -965,9 +1244,8 @@ def main():
         tab_manage, tab_users = st.tabs(["📝 イベント・アーカイブ管理", "👥 ユーザー管理"])
 
         with tab_manage:
-            u_res = call_gas_cached("get_all_users", method="POST", ttl=600)
-            all_users_admin = u_res.get("data", [])
-            user_map = {u['user_id']: u['name'] for u in all_users_admin}
+            all_users_admin = [d.to_dict() for d in db.collection("users").stream()]
+            user_map = {u.get('user_id'): u.get('name') for u in all_users_admin}
 
             def format_target_scope(scope_str):
                 if not scope_str or not scope_str.startswith('{'): return "全員"
@@ -981,13 +1259,12 @@ def main():
                     return " / ".join(res) if res else "全員"
                 except: return "限定"
 
-            all_ev_res = call_gas_cached("get_all_events", ttl=60)
-            all_events = all_ev_res.get("data", [])
+            all_events = [d.to_dict() for d in db.collection("events").stream()]
             
             if all_events:
                 df_ev = pd.DataFrame(all_events)
                 df_ev['種類'] = df_ev['event_type'].replace({"time": "🕒 時間", "timetable": "🏫 時間割", "options": "📅 予定候補"})
-                df_ev['詳細'] = df_ev.apply(lambda row: f"{idx_to_time(row['start_idx'])}〜{idx_to_time(row['end_idx'])}" if row['event_type']=='time' else ("月〜金" if row['event_type']=='timetable' else "複数候補"), axis=1)
+                df_ev['詳細'] = df_ev.apply(lambda row: f"{idx_to_time(row.get('start_idx', 0))}〜{idx_to_time(row.get('end_idx', 0))}" if row.get('event_type')=='time' else ("月〜金" if row.get('event_type')=='timetable' else "複数候補"), axis=1)
                 
                 df_ev['期限'] = df_ev['deadline'].apply(format_deadline_jp)
                 df_ev['公開範囲'] = df_ev['target_scope'].apply(format_target_scope)
@@ -996,7 +1273,7 @@ def main():
                 
                 df_display = df_ev[['event_id', 'title', '種類', '詳細', '期限', '公開範囲', '秘密', '招待URL', 'status']]
                 
-                active_events = [ev for ev in all_events if ev['status'] in ['open', 'closed']]
+                active_events = [ev for ev in all_events if ev.get('status') in ['open', 'closed']]
                 st.subheader("🟢 現在のイベント")
                 html_table_ev = df_display[df_display['status'].isin(['open', 'closed'])].to_html(index=False, border=0, classes="custom-tbl")
                 st.markdown("<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; word-break: break-all; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_ev}</div>', unsafe_allow_html=True)
@@ -1005,24 +1282,21 @@ def main():
                 st.subheader("⚙️ ステータス手動変更")
                 if active_events:
                     with st.form("update_status_form"):
-                        target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x['title']} ({x['status']})")
+                        target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})")
                         new_status = st.selectbox("ステータス", ["open", "closed", "archived"], index=1)
                         if st.form_submit_button("更新する"):
                             call_gas("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}}, method="POST")
-                            clear_cache()
+                            db.collection("events").document(target_ev['event_id']).update({"status": new_status})
                             st.rerun()
                             
-                # 💡 追加：未回答者の抽出機能
                 st.markdown("---")
                 st.subheader("👀 未回答者の抽出")
                 if active_events:
-                    check_ev = st.selectbox("確認するイベントを選択", active_events, format_func=lambda x: f"{x['title']} ({x['status']})", key="chk_unanswered")
+                    check_ev = st.selectbox("確認するイベントを選択", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})", key="chk_unanswered")
                     if st.button("未回答者を抽出する", type="primary"):
                         with st.spinner("データを照合中..."):
-                            resp_res = call_gas("get_responses", {"event_id": check_ev['event_id']})
-                            answered_uids = []
-                            if resp_res.get("status") == "success":
-                                answered_uids = [str(r['user_id']) for r in resp_res.get("data", [])]
+                            ans_docs = db.collection("responses").where("event_id", "==", check_ev['event_id']).stream()
+                            answered_uids = [str(d.to_dict().get("user_id")) for d in ans_docs]
 
                             target_users = []
                             scope_str = check_ev.get('target_scope', '')
@@ -1037,26 +1311,25 @@ def main():
                                 except: pass
 
                             for u in all_users_admin:
-                                uid = str(u['user_id'])
+                                uid = str(u.get('user_id'))
                                 if uid in answered_uids: continue
 
                                 if is_all:
-                                    target_users.append(u['name'])
+                                    target_users.append(u.get('name', ''))
                                 else:
                                     if uid in t_uids:
-                                        target_users.append(u['name'])
+                                        target_users.append(u.get('name', ''))
                                         continue
                                     u_g = []
                                     for g_key in ['group_1', 'group_2', 'group_3', 'group_4']:
-                                        u_g.extend([x.strip() for x in u.get(g_key, '').split(',') if x.strip()])
+                                        u_g.extend([x.strip() for x in str(u.get(g_key, '')).split(',') if x.strip()])
                                     
-                                    # DBに保存された展開済み役職（シスマネ等）もマッチさせるため単純に交差をチェック
                                     if set(t_groups).intersection(set(u_g)):
-                                        target_users.append(u['name'])
+                                        target_users.append(u.get('name', ''))
 
                             if target_users:
                                 st.warning(f"⚠️ 対象者のうち、未回答の人が {len(target_users)} 名います。")
-                                target_users = sorted(target_users) # 五十音順に並べる
+                                target_users = sorted(target_users)
                                 st.code("\n".join(target_users), language="text")
                             else:
                                 st.success("🎉 対象者は全員回答済みです！")
@@ -1070,11 +1343,9 @@ def main():
         with tab_users:
             st.subheader("👥 ユーザー一覧と権限管理")
             
-            u_res_all = call_gas_cached("get_all_users", method="POST", ttl=600)
-            all_users = u_res_all.get("data", [])
+            all_users = [d.to_dict() for d in db.collection("users").stream()]
             
             if st.button("🔄 ユーザー一覧を最新に更新"):
-                clear_cache()
                 st.rerun()
 
             if all_users:
@@ -1090,45 +1361,44 @@ def main():
                 
                 st.markdown("---")
                 st.subheader("🚨 ユーザー情報の更新 (PINリセット等)")
-                tgt_user = st.selectbox("対象ユーザー", all_users, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
+                tgt_user = st.selectbox("対象ユーザー", all_users, format_func=lambda x: f"{x.get('name')} (ID: {x.get('user_id')})")
                 
                 with st.form("admin_user_update"):
                     new_u_pin = st.text_input("新しいPIN (リセットする場合)", type="password", autocomplete="new-password")
-                    if user["role"] == "top_admin":
+                    if user.get("role") == "top_admin":
                         role_opts = ["guest", "user", "admin"]
-                        if tgt_user['role'] == 'top_admin':
+                        if tgt_user.get('role') == 'top_admin':
                             st.info("※最高管理者の権限はここで変更できません。下の譲渡メニューを使用してください。")
                             new_u_role = "top_admin"
                         else:
-                            current_role = tgt_user['role'] if tgt_user['role'] in role_opts else "guest"
+                            current_role = tgt_user.get('role') if tgt_user.get('role') in role_opts else "guest"
                             new_u_role = st.selectbox("権限の変更", role_opts, index=role_opts.index(current_role))
                     else:
                         st.info("※権限（Role）の変更は top_admin のみ可能です。")
-                        new_u_role = tgt_user['role']
+                        new_u_role = tgt_user.get('role')
 
                     if st.form_submit_button("更新実行", type="primary"):
-                        if tgt_user['role'] == 'top_admin' and new_u_role != 'top_admin':
+                        if tgt_user.get('role') == 'top_admin' and new_u_role != 'top_admin':
                             st.error("最高管理者の権限は変更できません。")
                         else:
                             call_gas("admin_update_user", {"payload": {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}}, method="POST")
-                            clear_cache()
+                            updates = {"role": new_u_role}
+                            db.collection("users").document(str(tgt_user['user_id'])).update(updates)
                             st.rerun()
 
-                if user["role"] == "top_admin":
+                if user.get("role") == "top_admin":
                     st.markdown("---")
                     st.subheader("👑 最高管理者 (top_admin) の譲渡")
                     st.warning("⚠️ この操作を実行すると、あなたは `admin` に降格し、元に戻すことはできません。")
                     
-                    candidates = [u for u in all_users if u['user_id'] != user['user_id']]
-                    new_top = st.selectbox("譲渡先ユーザー", candidates, format_func=lambda x: f"{x['name']} (ID: {x['user_id']})")
+                    candidates = [u for u in all_users if u.get('user_id') != user.get('user_id')]
+                    new_top = st.selectbox("譲渡先ユーザー", candidates, format_func=lambda x: f"{x.get('name')} (ID: {x.get('user_id')})")
                     
-                    # 💡 UIのテキストをメンバーID (Uから始まるもの) の案内に変更
                     st.markdown("<span style='font-size:13px; color:#555;'>PINリセットなどのSOSを受け取るための、新しい管理者の<b>SlackメンバーID（Uから始まる英数字）</b>を入力してください。<br>※Slackのプロフィール画面の「メンバーIDをコピー」から取得できます。</span>", unsafe_allow_html=True)
                     new_slack_id = st.text_input("SlackメンバーID (例: U06CEMZJ7DE)")
                     
                     if st.button("🔔 テスト通知を送信"):
                         if new_slack_id:
-                            # 💡 Slackが確実にメンションと認識する <@Uxxxx> の形に強制変換する
                             clean_id = new_slack_id.strip().replace("@", "").replace("<", "").replace(">", "")
                             mention_str = f"<@{clean_id}>"
 
@@ -1144,12 +1414,14 @@ def main():
                     
                     if confirm_transfer:
                         if st.button("🚀 top_adminを譲渡する", type="primary"):
-                            # 💡 譲渡時も確実に変換
                             clean_id = new_slack_id.strip().replace("@", "").replace("<", "").replace(">", "")
                             mention_str = f"<@{clean_id}>"
                                 
                             call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id'], "slack_id": mention_str}}, method="POST")
-                            clear_cache()
+                            db.collection("users").document(str(user['user_id'])).update({"role": "admin"})
+                            updates_top = {"role": "top_admin"}
+                            if mention_str: updates_top["slack_id"] = mention_str
+                            db.collection("users").document(str(new_top['user_id'])).update(updates_top)
                             st.session_state.auth = None
                             st.rerun()
         return
@@ -1161,23 +1433,13 @@ def main():
     active_groups = [g for g in active_groups if g]
     group_str = f"<span style='color: #666; font-size: 0.9em; margin-left: 10px;'>({' / '.join(active_groups)})</span>" if active_groups else "<span style='color: #aaa; font-size: 0.9em; margin-left: 10px;'>(未所属)</span>"
     role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(user.get("role"), "👤")
-    st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user["name"]}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user["user_id"]}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user.get("name", "")}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user.get("user_id", "")}</div></div>', unsafe_allow_html=True)
 
     current_ev_id = st.session_state.get("target_ev_id", "")
-    all_data_res = call_gas_cached("get_all_data", {
-        "user_id": user["user_id"],
-        "event_id": current_ev_id
-    }, ttl=60)
     
-    events = []
-    if all_data_res.get("status") == "success":
-        payload = all_data_res.get("data", {})
-        events = payload.get("events", [])
-        st.session_state.cached_users = payload.get("users", [])
-        if payload.get("responses") is not None:
-            st.session_state.event_responses = payload.get("responses")
-    else:
-        st.error("データの取得に失敗しました。")
+    # 🚀 [爆速化] Firestoreからデータを取得
+    all_users_fs, events, user_map_fs = get_app_data_from_firestore(user)
+    st.session_state.event_responses = fetch_responses_for_event(current_ev_id, user_map_fs) if current_ev_id else []
 
     if not events: 
         st.info("現在表示できるイベントはありません。")
@@ -1189,7 +1451,7 @@ def main():
     seen_ids = set()
     for ev in events:
         eid = ev.get('event_id')
-        if not ev.get('is_answered') and ev['status'] == 'open' and eid not in seen_ids:
+        if not ev.get('is_answered') and ev.get('status') == 'open' and eid not in seen_ids:
             unanswered_events.append(ev)
             seen_ids.add(eid)
             
@@ -1198,22 +1460,20 @@ def main():
         st.sidebar.markdown(f"<div style='color:#FF4B4B; font-weight:bold; padding-bottom: 5px;'>📢 未回答の予定 ({len(unanswered_events)}件)</div>", unsafe_allow_html=True)
         for u_ev in unanswered_events:
             is_urgent = False
-            
-            if u_ev.get('deadline'):
+            ev_close_time = u_ev.get('deadline') or u_ev.get('close_time', '')
+            if ev_close_time:
                 try:
-                    dl_dt = pd.to_datetime(u_ev['deadline'])
-                    if dl_dt.tzinfo is not None:
-                        dl_dt = dl_dt.tz_convert(None)
+                    dl_dt = pd.to_datetime(ev_close_time)
+                    if dl_dt.tzinfo is not None: dl_dt = dl_dt.tz_convert(None)
                     if 0 <= (dl_dt - now_dt).total_seconds() <= 3 * 24 * 3600:
                         is_urgent = True
-                except:
-                    pass
+                except: pass
             
             icon = "🔥" if is_urgent else "🔴"
-            dl_text = format_deadline_jp(u_ev.get('deadline'))
+            dl_text = format_deadline_jp(ev_close_time)
             
-            if st.sidebar.button(f"{icon} {u_ev['title']} (〜{dl_text})", key=f"side_btn_{u_ev['event_id']}", use_container_width=True):
-                st.session_state.target_ev_id = u_ev['event_id']
+            if st.sidebar.button(f"{icon} {u_ev.get('title', '')} (〜{dl_text})", key=f"side_btn_{u_ev.get('event_id')}", use_container_width=True):
+                st.session_state.target_ev_id = u_ev.get('event_id')
                 st.rerun()
 
     if unanswered_events:
@@ -1224,39 +1484,40 @@ def main():
     
     if target_id:
         for i, ev in enumerate(events):
-            if ev['event_id'] == target_id:
+            if ev.get('event_id') == target_id:
                 default_idx = i
                 break
         else:
-            st.session_state.target_ev_id = events[0]['event_id']
+            st.session_state.target_ev_id = events[0].get('event_id')
 
     def format_ev_name(x):
-        dl_str = format_deadline_jp(x.get('deadline'))
+        ev_close_time = x.get('deadline') or x.get('close_time', '')
+        dl_str = format_deadline_jp(ev_close_time)
         
-        if x['status'] == 'closed': 
+        if x.get('status') == 'closed': 
             icon = "🔒"
         elif x.get('is_answered'): 
             icon = "✅"
         else:
             is_urgent = False
             try:
-                if x.get('deadline'):
-                    dl_dt = pd.to_datetime(x['deadline'])
+                if ev_close_time:
+                    dl_dt = pd.to_datetime(ev_close_time)
                     if dl_dt.tzinfo is not None: dl_dt = dl_dt.tz_convert(None)
                     if 0 <= (dl_dt - now_dt).total_seconds() <= 3 * 24 * 3600:
                         is_urgent = True
             except: pass
             icon = "🔥" if is_urgent else "🔴"
             
-        return f"{icon} {x['title']} [締切: {dl_str}]"
+        return f"{icon} {x.get('title', '')} [締切: {dl_str}]"
 
     event = st.selectbox("🎯 対象イベント選択", events, index=default_idx, format_func=format_ev_name)
     
-    if st.session_state.get("target_ev_id") != event['event_id']:
-        st.session_state.target_ev_id = event['event_id']
+    if st.session_state.get("target_ev_id") != event.get('event_id'):
+        st.session_state.target_ev_id = event.get('event_id')
         st.rerun()
 
-    is_closed = event['status'] == 'closed'
+    is_closed = event.get('status') == 'closed'
     is_private_event = event.get('is_private', False)
     
     can_view_details = True
@@ -1264,10 +1525,11 @@ def main():
         if user.get("role") not in ["admin", "top_admin"]:
             can_view_details = False
 
+    ev_close_time = event.get('deadline') or event.get('close_time', '')
     if is_closed: 
         st.markdown("<div class='closed-alert' style='background:#ffebee; color:#c62828; padding:10px; border-radius:6px; font-weight:bold; margin-bottom:10px;'>🔒 このイベントは締め切られました。</div>", unsafe_allow_html=True)
-    elif event.get('deadline'): 
-        st.markdown(f"<div style='color: #E91E63; font-weight: bold; margin-bottom: 10px;'>⏳ 回答期限: {format_deadline_jp(event['deadline'])}</div>", unsafe_allow_html=True)
+    elif ev_close_time: 
+        st.markdown(f"<div style='color: #E91E63; font-weight: bold; margin-bottom: 10px;'>⏳ 回答期限: {format_deadline_jp(ev_close_time)}</div>", unsafe_allow_html=True)
         
     if event.get('description'): 
         st.markdown(f"<div class='event-desc'><b>📝 管理者からのメッセージ:</b><br><br>{event['description'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
@@ -1275,19 +1537,28 @@ def main():
     if is_private_event:
         st.info("🤫 **このイベントはプライベート設定されています。** 管理者以外には、誰が回答したかの名前やコメントは表示されず、全体の人数のみが表示されます。")
 
-    # 💡 招待URLを画面上に常設し、いつでもコピーできるように追加
     st.markdown("##### 🔗 このイベントの招待URL")
-    st.code(f"{APP_BASE_URL}?event={event['event_id']}", language="text")
+    st.code(f"{APP_BASE_URL}?event={event.get('event_id')}", language="text")
 
-    event_type = event.get('event_type', 'time')
+    event_type = event.get('type') or event.get('event_type', 'time')
 
     # ＝＝＝＝＝ 🕒 時間帯 / 🏫 時間割 モード ＝＝＝＝＝
     if event_type in ['time', 'timetable']:
         if event_type == 'time':
-            s_idx, e_idx = int(event['start_idx']), int(event['end_idx'])
+            s_idx = int(event.get('start_time_idx') or event.get('start_idx', 0))
+            e_idx = int(event.get('end_time_idx') or event.get('end_idx', 0))
+            
+            if e_idx <= s_idx: e_idx = s_idx + 1
+            
             date_objs = []
-            curr = datetime.strptime(event['start_date'], "%Y-%m-%d").date()
-            end_d = datetime.strptime(event['end_date'], "%Y-%m-%d").date()
+            try:
+                curr = pd.to_datetime(event.get('start_date', ''), errors='coerce').date()
+                end_d = pd.to_datetime(event.get('end_date', ''), errors='coerce').date()
+                if pd.isna(curr) or pd.isna(end_d): raise Exception
+            except:
+                curr = datetime.today().date()
+                end_d = curr + timedelta(days=7)
+                
             while curr <= end_d: date_objs.append(curr); curr += timedelta(days=1)
             date_strs = [d.strftime("%Y-%m-%d") for d in date_objs]
             clean_date_labels = [f"{d.strftime('%m/%d')}({['月','火','水','木','金','土','日'][d.weekday()]})" for d in date_objs]
@@ -1331,17 +1602,14 @@ def main():
                     if "1" in day_bin[74:]: u_rows.append(5)
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
-        if "df_input" not in st.session_state or st.session_state.get("last_build_ev_id") != event['event_id']:
-            if "event_responses" not in st.session_state:
-                st.session_state.event_responses = []
-                
+        if "df_input" not in st.session_state or st.session_state.get("last_build_ev_id") != event.get('event_id'):
             df = pd.DataFrame(0, index=time_labels, columns=date_strs)
             my_comment = ""
             for r in st.session_state.event_responses:
-                if str(r['user_id']) == str(user['user_id']):
-                    d_id = r['date']; my_comment = r.get('comment', "")
+                if str(r.get('user_id')) == str(user.get('user_id')):
+                    d_id = r.get('date'); my_comment = r.get('comment', "")
                     if d_id in date_strs:
-                        b_str = str(r.get('binary', "")).replace("'", "").zfill(96)
+                        b_str = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
                         for i in range(len(time_labels)):
                             if event_type == 'time': v = int(b_str[s_idx + i]) if (s_idx + i) < len(b_str) else 0
                             else: v = int(b_str[i]) if i < len(b_str) else 0
@@ -1349,7 +1617,7 @@ def main():
                             
             st.session_state.df_input = df
             st.session_state.my_comment = my_comment
-            st.session_state.last_build_ev_id = event['event_id']
+            st.session_state.last_build_ev_id = event.get('event_id')
 
         if event_type == 'time':
             st.markdown("<div style='margin-bottom: 5px; font-weight: bold; color: #333;'>🔍 カレンダーの表示サイズ（マスの縦幅）</div>", unsafe_allow_html=True)
@@ -1376,8 +1644,8 @@ def main():
                             with st.spinner("予定を取得中..."):
                                 res = call_gas("import_google_calendar", {
                                     "payload": {
-                                        "start_date": event['start_date'],
-                                        "end_date": event['end_date'],
+                                        "start_date": event.get('start_date'),
+                                        "end_date": event.get('end_date'),
                                         "ical_url": user_cal_url
                                     }
                                 }, method="POST")
@@ -1389,10 +1657,11 @@ def main():
                                     else:
                                         for d_str, slots in busy_data.items():
                                             if d_str in st.session_state.df_input.columns:
-                                                for s_idx in slots:
-                                                    time_label = time_master[s_idx]
-                                                    if time_label in st.session_state.df_input.index:
-                                                        st.session_state.df_input.loc[time_label, d_str] = 3
+                                                for t_idx in slots:
+                                                    if s_idx <= t_idx <= e_idx:
+                                                        time_label = time_master[t_idx]
+                                                        if time_label in st.session_state.df_input.index:
+                                                            st.session_state.df_input.loc[time_label, d_str] = 3
                                         st.success("カレンダーの予定を反映しました！内容を確認して「提出」を押してください。")
                                         time.sleep(1)
                                         st.rerun()
@@ -1457,14 +1726,14 @@ def main():
                 </div>"""
                 submit_btn_html = f"""
                 <div style="margin-top: 20px;">
-                    <label style="font-size: 14px; font-weight: 600; color: #333;">📝 自分の備考・コメント (遅刻・早退など)</label>
+                    <label style="font-size: 14px; font-weight: 600; color: #333;">📝 全体へのコメント (遅刻・早退など)</label>
                     <textarea id="comment-box" rows="2" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; font-family: sans-serif; resize: vertical;">{st.session_state.my_comment}</textarea>
                 </div>
                 <button id="submit-btn" style="margin-top: 15px; width: 100%; padding: 14px; background-color: #FF4B4B; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: 0.2s;">✅ すべて記入して提出 (全体が保存されます)</button>
                 """
             else:
                 pointer_css = "pointer-events: none; opacity: 0.8;"
-                submit_btn_html = f"""<div style="margin-top: 20px;"><label style="font-size: 14px; font-weight: 600; color: #333;">📝 自分の備考・コメント</label><div style="width: 100%; padding: 10px; margin-top: 5px; background: #eee; border: 1px solid #ccc; border-radius: 6px; font-family: sans-serif; min-height:40px;">{st.session_state.my_comment}</div></div>"""
+                submit_btn_html = f"""<div style="margin-top: 20px;"><label style="font-size: 14px; font-weight: 600; color: #333;">📝 全体へのコメント</label><div style="width: 100%; padding: 10px; margin-top: 5px; background: #eee; border: 1px solid #ccc; border-radius: 6px; font-family: sans-serif; min-height:40px;">{st.session_state.my_comment}</div></div>"""
 
             scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
 
@@ -1506,22 +1775,63 @@ def main():
             {submit_btn_html}
             """
             
-            raw = grid_editor(html_code=html_code, rows=len(time_labels), cols=len(date_strs), eventId=event['event_id'], isClosed=is_closed, unavailColRows=unavail_col_rows, default=None, key=f"editor_{event['event_id']}")
+            my_cell_details = {}
+            for r in st.session_state.event_responses:
+                if str(r.get('user_id')) == str(user.get('user_id')) and r.get('cell_details'):
+                    try:
+                        my_cell_details = json.loads(r['cell_details'])
+                        break
+                    except:
+                        pass
+
+            raw = grid_editor(
+                html_code=html_code, 
+                rows=len(time_labels), 
+                cols=len(date_strs), 
+                eventId=event.get('event_id'), 
+                isClosed=is_closed, 
+                unavailColRows=unavail_col_rows, 
+                saveTs=st.session_state.get("last_saved_ts", 0), 
+                cellDetails=my_cell_details,
+                default=None, 
+                key=f"editor_{event.get('event_id')}"
+            )
             
             if raw and isinstance(raw, dict) and "data" in raw:
                 if raw.get("trigger_save") and st.session_state.get("last_saved_ts") != raw.get("ts"):
-                    st.session_state.last_saved_ts = raw.get("ts"); st.session_state.df_input = pd.DataFrame(raw["data"], index=time_labels, columns=date_strs); st.session_state.my_comment = raw.get("comment", "")
+                    st.session_state.last_saved_ts = raw.get("ts")
+                    st.session_state.df_input = pd.DataFrame(raw["data"], index=time_labels, columns=date_strs)
+                    st.session_state.my_comment = raw.get("comment", "")
+                    
+                    cell_details_json = raw.get("cell_details", {})
+                    cell_details_str = json.dumps(cell_details_json, separators=(',', ':')) if cell_details_json else "{}"
+                    
                     all_res = []
                     for d_id in date_strs:
                         bits = ["0"] * 96
+                        has_data = False
                         for t_idx in range(len(time_labels)): 
-                            if event_type == 'time': bits[s_idx + t_idx] = str(int(st.session_state.df_input.loc[time_labels[t_idx], d_id]))
-                            else: bits[t_idx] = str(int(st.session_state.df_input.loc[time_labels[t_idx], d_id]))
-                        all_res.append({"date": d_id, "binary": "".join(bits)})
-                    
-                    call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": st.session_state.my_comment, "responses": all_res}}, method="POST")
-                    clear_cache()
-                    st.rerun()
+                            val = int(st.session_state.df_input.loc[time_labels[t_idx], d_id])
+                            if val > 0: has_data = True
+                            if event_type == 'time': bits[s_idx + t_idx] = str(val)
+                            else: bits[t_idx] = str(val)
+                            
+                        if has_data:
+                            all_res.append({"date": d_id, "binary_data": "".join(bits)})
+                            
+                    if not all_res:
+                        all_res.append({"date": date_strs[0], "binary_data": "0"*96})
+
+                    payload = {
+                        "event_id": event.get("event_id"), 
+                        "user_id": user.get("user_id"), 
+                        "comment": st.session_state.my_comment, 
+                        "cell_details": cell_details_str, 
+                        "responses": all_res
+                    }
+                    if save_response_hybrid(payload):
+                        st.session_state.save_success_msg = "回答を保存しました！"
+                        st.rerun()
 
         with tab_graph:
             st.subheader("📊 全体の集計結果")
@@ -1529,23 +1839,21 @@ def main():
             with col1: policy = st.radio("「未定(△)」の計算方法", [0.5, 1.0, 0.0], format_func=lambda x: f"{x}人としてカウント", horizontal=True)
             with col2:
                 if st.button("🔄 最新の回答を取得", use_container_width=True):
-                    clear_cache()
                     st.rerun()
 
             all_res_data = st.session_state.event_responses
-            all_names = list(set([r['user_name'] for r in all_res_data]))
+            all_names = list(set([r.get('user_name', '不明') for r in all_res_data]))
             all_g1, all_g2, all_g3, all_g4 = set(), set(), set(), set()
             for r in all_res_data:
-                for g in r.get('group_1', '').split(','):
+                for g in str(r.get('group_1', '')).split(','):
                     if g.strip(): all_g1.add(g.strip())
-                for g in r.get('group_2', '').split(','):
+                for g in str(r.get('group_2', '')).split(','):
                     if g.strip(): all_g2.add(g.strip())
-                for g in r.get('group_3', '').split(','):
+                for g in str(r.get('group_3', '')).split(','):
                     if g.strip(): all_g3.add(g.strip())
-                for g in r.get('group_4', '').split(','):
+                for g in str(r.get('group_4', '')).split(','):
                     if g.strip(): all_g4.add(g.strip())
 
-            # 💡 マスターに基づいてリストを並び替える
             all_g1_sorted = sort_groups(list(all_g1), MASTER_G1)
             all_g2_sorted = sort_groups(list(all_g2), MASTER_G2)
             all_g3_sorted = sort_groups(list(all_g3), MASTER_G3)
@@ -1562,7 +1870,6 @@ def main():
                         f_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS)
                     with f_col2:
                         f_g2 = st.multiselect("🔧 系", all_g2_sorted)
-                        # 💡 名前は五十音順(アルファベット順)に並べる
                         f_names = st.multiselect("👤 特定の個人", sorted(all_names))
                         
                     st.markdown("---")
@@ -1584,11 +1891,11 @@ def main():
 
             filtered_data = []
             for r in all_res_data:
-                u_g1 = [x.strip() for x in r.get('group_1', '').split(',') if x.strip()]
-                u_g2 = [x.strip() for x in r.get('group_2', '').split(',') if x.strip()]
-                u_g3 = [x.strip() for x in r.get('group_3', '').split(',') if x.strip()]
-                u_g4 = [x.strip() for x in r.get('group_4', '').split(',') if x.strip()]
-                if f_names and r['user_name'] not in f_names: continue
+                u_g1 = [x.strip() for x in str(r.get('group_1', '')).split(',') if x.strip()]
+                u_g2 = [x.strip() for x in str(r.get('group_2', '')).split(',') if x.strip()]
+                u_g3 = [x.strip() for x in str(r.get('group_3', '')).split(',') if x.strip()]
+                u_g4 = [x.strip() for x in str(r.get('group_4', '')).split(',') if x.strip()]
+                if f_names and r.get('user_name') not in f_names: continue
                 if f_g1 and not set(f_g1).intersection(set(u_g1)): continue
                 if f_g2 and not set(f_g2).intersection(set(u_g2)): continue
                 if f_g3 and not set(f_g3).intersection(set(u_g3)): continue
@@ -1624,8 +1931,8 @@ def main():
                 disp_date_strs = date_strs
                 disp_clean_date_labels = clean_date_labels
 
-            unique_all = len(set([r['user_id'] for r in all_res_data]))
-            unique_filtered = len(set([r['user_id'] for r in filtered_data]))
+            unique_all = len(set([r.get('user_id') for r in all_res_data]))
+            unique_filtered = len(set([r.get('user_id') for r in filtered_data]))
             if unique_all != unique_filtered:
                 st.info(f"🔍 フィルター適用中： 回答者 **{unique_all}人** 中、条件に合う **{unique_filtered}人** のデータを集計しています。")
 
@@ -1638,20 +1945,38 @@ def main():
                     comments_list = []
                     
                     for r in filtered_data:
-                        if can_view_details and r.get('comment') and r['comment'].strip() != "":
-                            if {"user": r['user_name'], "comment": r['comment']} not in comments_list: comments_list.append({"user": r['user_name'], "comment": r['comment']})
-                        if r['date'] in disp_date_strs:
-                            c_idx = disp_date_strs.index(r['date']); b = str(r.get('binary', "")).replace("'", "").zfill(96)
-                            for disp_r, t_str in enumerate(disp_time_labels):
-                                orig_r_idx = time_labels.index(t_str)
-                                if event_type == 'time': v = int(b[s_idx + orig_r_idx]) if (s_idx + orig_r_idx) < 96 else 0
-                                else: v = int(b[orig_r_idx]) if orig_r_idx < 96 else 0
+                        if r.get('date') not in disp_date_strs: continue
+                        
+                        cd = {}
+                        if r.get('cell_details') and str(r.get('cell_details')).strip() not in ["", "{}"]:
+                            try: cd = json.loads(r['cell_details'])
+                            except: pass
+
+                        if can_view_details and r.get('comment') and r.get('comment').strip() != "":
+                            if {"user": r.get('user_name'), "comment": r.get('comment')} not in comments_list: 
+                                comments_list.append({"user": r.get('user_name'), "comment": r.get('comment')})
+                        
+                        c_idx = disp_date_strs.index(r['date'])
+                        b = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
+                        
+                        for disp_r, t_str in enumerate(disp_time_labels):
+                            orig_r_idx = time_labels.index(t_str)
+                            if event_type == 'time': v = int(b[s_idx + orig_r_idx]) if (s_idx + orig_r_idx) < 96 else 0
+                            else: v = int(b[orig_r_idx]) if orig_r_idx < 96 else 0
+                            
+                            if v == 3: v = 0
+                            z[disp_r, c_idx] += (1.0 if v==1 else policy if v==2 else 0.0)
+                            
+                            cell_note = ""
+                            cell_key = f"{orig_r_idx}_{c_idx}"
+                            if cell_key in cd and cd[cell_key].get('note'): 
+                                cell_note = cd[cell_key]['note']
                                 
-                                if v == 3: v = 0
-                                z[disp_r, c_idx] += (1.0 if v==1 else policy if v==2 else 0.0)
-                                if can_view_details:
-                                    if v==1: h[disp_r][c_idx] += f"◯ {r['user_name']}<br>"
-                                    elif v==2: h[disp_r][c_idx] += f"△ {r['user_name']}<br>"
+                            if can_view_details and v in [1, 2, 3]:
+                                note_str = f" <span style='color:#FFEB3B; font-size:10.5px;'>[{cell_note}]</span>" if cell_note else ""
+                                name_html = f"{r.get('user_name', '')}{note_str}"
+                                if v==1: h[disp_r][c_idx] += f"◯ {name_html}<br>"
+                                elif v==2: h[disp_r][c_idx] += f"△ {name_html}<br>"
                     
                     max_z = np.max(z) if np.max(z) > 0 else 1
                     
@@ -1707,30 +2032,37 @@ def main():
 
     # ＝＝＝＝＝ 📅 複数の予定 (候補リスト) モード ＝＝＝＝＝
     elif event_type == 'options':
-        opts = json.loads(event.get('event_options', '[]'))
+        opts = json.loads(event.get('event_options') or event.get('options_name', '[]'))
         
         if "event_responses" not in st.session_state:
             st.session_state.event_responses = []
 
         tab_in, tab_graph = st.tabs(["📅 入力", "📊 集計"])
         with tab_in:
-            my_ans_row = next((r for r in st.session_state.event_responses if str(r['user_id']) == str(user['user_id'])), None)
-            my_ans_bin = my_ans_row['binary'].replace("'", "").zfill(96) if my_ans_row else "0" * 96
+            my_ans_row = next((r for r in st.session_state.event_responses if str(r.get('user_id')) == str(user.get('user_id'))), None)
+            b_data_val = my_ans_row.get('binary_data') or my_ans_row.get('binary', "") if my_ans_row else ""
+            my_ans_bin = b_data_val.replace("'", "").zfill(96) if b_data_val else "0" * 96
             my_comment = my_ans_row.get('comment', '') if my_ans_row else ""
             
             st.markdown("##### 📌 各候補の参加可否を選んでください")
             
-            raw = options_editor(options=opts, myAnsBin=my_ans_bin, myComment=my_comment, eventId=event['event_id'], isClosed=is_closed, key=f"opt_editor_{event['event_id']}")
+            raw = options_editor(options=opts, myAnsBin=my_ans_bin, myComment=my_comment, eventId=event.get('event_id'), isClosed=is_closed, saveTs=st.session_state.get("last_saved_ts", 0), key=f"opt_editor_{event.get('event_id')}")
             
             if raw and isinstance(raw, dict) and raw.get("trigger_save") and st.session_state.get("last_saved_ts") != raw.get("ts"):
                 st.session_state.last_saved_ts = raw.get("ts")
                 b_str = raw.get("binary", "0"*96).ljust(96, "0")[:96]
                 user_comment = raw.get("comment", "")
                 
-                res = [{"date": "options", "binary": b_str}]
-                call_gas("submit_binary_response", {"payload": {"event_id": event["event_id"], "user_id": user["user_id"], "comment": user_comment, "responses": res}}, method="POST")
-                clear_cache()
-                st.rerun()
+                res_data = [{"date": "options", "binary_data": b_str}]
+                payload = {
+                    "event_id": event.get("event_id"), 
+                    "user_id": user.get("user_id"), 
+                    "comment": user_comment, 
+                    "responses": res_data
+                }
+                if save_response_hybrid(payload):
+                    st.session_state.save_success_msg = "回答を保存しました！"
+                    st.rerun()
 
         with tab_graph:
             st.subheader("📊 予定の集計結果")
@@ -1738,23 +2070,21 @@ def main():
             with col1: policy = st.radio("「未定(△)」の計算方法", [0.5, 1.0, 0.0], format_func=lambda x: f"{x}人としてカウント", horizontal=True, key="opt_policy")
             with col2:
                 if st.button("🔄 最新の回答を取得", use_container_width=True, key="opt_refresh"):
-                    clear_cache()
                     st.rerun()
 
             all_res_data = st.session_state.event_responses
-            all_names = list(set([r['user_name'] for r in all_res_data]))
+            all_names = list(set([r.get('user_name', '不明') for r in all_res_data]))
             all_g1, all_g2, all_g3, all_g4 = set(), set(), set(), set()
             for r in all_res_data:
-                for g in r.get('group_1', '').split(','):
+                for g in str(r.get('group_1', '')).split(','):
                     if g.strip(): all_g1.add(g.strip())
-                for g in r.get('group_2', '').split(','):
+                for g in str(r.get('group_2', '')).split(','):
                     if g.strip(): all_g2.add(g.strip())
-                for g in r.get('group_3', '').split(','):
+                for g in str(r.get('group_3', '')).split(','):
                     if g.strip(): all_g3.add(g.strip())
-                for g in r.get('group_4', '').split(','):
+                for g in str(r.get('group_4', '')).split(','):
                     if g.strip(): all_g4.add(g.strip())
 
-            # 💡 マスターに基づいてリストを並び替える
             all_g1_sorted = sort_groups(list(all_g1), MASTER_G1)
             all_g2_sorted = sort_groups(list(all_g2), MASTER_G2)
             all_g3_sorted = sort_groups(list(all_g3), MASTER_G3)
@@ -1775,11 +2105,11 @@ def main():
 
             filtered_data = []
             for r in all_res_data:
-                u_g1 = [x.strip() for x in r.get('group_1', '').split(',') if x.strip()]
-                u_g2 = [x.strip() for x in r.get('group_2', '').split(',') if x.strip()]
-                u_g3 = [x.strip() for x in r.get('group_3', '').split(',') if x.strip()]
-                u_g4 = [x.strip() for x in r.get('group_4', '').split(',') if x.strip()]
-                if f_names and r['user_name'] not in f_names: continue
+                u_g1 = [x.strip() for x in str(r.get('group_1', '')).split(',') if x.strip()]
+                u_g2 = [x.strip() for x in str(r.get('group_2', '')).split(',') if x.strip()]
+                u_g3 = [x.strip() for x in str(r.get('group_3', '')).split(',') if x.strip()]
+                u_g4 = [x.strip() for x in str(r.get('group_4', '')).split(',') if x.strip()]
+                if f_names and r.get('user_name') not in f_names: continue
                 if f_g1 and not set(f_g1).intersection(set(u_g1)): continue
                 if f_g2 and not set(f_g2).intersection(set(u_g2)): continue
                 if f_g3 and not set(f_g3).intersection(set(u_g3)): continue
@@ -1797,31 +2127,31 @@ def main():
 
                 filtered_data.append(r)
 
-            unique_all = len(set([r['user_id'] for r in all_res_data]))
-            unique_filtered = len(set([r['user_id'] for r in filtered_data]))
+            unique_all = len(set([r.get('user_id') for r in all_res_data]))
+            unique_filtered = len(set([r.get('user_id') for r in filtered_data]))
             if unique_all != unique_filtered:
                 st.info(f"🔍 フィルター適用中： 回答者 **{unique_all}人** 中、条件に合う **{unique_filtered}人** のデータを集計しています。")
 
             counts = [0.0] * len(opts)
-            # 💡 ◯、△、× を分けて保存するように変更
             details = [{"yes": [], "maybe": [], "no": []} for _ in range(len(opts))]
             comments_list = []
             
             for r in filtered_data:
-                if can_view_details and r.get('comment') and r['comment'].strip() != "":
-                    if {"user": r['user_name'], "comment": r['comment']} not in comments_list: comments_list.append({"user": r['user_name'], "comment": r['comment']})
+                if can_view_details and r.get('comment') and r.get('comment').strip() != "":
+                    if {"user": r.get('user_name'), "comment": r.get('comment')} not in comments_list: 
+                        comments_list.append({"user": r.get('user_name'), "comment": r.get('comment')})
                 
-                b = str(r.get('binary', "")).replace("'", "").zfill(96)
+                b = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
                 for i in range(len(opts)):
                     v = int(b[i]) if i < len(b) else 0
                     if v == 1:
                         counts[i] += 1.0
-                        if can_view_details: details[i]["yes"].append(r['user_name'])
+                        if can_view_details: details[i]["yes"].append(r.get('user_name', ''))
                     elif v == 2:
                         counts[i] += policy
-                        if can_view_details: details[i]["maybe"].append(r['user_name'])
+                        if can_view_details: details[i]["maybe"].append(r.get('user_name', ''))
                     else:
-                        if can_view_details: details[i]["no"].append(r['user_name'])
+                        if can_view_details: details[i]["no"].append(r.get('user_name', ''))
                         
             max_c = max(counts) if counts and max(counts) > 0 else 1
             
@@ -1842,14 +2172,12 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # 💡 参加者の内訳を ◯ △ × で分けて表示
                 if can_view_details:
                     with st.expander("👥 参加者内訳を見る"):
                         c_yes, c_maybe, c_no = st.columns(3)
                         with c_yes:
                             st.markdown("<span style='color:#4CAF50; font-weight:bold;'>◯ 参加可能</span>", unsafe_allow_html=True)
                             if details[i]["yes"]:
-                                # ◯の人はコピーしやすいようにコードブロックで表示
                                 st.code("\n".join(details[i]["yes"]), language="text")
                             else:
                                 st.write("なし")

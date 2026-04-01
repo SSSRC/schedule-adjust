@@ -1216,8 +1216,11 @@ def main():
                 mention_text = " ".join(preview_mentions)
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 
-                # ▼ 変更: Python側で先にランダムなイベントIDを生成
-                created_event_id = "ev_" + str(uuid.uuid4()).replace("-", "")[:10]
+                # ▼ ここを以前のGASと同じ「日付＋乱数」の形式にする場合
+                import random
+                now_str = datetime.now().strftime("%m%d-%H%M%S")
+                rand_num = random.randint(1000, 9999)
+                created_event_id = f"EV-{now_str}-{rand_num}"
 
                 payload = {
                     "event_id": created_event_id,  # 生成したIDをセット

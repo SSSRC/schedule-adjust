@@ -909,7 +909,6 @@ def main():
                         else:
                             backup_to_gas_async("request_pin_reset", {"payload": {"name": req_name}})
                             st.success(f"✅ {req_name}さん、管理者に通知を送りました。")
-                        else: st.error("送信に失敗しました。管理者へ直接連絡してください。")
         return
 
     # ==========================================

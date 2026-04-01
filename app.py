@@ -1143,6 +1143,48 @@ def main():
                     "users": [u['user_id'] for u in t_users]
                 })
 
+            # ▼▼ 修正箇所：メンションのプレビューを生成して画面に表示 ▼▼
+            preview_mentions = []
+            if is_all_members:
+                preview_mentions.append("<!channel>")
+            else:
+                if "衛星" in t_g1: preview_mentions.append("@cubesat")
+                if "ロケット" in t_g1: preview_mentions.append("@rocket")
+                if "BizSat" in t_g1: preview_mentions.append("@biz-sat")
+                
+                if "通信系" in t_g2 or "通信" in t_g2: preview_mentions.append("@com")
+                if "熱系" in t_g2 or "熱" in t_g2: preview_mentions.append("@heat")
+                if "構造系" in t_g2 or "構造 (衛星)" in t_g2: preview_mentions.append("@str")
+                if "ミッション系" in t_g2 or "ミッション" in t_g2: preview_mentions.append("@mission")
+                if "姿勢系" in t_g2 or "姿勢" in t_g2: preview_mentions.append("@shisei")
+                if "電源系" in t_g2 or "電源" in t_g2: preview_mentions.append("@eps")
+                if "C＆DH系" in t_g2 or "C＆DH" in t_g2: preview_mentions.append("@cdh")
+                
+                if "COLOURS電装系" in t_g2 or "電装" in t_g2: preview_mentions.append("@avionics")
+                if "COLOURS構造系" in t_g2 or "構造 (ロケット)" in t_g2: preview_mentions.append("@structure")
+                if "COLOURS推進系" in t_g2 or "推進" in t_g2: preview_mentions.append("@simu")
+                if "COLOURS燃焼系" in t_g2 or "燃焼" in t_g2: preview_mentions.append("@combustion")
+                
+                if "PMs (衛星)" in t_g4: preview_mentions.append("@pms")
+                if "シスマネ" in t_g4: preview_mentions.append("@managers")
+
+                if "新入生教育" in t_g3: preview_mentions.append("@sssup")
+                if "執行部" in t_g3: preview_mentions.append("@executives")
+                if "広報" in t_g3: preview_mentions.append("@kouhou")
+                if "イベント" in t_g3: preview_mentions.append("@event")
+                if "会計" in t_g3: preview_mentions.append("@kaikei")
+
+                preview_mentions = list(dict.fromkeys(preview_mentions))
+
+            st.markdown("---")
+            st.markdown("##### 📣 Slackメンションのプレビュー")
+            st.warning("⚠️ **注意:** 「プロジェクト（例: 衛星）」と「系（例: 通信系）」を両方選択すると、それぞれのグループ全体にメンションが飛びます。重複して広い範囲に通知がいく可能性があるため、対象を絞りたい場合はご注意ください。")
+            if preview_mentions:
+                st.code(" ".join(preview_mentions), language="text")
+            else:
+                st.write("※メンションは設定されていません（個別のユーザー指定のみ、または通知なし）")
+            # ▲▲ 修正箇所ここまで ▲▲
+
         st.markdown("<br>", unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown("##### 🔒 プライバシー・通知設定")
@@ -1160,40 +1202,10 @@ def main():
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")
             elif not is_all_members and target_scope_json == '{"groups": [], "users": []}': st.error("対象メンバーを指定するか、「全員に公開する」にチェックを入れてください。")
             else:
-                mention_text = ""
-                if is_all_members:
-                    mention_text = "<!channel>"
-                else:
-                    mentions = []
-                    if "衛星" in t_g1: mentions.append("@cubesat")
-                    if "ロケット" in t_g1: mentions.append("@rocket")
-                    if "BizSat" in t_g1: mentions.append("@biz-sat")
-                    
-                    if "通信系" in t_g2 or "通信" in t_g2: mentions.append("@com")
-                    if "熱系" in t_g2 or "熱" in t_g2: mentions.append("@heat")
-                    if "構造系" in t_g2 or "構造 (衛星)" in t_g2: mentions.append("@str")
-                    if "ミッション系" in t_g2 or "ミッション" in t_g2: mentions.append("@mission")
-                    if "姿勢系" in t_g2 or "姿勢" in t_g2: mentions.append("@shisei")
-                    if "電源系" in t_g2 or "電源" in t_g2: mentions.append("@eps")
-                    if "C＆DH系" in t_g2 or "C＆DH" in t_g2: mentions.append("@cdh")
-                    
-                    if "COLOURS電装系" in t_g2 or "電装" in t_g2: mentions.append("@avionics")
-                    if "COLOURS構造系" in t_g2 or "構造 (ロケット)" in t_g2: mentions.append("@structure")
-                    if "COLOURS推進系" in t_g2 or "推進" in t_g2: mentions.append("@simu")
-                    if "COLOURS燃焼系" in t_g2 or "燃焼" in t_g2: mentions.append("@combustion")
-                    
-                    if "PMs (衛星)" in t_g4: mentions.append("@pms")
-                    if "シスマネ" in t_g4: mentions.append("@managers")
-
-                    if "新入生教育" in t_g3: mentions.append("@sssup")
-                    if "執行部" in t_g3: mentions.append("@executives")
-                    if "広報" in t_g3: mentions.append("@kouhou")
-                    if "イベント" in t_g3: mentions.append("@event")
-                    if "会計" in t_g3: mentions.append("@kaikei")
-                    
-                    mentions = list(dict.fromkeys(mentions))
-                    mention_text = " ".join(mentions)
-
+                # ▼▼ 修正箇所：すでに上で生成したプレビュー用の配列をそのまま流用します ▼▼
+                mention_text = " ".join(preview_mentions)
+                # ▲▲ ▲▲
+                
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 payload = {
                     "title": ev_title, 
@@ -1231,7 +1243,11 @@ def main():
                     st.info("👇 以下の招待リンクをコピーして、参加者に送ってください（右上のアイコンでコピーできます）")
                     st.code(share_url, language="text")
                 else:
-                    st.warning("※イベントは作成されましたが、連携用のURLを発行できませんでした。GAS側の返り値をご確認ください。")
+                    # ▼▼ 修正箇所：失敗時にGASからの返り値(res)をそのまま画面に出力 ▼▼
+                    st.error("❌ イベントの作成、または連携用URLの発行に失敗しました。")
+                    st.warning("GAS側のエラーや返り値の詳細は以下の通りです。設定やGASのコードに問題がないか確認してください。")
+                    st.json(res)
+                    # ▲▲ ▲▲
                     
                 if "opt_count" in st.session_state: del st.session_state.opt_count
         return

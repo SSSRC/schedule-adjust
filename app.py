@@ -1245,7 +1245,7 @@ def main():
             # ▼▼ 修正箇所：メンションのプレビューを生成して画面に表示 ▼▼
             preview_mentions = []
             if is_all_members:
-                preview_mentions.append("<!channel>")
+                preview_mentions.append("@channel")
             else:
                 if "衛星" in t_g1: preview_mentions.append("@cubesat")
                 if "ロケット" in t_g1: preview_mentions.append("@rocket")
@@ -1301,7 +1301,8 @@ def main():
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")
             elif not is_all_members and target_scope_json == '{"groups": [], "users": []}': st.error("対象メンバーを指定するか、「全員に公開する」にチェックを入れてください。")
             else:
-                mention_text = " ".join(preview_mentions)
+                # ▼▼ 修正：表示用の @channel を Slack送信用に置換 ▼▼
+                mention_text = " ".join(preview_mentions).replace("@channel", " < !channel > ").replace(" ", "")
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 
                 # ▼ ここを以前のGASと同じ「日付＋乱数」の形式にする場合

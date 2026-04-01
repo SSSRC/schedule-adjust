@@ -11,6 +11,7 @@ import numpy as np
 from google.oauth2 import service_account
 from google.cloud import firestore
 import threading
+import uuid
 
 st.set_page_config(page_title="SSScheduler", layout="wide")
 
@@ -909,22 +910,30 @@ def main():
         st.write("GoogleカレンダーやiPhoneの「非公開URL（iCal形式 / .ics）」を設定しておくと、日程調整の際に自分の予定を自動でグレーアウトできます。")
         upd_cal_url = st.text_input("カレンダーの非公開URL", value=user.get('calendar_url', ''), placeholder="https://calendar.google.com/calendar/ical/.../basic.ics")
 
+        # ▼ 変更前 ▼
+        # res = call_gas("update_user", {"payload": payload}, method="POST")
+        # if res.get("status") == "success": ...
+
+        # ▼ 変更後 ▼
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
             payload = {
                 "user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), 
                 "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4), "calendar_url": upd_cal_url
             }
-            res = call_gas("update_user", {"payload": payload}, method="POST")
-            
-            if res.get("status") == "success":
-                updated_u = res.get("data")
-                db.collection("users").document(str(updated_u["user_id"])).update(updated_u)
+            try:
+                # 1. Firestoreを更新
+                db.collection("users").document(str(user["user_id"])).update(payload)
+                # 2. GASへバックアップ送信
+                backup_to_gas_async("update_user", {"payload": payload})
+                
+                # セッション情報を更新して画面リロード
+                updated_u = {**user, **payload} # 古い情報に新しい情報を上書きマージ
                 st.session_state.auth = updated_u
                 st.success("✅ プロフィールを保存しました！")
-                time.sleep(1.5)
+                time.sleep(1.0)
                 st.rerun()
-            else: 
-                st.error(f"更新に失敗しました: {res.get('message')}")
+            except Exception as e: 
+                st.error(f"更新に失敗しました: {e}")
         return
 
     # ----------------------------------------------------
@@ -1039,14 +1048,16 @@ def main():
                 new_fixed_sched[wd_str] = "".join(new_bin)
                 
             payload = {"user_id": user['user_id'], "fixed_schedule": new_fixed_sched}
-            res = call_gas("update_user", {"payload": payload}, method="POST")
-            if res.get("status") == "success":
-                updated_u = res.get("data")
-                db.collection("users").document(str(updated_u["user_id"])).update(updated_u)
+            try:
+                db.collection("users").document(str(user["user_id"])).update(payload)
+                backup_to_gas_async("update_user", {"payload": payload})
+                
+                updated_u = {**user, **payload}
                 st.session_state.auth = updated_u
+                st.toast("✅ 時間割を保存しました！")
                 st.rerun()
-            else:
-                st.error("更新に失敗しました。")
+            except Exception as e:
+                st.error(f"更新に失敗しました: {e}")
         return
 
     # ----------------------------------------------------
@@ -1202,12 +1213,14 @@ def main():
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")
             elif not is_all_members and target_scope_json == '{"groups": [], "users": []}': st.error("対象メンバーを指定するか、「全員に公開する」にチェックを入れてください。")
             else:
-                # ▼▼ 修正箇所：すでに上で生成したプレビュー用の配列をそのまま流用します ▼▼
                 mention_text = " ".join(preview_mentions)
-                # ▲▲ ▲▲
-                
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
+                
+                # ▼ 変更: Python側で先にランダムなイベントIDを生成
+                created_event_id = "ev_" + str(uuid.uuid4()).replace("-", "")[:10]
+
                 payload = {
+                    "event_id": created_event_id,  # 生成したIDをセット
                     "title": ev_title, 
                     "description": ev_desc, 
                     "start_date": ev_start.strftime("%Y-%m-%d") if ev_type == "time" else "", 
@@ -1225,29 +1238,21 @@ def main():
                     "mention_text": mention_text
                 }
                 
-                res = call_gas("create_event", {"payload": payload}, method="POST")
-                st.success(f"「{ev_title}」を作成しました！")
-            
-                created_event_id = None
-                if isinstance(res, dict):
-                    data_content = res.get("data")
-                    if isinstance(data_content, dict):
-                        created_event_id = data_content.get("event_id")
-                    else:
-                        created_event_id = res.get("event_id")
-                
-                if created_event_id:
-                    payload["event_id"] = created_event_id
+                # ▼ 変更: Firestoreに即保存し、非同期でGASへ送る
+                try:
+                    # 1. メインDB(Firestore)に保存
                     db.collection("events").document(created_event_id).set(payload)
+                    
+                    # 2. バックアップ・通知用にGASへ裏側で送信 (UIはブロックしない)
+                    backup_to_gas_async("create_event", {"payload": payload})
+                    
+                    st.success(f"「{ev_title}」を作成しました！")
                     share_url = f"{APP_BASE_URL}?event={created_event_id}"
-                    st.info("👇 以下の招待リンクをコピーして、参加者に送ってください（右上のアイコンでコピーできます）")
+                    st.info("👇 以下の招待リンクをコピーして、参加者に送ってください")
                     st.code(share_url, language="text")
-                else:
-                    # ▼▼ 修正箇所：失敗時にGASからの返り値(res)をそのまま画面に出力 ▼▼
-                    st.error("❌ イベントの作成、または連携用URLの発行に失敗しました。")
-                    st.warning("GAS側のエラーや返り値の詳細は以下の通りです。設定やGASのコードに問題がないか確認してください。")
-                    st.json(res)
-                    # ▲▲ ▲▲
+                    
+                except Exception as e:
+                    st.error(f"❌ イベントの作成に失敗しました: {e}")
                     
                 if "opt_count" in st.session_state: del st.session_state.opt_count
         return
@@ -1301,9 +1306,10 @@ def main():
                         target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})")
                         new_status = st.selectbox("ステータス", ["open", "closed", "archived"], index=1)
                         if st.form_submit_button("更新する"):
-                            call_gas("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}}, method="POST")
-                            db.collection("events").document(target_ev['event_id']).update({"status": new_status})
-                            st.rerun()
+                        db.collection("events").document(target_ev['event_id']).update({"status": new_status})
+                        backup_to_gas_async("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}})
+                        st.toast("ステータスを更新しました", icon="✅")
+                        st.rerun()
                             
                 st.markdown("---")
                 st.subheader("👀 未回答者の抽出")
@@ -1397,9 +1403,10 @@ def main():
                         if tgt_user.get('role') == 'top_admin' and new_u_role != 'top_admin':
                             st.error("最高管理者の権限は変更できません。")
                         else:
-                            call_gas("admin_update_user", {"payload": {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}}, method="POST")
-                            updates = {"role": new_u_role}
-                            db.collection("users").document(str(tgt_user['user_id'])).update(updates)
+                            payload = {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}
+                            db.collection("users").document(str(tgt_user['user_id'])).update({"role": new_u_role})
+                            backup_to_gas_async("admin_update_user", {"payload": payload})
+                            st.toast("ユーザー情報を更新しました", icon="✅")
                             st.rerun()
 
                 if user.get("role") == "top_admin":
@@ -1433,11 +1440,14 @@ def main():
                             clean_id = new_slack_id.strip().replace("@", "").replace("<", "").replace(">", "")
                             mention_str = f"<@{clean_id}>"
                                 
-                            call_gas("transfer_top_admin", {"payload": {"caller_id": user['user_id'], "target_id": new_top['user_id'], "slack_id": mention_str}}, method="POST")
                             db.collection("users").document(str(user['user_id'])).update({"role": "admin"})
                             updates_top = {"role": "top_admin"}
                             if mention_str: updates_top["slack_id"] = mention_str
                             db.collection("users").document(str(new_top['user_id'])).update(updates_top)
+                            
+                            payload = {"caller_id": user['user_id'], "target_id": new_top['user_id'], "slack_id": mention_str}
+                            backup_to_gas_async("transfer_top_admin", {"payload": payload})
+                            
                             st.session_state.auth = None
                             st.rerun()
         return

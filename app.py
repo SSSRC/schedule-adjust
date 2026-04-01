@@ -1309,10 +1309,10 @@ def main():
                         target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})")
                         new_status = st.selectbox("ステータス", ["open", "closed", "archived"], index=1)
                         if st.form_submit_button("更新する"):
-                        db.collection("events").document(target_ev['event_id']).update({"status": new_status})
-                        backup_to_gas_async("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}})
-                        st.toast("ステータスを更新しました", icon="✅")
-                        st.rerun()
+                            db.collection("events").document(target_ev['event_id']).update({"status": new_status})
+                            backup_to_gas_async("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}})
+                            st.toast("ステータスを更新しました", icon="✅")
+                            st.rerun()
                             
                 st.markdown("---")
                 st.subheader("👀 未回答者の抽出")

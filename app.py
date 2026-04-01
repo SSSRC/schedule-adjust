@@ -978,18 +978,31 @@ def main():
 
         # ▼ 変更後 ▼
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
+            # Firestore用のフルデータ
             payload = {
-                "user_id": user['user_id'], "group_1": ", ".join(upd_g1), "group_2": ", ".join(upd_g2), 
-                "group_3": ", ".join(upd_g3), "group_4": ", ".join(upd_g4), "calendar_url": upd_cal_url
+                "user_id": user['user_id'], 
+                "group_1": ", ".join(upd_g1), 
+                "group_2": ", ".join(upd_g2), 
+                "group_3": ", ".join(upd_g3), 
+                "group_4": ", ".join(upd_g4), 
+                "calendar_url": upd_cal_url
             }
+            
+            # GAS送付用のバックアップデータ（セキュリティに関わる項目を隠匿）
+            gas_payload = payload.copy()
+            gas_payload["calendar_url"] = "LINKED" if upd_cal_url else ""
+            # PINのハッシュ化対応もここで行う場合は追加
+            # gas_payload["pin"] = "PROTECTED" 
+
             try:
-                # 1. Firestoreを更新
+                # 1. Firestoreを更新（ここには生のURLを保存）
                 db.collection("users").document(str(user["user_id"])).update(payload)
-                # 2. GASへバックアップ送信
-                backup_to_gas_async("update_user", {"payload": payload})
                 
-                # セッション情報を更新して画面リロード
-                updated_u = {**user, **payload} # 古い情報に新しい情報を上書きマージ
+                # 2. GASへバックアップ送信（URLは送らない）
+                backup_to_gas_async("update_user", {"payload": gas_payload})
+                
+                # セッション情報を更新
+                updated_u = {**user, **payload}
                 st.session_state.auth = updated_u
                 st.success("✅ プロフィールを保存しました！")
                 time.sleep(1.0)

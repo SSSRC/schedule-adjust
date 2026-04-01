@@ -12,7 +12,13 @@ from google.oauth2 import service_account
 from google.cloud import firestore
 import threading
 import uuid
+import hashlib
 
+def hash_pin(pin_str):
+    """PINをSHA-256でハッシュ化する関数"""
+    if not pin_str: return ""
+    return hashlib.sha256(pin_str.encode('utf-8')).hexdigest()
+# ▲▲ ここまで追加 ▲▲
 st.set_page_config(page_title="SSScheduler", layout="wide")
 
 # 💡 ご自身のStreamlitアプリのURLに変更してください
@@ -780,12 +786,32 @@ def main():
                     n = st.text_input("氏名", autocomplete="username")
                     p = st.text_input("PIN", type="password", autocomplete="current-password")
                     if st.form_submit_button("ログイン", use_container_width=True, type="primary"):
-                        res = call_gas("check_auth", {"name": n, "pin": p}, method="POST")
-                        if res.get("status") == "success":
-                            st.session_state.auth = res.get("data")
-                            st.rerun()
+                        # ▼ 変更: GASを待たず、Firestoreに直接問い合わせて認証する
+                        users_ref = db.collection("users").where("name", "==", n).stream()
+                        user_doc = None
+                        for doc in users_ref:
+                            user_doc = doc.to_dict()
+                            break
+                        
+                        if user_doc:
+                            stored_pin = user_doc.get("pin", "")
+                            hashed_input = hash_pin(p)
+                            
+                            # 1. ハッシュ化されたPINが一致するか確認
+                            if stored_pin == hashed_input:
+                                st.session_state.auth = user_doc
+                                st.rerun()
+                                
+                            # 2. 【神機能】過去の平文PINのままのユーザーへの救済措置（こっそりハッシュ化して保存し直す）
+                            elif stored_pin == p:
+                                db.collection("users").document(user_doc["user_id"]).update({"pin": hashed_input})
+                                user_doc["pin"] = hashed_input
+                                st.session_state.auth = user_doc
+                                st.rerun()
+                            else:
+                                st.error("認証失敗: 氏名またはPINが間違っています")
                         else:
-                            st.error("認証失敗: 氏名またはPINが間違っています")
+                            st.error("認証失敗: ユーザーが存在しません")
             
             elif login_mode == "📝 新規アカウント作成":
                 st.subheader("新規アカウント作成")
@@ -811,17 +837,41 @@ def main():
                 
                 if st.button("✅ 登録してログイン", use_container_width=True, type="primary"):
                     clean_name = reg_n.replace(" ", "").replace("　", "")
-                    if not clean_name or not reg_p or not reg_s: st.warning("氏名、PIN、秘密の合言葉はすべて必須です。")
+                    if not clean_name or not reg_p or not reg_s: 
+                        st.warning("氏名、PIN、秘密の合言葉はすべて必須です。")
                     else:
-                        payload = {"name": clean_name, "pin": reg_p, "secret_word": reg_s, "group_1": ", ".join(g1), "group_2": ", ".join(g2), "group_3": ", ".join(g3), "group_4": ", ".join(g4)}
-                        res = call_gas("register_user", {"payload": payload}, method="POST")
-                        if res.get("status") == "success":
-                            new_u = res.get("data")
-                            db.collection("users").document(str(new_u["user_id"])).set(new_u)
-                            st.session_state.auth = new_u
-                            st.rerun()
+                        # ▼ 変更: 重複チェックと登録をFirestoreで直接行う
+                        existing_check = list(db.collection("users").where("name", "==", clean_name).stream())
+                        if existing_check:
+                            st.error("エラー: その氏名は既に登録されています。")
                         else:
-                            st.error(f"エラー: {res.get('message')}")
+                            all_users_count = len(list(db.collection("users").stream()))
+                            new_user_id = "U" + str(uuid.uuid4()).replace("-", "")[:8]
+                            role = "top_admin" if all_users_count == 0 else "guest" # 1人目は自動的に最高管理者
+                            
+                            new_u = {
+                                "user_id": new_user_id,
+                                "name": clean_name,
+                                "pin": hash_pin(reg_p), # ここでハッシュ化！
+                                "secret_word": reg_s, 
+                                "role": role,
+                                "group_1": ", ".join(g1), "group_2": ", ".join(g2),
+                                "group_3": ", ".join(g3), "group_4": ", ".join(g4),
+                                "calendar_url": "", "fixed_schedule": {}
+                            }
+                            
+                            try:
+                                db.collection("users").document(new_user_id).set(new_u)
+                                
+                                # スプレッドシート側にはPINを送らない（PROTECTEDにする）
+                                gas_payload = new_u.copy()
+                                gas_payload["pin"] = "PROTECTED"
+                                backup_to_gas_async("register_user", {"payload": gas_payload})
+                                
+                                st.session_state.auth = new_u
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"登録に失敗しました: {e}")
             
             elif login_mode == "🆘 PIN・パスワード復旧":
                 st.subheader("PINの再設定")
@@ -832,20 +882,33 @@ def main():
                         rec_s = st.text_input("秘密の合言葉", type="password")
                         new_p = st.text_input("設定したい新しいPIN", type="password", autocomplete="new-password")
                         if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
-                            res = call_gas("recover_account", {"payload": {"name": rec_n.replace(" ","").replace("　",""), "secret_word": rec_s, "new_pin": new_p}}, method="POST")
-                            if res.get("status") == "success":
+                            clean_n = rec_n.replace(" ","").replace("　","")
+                            # ▼ 変更: Firestoreで直接照合してパスワードを更新
+                            users_ref = db.collection("users").where("name", "==", clean_n).where("secret_word", "==", rec_s).stream()
+                            target_doc = None
+                            for doc in users_ref:
+                                target_doc = doc.to_dict()
+                                break
+                                
+                            if target_doc and new_p:
+                                hashed_new_pin = hash_pin(new_p)
+                                db.collection("users").document(target_doc["user_id"]).update({"pin": hashed_new_pin})
+                                
+                                gas_payload = {"user_id": target_doc["user_id"], "pin": "PROTECTED"}
+                                backup_to_gas_async("update_user", {"payload": gas_payload})
                                 st.success("✅ 更新成功！新しいPINでログインできます。")
                             else:
-                                st.error("氏名または合言葉が間違っています。")
+                                st.error("氏名または合言葉が間違っているか、新しいPINが入力されていません。")
                 
                 with st.expander("🆘 合言葉も忘れたので、管理者に依頼する"):
                     st.write("管理者のSlackへ通知を送り、PINのリセットを依頼します。")
                     req_name = st.text_input("あなたのお名前", key="req_pin_name")
                     if st.button("🚀 管理者にリセット依頼を送る", use_container_width=True):
-                        if not req_name: st.warning("名前を入力してください。")
+                        if not req_name: 
+                            st.warning("名前を入力してください。")
                         else:
-                            res = call_gas("request_pin_reset", {"payload": {"name": req_name}}, method="POST")
-                            if res.get("status") == "success": st.success(f"✅ {req_name}さん、管理者に通知を送りました。")
+                            backup_to_gas_async("request_pin_reset", {"payload": {"name": req_name}})
+                            st.success(f"✅ {req_name}さん、管理者に通知を送りました。")
                             else: st.error("送信に失敗しました。管理者へ直接連絡してください。")
         return
 
@@ -1406,9 +1469,17 @@ def main():
                         if tgt_user.get('role') == 'top_admin' and new_u_role != 'top_admin':
                             st.error("最高管理者の権限は変更できません。")
                         else:
-                            payload = {"user_id": tgt_user['user_id'], "new_pin": new_u_pin, "role": new_u_role}
-                            db.collection("users").document(str(tgt_user['user_id'])).update({"role": new_u_role})
-                            backup_to_gas_async("admin_update_user", {"payload": payload})
+                            updates = {"role": new_u_role}
+                            gas_payload = {"user_id": tgt_user['user_id'], "role": new_u_role}
+                            
+                            # ▼ 新しいPINが入力された場合のみ、ハッシュ化して更新
+                            if new_u_pin:
+                                updates["pin"] = hash_pin(new_u_pin)
+                                gas_payload["new_pin"] = "PROTECTED" # スプレッドシートには送らない
+                                
+                            db.collection("users").document(str(tgt_user['user_id'])).update(updates)
+                            backup_to_gas_async("admin_update_user", {"payload": gas_payload})
+                            
                             st.toast("ユーザー情報を更新しました", icon="✅")
                             st.rerun()
 

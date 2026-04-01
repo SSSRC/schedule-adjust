@@ -53,6 +53,9 @@ def sync_spreadsheet_to_firestore():
         users = payload.get("users", [])
         fixed_scheds = payload.get("fixed_schedule", [])
         
+        # 🌟 変更点: Firestoreの既存ユーザー情報を先に取得し、機密データを保護する
+        existing_users = {doc.id: doc.to_dict() for doc in db.collection("users").stream()}
+
         # 固定スケジュールのマッピング { "user_id": {"0": "000...", "1": "..."} }
         user_fixed_map = {}
         for fs in fixed_scheds:
@@ -68,10 +71,22 @@ def sync_spreadsheet_to_firestore():
             if not uid: continue
             
             current_uids.add(uid)
-            
-            # クレンジング (slack_id などもここで自動的に整理されます)
             user_data = clean_dict(u)
             user_data['fixed_schedule'] = user_fixed_map.get(uid, {})
+            
+            # 🌟 変更点: Firestoreに既に存在するユーザーの場合、スプレッドシートのダミー文字で上書きしない
+            if uid in existing_users:
+                exist_u = existing_users[uid]
+                
+                # PINの保護
+                if user_data.get('pin') == 'PROTECTED' or not user_data.get('pin'):
+                    user_data['pin'] = exist_u.get('pin', '')
+                # 秘密の合言葉の保護
+                if user_data.get('secret_word') == 'PROTECTED' or not user_data.get('secret_word'):
+                    user_data['secret_word'] = exist_u.get('secret_word', '')
+                # カレンダーURLの保護
+                if user_data.get('calendar_url') == 'LINKED' or not user_data.get('calendar_url'):
+                    user_data['calendar_url'] = exist_u.get('calendar_url', '')
             
             doc_ref = db.collection("users").document(uid)
             batch.set(doc_ref, user_data)
@@ -127,21 +142,28 @@ def sync_spreadsheet_to_firestore():
             key = f"{eid}_{uid}"
             comment_str = str(r.get("comment", "")).strip()
             
+            # 🌟 変更点: セルの個別メモ（cell_details）を取得
+            cell_details_str = str(r.get("cell_details", "{}")).strip()
+            if cell_details_str in ["nan", "NaN", ""]: cell_details_str = "{}"
+            
             if key not in resp_agg:
                 resp_agg[key] = {
                     "event_id": eid,
                     "user_id": uid,
                     "responses": [],
-                    "comment": comment_str
+                    "comment": comment_str,
+                    "cell_details": cell_details_str # 初期セット
                 }
             resp_agg[key]["responses"].append({
                 "date": str(r.get("date", "")).strip(),
                 "binary_data": str(r.get("binary_data", "")).strip()
             })
             
-            # コメントがあれば上書き
+            # コメントやメモがあれば上書き更新
             if comment_str and comment_str not in ["nan", "NaN"]:
                 resp_agg[key]["comment"] = comment_str
+            if cell_details_str != "{}":
+                resp_agg[key]["cell_details"] = cell_details_str
 
         current_rids = set(resp_agg.keys())
         batch = db.batch()

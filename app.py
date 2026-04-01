@@ -852,8 +852,8 @@ def main():
                             new_u = {
                                 "user_id": new_user_id,
                                 "name": clean_name,
-                                "pin": hash_pin(reg_p), # ここでハッシュ化！
-                                "secret_word": reg_s, 
+                                "pin": hash_pin(reg_p), 
+                                "secret_word": hash_pin(reg_s), # 🌟 ここもハッシュ化！
                                 "role": role,
                                 "group_1": ", ".join(g1), "group_2": ", ".join(g2),
                                 "group_3": ", ".join(g3), "group_4": ", ".join(g4),
@@ -863,9 +863,9 @@ def main():
                             try:
                                 db.collection("users").document(new_user_id).set(new_u)
                                 
-                                # スプレッドシート側にはPINを送らない（PROTECTEDにする）
                                 gas_payload = new_u.copy()
                                 gas_payload["pin"] = "PROTECTED"
+                                gas_payload["secret_word"] = "PROTECTED" # 🌟 スプレッドシートには送らない！
                                 backup_to_gas_async("register_user", {"payload": gas_payload})
                                 
                                 st.session_state.auth = new_u
@@ -883,16 +883,29 @@ def main():
                         new_p = st.text_input("設定したい新しいPIN", type="password", autocomplete="new-password")
                         if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
                             clean_n = rec_n.replace(" ","").replace("　","")
-                            # ▼ 変更: Firestoreで直接照合してパスワードを更新
-                            users_ref = db.collection("users").where("name", "==", clean_n).where("secret_word", "==", rec_s).stream()
+                            
+                            # 🌟 名前だけで検索して引っ張ってくる
+                            users_ref = db.collection("users").where("name", "==", clean_n).stream()
                             target_doc = None
+                            
                             for doc in users_ref:
-                                target_doc = doc.to_dict()
-                                break
+                                doc_data = doc.to_dict()
+                                stored_secret = doc_data.get("secret_word", "")
+                                hashed_input_secret = hash_pin(rec_s)
+                                
+                                # 🌟 ハッシュ化された合言葉、または過去の平文の合言葉と一致するかチェック
+                                if stored_secret == hashed_input_secret or stored_secret == rec_s:
+                                    target_doc = doc_data
+                                    break
                                 
                             if target_doc and new_p:
                                 hashed_new_pin = hash_pin(new_p)
-                                db.collection("users").document(target_doc["user_id"]).update({"pin": hashed_new_pin})
+                                hashed_secret = hash_pin(rec_s) # 平文だった場合のために合言葉もハッシュ化し直す
+                                
+                                db.collection("users").document(target_doc["user_id"]).update({
+                                    "pin": hashed_new_pin,
+                                    "secret_word": hashed_secret 
+                                })
                                 
                                 gas_payload = {"user_id": target_doc["user_id"], "pin": "PROTECTED"}
                                 backup_to_gas_async("update_user", {"payload": gas_payload})

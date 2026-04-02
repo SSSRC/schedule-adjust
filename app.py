@@ -29,8 +29,7 @@ APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 # ==========================================
 st.markdown("""
     <style>
-        /* 💡 修正1: トップ画面のスマホ対応 */
-        /* スマホ時に画面を広く使えるよう、極端な余白を削除し適切なパディングを設定 */
+        /* スマホ時に画面を広く使えるよう余白を最適化 */
         @media (max-width: 650px) {
             .main .block-container,
             div[data-testid="stAppViewBlockContainer"] {
@@ -38,47 +37,24 @@ st.markdown("""
                 padding-right: 1rem !important;
                 padding-top: 1rem !important;
             }
-            /* iframeが画面外にはみ出してスクロールを阻害するのを防ぐ */
-            iframe {
-                max-width: 100vw !important;
-                width: 100% !important;
-            }
+            iframe { max-width: 100vw !important; width: 100% !important; }
         }
         
         .stDeployStatus, [data-testid="stStatusWidget"] label { display: none !important; }
-        [data-testid="stStatusWidget"] { visibility: visible !important; display: flex !important; position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: rgba(255, 255, 255, 0.95) !important; color: #333 !important; padding: 20px 40px !important; border-radius: 12px !important; z-index: 999999 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; border: 2px solid #4CAF50 !important; text-align: center !important; justify-content: center !important; }
+        [data-testid="stStatusWidget"] { visibility: visible !important; display: flex !important; position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: rgba(255, 255, 255, 0.95) !important; color: #333 !important; padding: 20px 40px !important; border-radius: 12px !important; z-index: 999999 !important; border: 2px solid #4CAF50 !important; text-align: center !important; justify-content: center !important; }
         [data-testid="stStatusWidget"]::after { content: "⏳ 通信中 \\A 処理しています..."; white-space: pre-wrap; font-size: 20px !important; font-weight: bold !important; line-height: 1.5 !important; }
-        @media (max-width: 600px) { [data-testid="stStatusWidget"] { padding: 15px 20px !important; width: 80% !important; } [data-testid="stStatusWidget"]::after { font-size: 16px !important; } }
+        
         .stApp, .stApp [data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"], div[data-testid="stForm"], iframe { opacity: 1 !important; transition: none !important; filter: none !important; }
         .user-header { display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 10px 20px; border-radius: 8px; border-left: 5px solid #4CAF50; margin-bottom: 20px; }
         .event-desc { background: #fff8e1; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
         .event-desc a { color: #2196F3; font-weight: bold; text-decoration: none; }
-        .event-desc a:hover { text-decoration: underline; }
         .tt-day-header { font-size: 16px; font-weight: bold; background: #4CAF50; color: white; padding: 8px; border-radius: 6px; text-align: center; }
         .tt-time-cell { font-size: 14px; font-weight: bold; background: #f0f2f6; padding: 10px; border-radius: 6px; text-align: center; border-left: 4px solid #4CAF50;}
         .tt-time-sub { font-size: 11px; color: #666; font-weight: normal; }
-        .status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #45a049); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(76,175,80,0.3); letter-spacing: 0.5px;}
-        .af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(33,150,243,0.3); letter-spacing: 0.5px;}
+        .status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #45a049); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(76,175,80,0.3);}
+        .af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(33,150,243,0.3);}
         .status-off { color: #9e9e9e; background: #ffffff; padding: 4px 0; border-radius: 6px; border: 1px dashed #d0d0d0; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block;}
         
-        /* 時間割設定のスマホ対応（横スクロール＆極限までコンパクト化）用CSS */
-        .tt-wrapper { overflow-x: auto; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;}
-        .tt-table { width: 100%; min-width: 280px; border-collapse: collapse; table-layout: fixed; }
-        .tt-table th, .tt-table td { padding: 5px 0px; text-align: center; border-bottom: 1px solid #eee; }
-        .tt-table th { font-weight: bold; background: #f8f9fa; color: #333; position: sticky; top: 0; font-size: 12px; padding: 8px 0px;}
-        
-        /* 1列目（1限などの時間表記）の幅と余白を極限まで削る */
-        .tt-table td:first-child { font-weight: bold; background: #f0f2f6; border-right: 2px solid #ddd; text-align: center; width: 45px; font-size: 11px; padding: 5px 2px;}
-        .tt-table td:first-child span { font-size: 9px; color: #666; display: block; font-weight: normal; letter-spacing: -0.5px; margin-top: -2px;}
-        
-        /* Streamlitのチェックボックス自体の余白を完全にゼロにする */
-        .tt-table [data-testid="stCheckbox"] { justify-content: center; margin: 0 !important; padding: 0 !important; width: 100% !important;}
-        .tt-table [data-testid="stCheckbox"] label { min-height: 0 !important; padding: 0 !important; gap: 0 !important; }
-        /* チェックボックスの四角い部分（アイコン）の余白も削る */
-        .tt-table [data-testid="stCheckbox"] div[role="checkbox"] { margin: 0 auto !important; }
-        /* 「あり」という文字を非表示にする（チェックボックスの四角だけで判定させる） */
-        .tt-table [data-testid="stCheckbox"] p { display: none !important; }
-
         .mobile-rotate-guide { display: none; }
         @media (max-width: 650px) and (orientation: portrait) {
             .mobile-rotate-guide {
@@ -86,31 +62,8 @@ st.markdown("""
                 background: linear-gradient(135deg, #e8f5e9, #c8e6c9); color: #2e7d32;
                 padding: 12px 15px; border-radius: 8px; margin-bottom: 20px;
                 font-size: 13px; font-weight: bold; border-left: 5px solid #4CAF50;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.05); animation: fadeIn 0.5s ease-in-out;
             }
             .mobile-rotate-guide::before { content: "📱🔄"; font-size: 20px; margin-right: 10px; }
-            @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        }
-        @media (max-width: 650px) {
-            /* 💡 修正2: :has() 疑似クラスを用いて、時間割行をまとめる親要素に横スクロールを適用 */
-            div[data-testid="stVerticalBlock"]:has(> div > [data-testid="stHorizontalBlock"]),
-            [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
-                overflow-x: auto !important; padding-bottom: 15px !important; 
-                -webkit-overflow-scrolling: touch !important; 
-            }
-            [data-testid="stHorizontalBlock"] {
-                display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
-                min-width: 480px !important; gap: 2px !important;
-            }
-            [data-testid="column"] { min-width: 0 !important; flex: 1 1 0px !important; padding: 0 !important; }
-            [data-testid="column"]:first-child { flex: 0 0 55px !important; }
-            .tt-day-header { font-size: 13px !important; padding: 4px 0 !important; }
-            .tt-time-cell { font-size: 11px !important; padding: 4px 2px !important; border-left: 2px solid #4CAF50 !important; }
-            .tt-time-sub { font-size: 9px !important; display: block; line-height: 1.1; }
-            .status-on, .status-off, .af-status-on { font-size: 10px !important; padding: 2px 0 !important; }
-            [data-testid="stCheckbox"] { margin: 0 auto !important; padding: 0 !important; justify-content: center; }
-            [data-testid="stCheckbox"] label p { display: none !important; }
-            [data-testid="stSelectbox"] { min-width: 0 !important; }
         }
     </style>
 """, unsafe_allow_html=True)
@@ -1102,26 +1055,14 @@ def main():
         st.markdown("""
         <style>
             .mobile-rotate-guide { display: none; }
-            @media (max-width: 650px) {
-                /* 💡 修正3: 横スクロールが確実に行えるように CSS セレクタを修正 */
-                div[data-testid="stVerticalBlock"]:has(> div > [data-testid="stHorizontalBlock"]),
-                [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
-                    overflow-x: auto !important; padding-bottom: 15px !important; 
-                    -webkit-overflow-scrolling: touch !important;
+            @media (max-width: 650px) and (orientation: portrait) {
+                .mobile-rotate-guide {
+                    display: flex; align-items: center; justify-content: center;
+                    background: linear-gradient(135deg, #e8f5e9, #c8e6c9); color: #2e7d32;
+                    padding: 12px 15px; border-radius: 8px; margin-bottom: 20px;
+                    font-size: 13px; font-weight: bold; border-left: 5px solid #4CAF50;
                 }
-                [data-testid="stHorizontalBlock"] {
-                    display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
-                    min-width: 480px !important; gap: 2px !important;
-                }
-                [data-testid="column"] { min-width: 0 !important; flex: 1 1 0px !important; padding: 0 !important; }
-                [data-testid="column"]:first-child { flex: 0 0 55px !important; }
-                .tt-day-header { font-size: 13px !important; padding: 4px 0 !important; }
-                .tt-time-cell { font-size: 11px !important; padding: 4px 2px !important; border-left: 2px solid #4CAF50 !important; }
-                .tt-time-sub { font-size: 9px !important; display: block; line-height: 1.1; }
-                .status-on, .status-off, .af-status-on { font-size: 10px !important; padding: 2px 0 !important; }
-                [data-testid="stCheckbox"] { margin: 0 auto !important; padding: 0 !important; justify-content: center; }
-                [data-testid="stCheckbox"] label p { display: none !important; }
-                [data-testid="stSelectbox"] { min-width: 0 !important; }
+                .mobile-rotate-guide::before { content: "📱🔄"; font-size: 20px; margin-right: 10px; }
             }
         </style>
         <div class="mobile-rotate-guide">スマホを横向きにすると、時間割が綺麗に表示されます！</div>
@@ -1945,7 +1886,7 @@ def main():
                 </div>
             </div>
             <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc; background: #fff;">
-                <div id="g" style="display:flex; width: max-content; min-width: 100%; user-select:none; {pointer_css}">
+                <div id="g" style="display:flex; width: 100%; min-width: max-content; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
@@ -2216,8 +2157,7 @@ def main():
                     </style>
                     """
 
-                    # 💡 修正6: width: max-content と min-width: 100% を組み合わせてスマホでの横スクロールを担保
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: max-content; min-width: 100%; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: 100%; min-width: max-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

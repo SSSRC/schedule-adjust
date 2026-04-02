@@ -670,6 +670,8 @@ if not os.path.exists("custom_editor"):
                     }
                 };
 
+                let isScrolling = false; // ★追加
+                
                 const handleEnd = () => {
                     if (pressTimer) clearTimeout(pressTimer);
                     document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
@@ -680,6 +682,7 @@ if not os.path.exists("custom_editor"):
                     }
                     down = false;
                     touchMode = null;
+                    isScrolling = false; // ★追加：タッチ終了時にスクロール状態をリセット
                 };
 
                 g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1) window.upd(e.target.closest('.c'), selectedMode); };
@@ -692,13 +695,12 @@ if not os.path.exists("custom_editor"):
                 window.onmouseleave = handleEnd; 
 
                 let touchStartX = 0, touchStartY = 0;
-                let isScrolling = false;
 
                 g.addEventListener('touchstart', e => { 
                     if (e.touches.length > 1) return;
                     touchStartX = e.touches[0].clientX;
                     touchStartY = e.touches[0].clientY;
-                    isScrolling = false;
+                    isScrolling = false; // ★追加：タッチ開始時にリセット
                     handleStart(e, touchStartX, touchStartY);
                 }, {passive: true});
                 
@@ -728,6 +730,7 @@ if not os.path.exists("custom_editor"):
                 }, {passive: false});
                 
                 g.addEventListener('touchend', handleEnd);
+                g.addEventListener('touchcancel', handleEnd); // ★安全のため追加
                 
                 const btn = document.getElementById("submit-btn");
                 if(btn) { btn.onclick = () => { 
@@ -2158,20 +2161,20 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                    # 💡 修正: 純粋なFlexboxで右余白を完全消滅。JSに依存するスクリプトは排除。
+                    # 💡 修正: 他のAIの指摘通り、flex と 100% / max-content の組み合わせで余白を消す
                     agg_css = f"""
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                     
-                    /* 💡 修正: inline-flex と min-width: 100% の組み合わせで右余白バグを完全排除 */
-                    .agg-inner-container {{ display: inline-flex; min-width: 100%; background: #fdfdfd; }}
+                    /* 💡 inline-flex から flex に戻し、親幅100% ＋ 中身サイズ(max-content)の維持を両立 */
+                    .agg-inner-container {{ display: flex; width: 100%; min-width: max-content; background: #fdfdfd; }}
                     
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* 💡 修正: flex: 1 1 auto に変更（デバッグ用の赤い点線も削除） */
-                    .agg-day-col {{ flex: 1 1 auto; min-width: 85px; box-sizing: border-box; }}
+                    /* 💡 1 1 0% に戻す。これにより親(100%)幅の余白を各列が均等に食い尽くす */
+                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
                     
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     

@@ -570,12 +570,21 @@ if not os.path.exists("custom_editor"):
         let selectedMode = 1;
         window.setPen = function(mode) {
             selectedMode = mode;
-            /* 👇 変更: -1 (移動モード) を追加 */
             [-1, 0, 1, 2].forEach(m => {
                 const b = document.getElementById('pen-' + m);
                 if(b) b.classList.remove('active');
             });
             document.getElementById('pen-' + mode).classList.add('active');
+
+            // 💡 追加: ✋移動モード時はカレンダーへのタッチ判定を完全に切り、ネイティブスクロールさせる！
+            const gElem = document.getElementById('g');
+            if (gElem) {
+                if (mode === -1) {
+                    gElem.style.pointerEvents = 'none'; // タッチ無効化（スクロール100%成功）
+                } else {
+                    gElem.style.pointerEvents = 'auto'; // タッチ有効化（色塗りモード）
+                }
+            }
         };
 
         const palette = document.getElementById('palette');
@@ -1905,6 +1914,10 @@ def main():
 
             scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
 
+            # 💡 追加: 列数から最低限必要な横幅を計算し、空白を防ぐ
+            total_cols = len(date_strs)
+            min_grid_width = 65 + (total_cols * 85) # 時間枠(65px) + (列数 × 85px)
+
             html_code = f"""
             <style>
                 .tool-card {{ background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; flex: 1; min-width: 250px; font-family: sans-serif; box-sizing:border-box;}} 
@@ -1934,8 +1947,8 @@ def main():
                     <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
                 </div>
             </div>
-            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;">
-                <div id="g" style="display:flex; min-width: 100%; width: max-content; user-select:none; {pointer_css}">
+            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc; background: #fff;">
+                <div id="g" style="display:flex; width: 100%; min-width: {min_grid_width}px; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
@@ -2182,13 +2195,17 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
+                    # 💡 追加: 集計欄でも正確な最低幅を計算する
+                    total_disp_cols = len(disp_date_strs)
+                    min_agg_width = 65 + (total_disp_cols * 85)
+
                     agg_css = f"""
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; }}
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
-                    /* 👇 変更: flex: 1 1 0% に強制することで、コンテナ幅を完全に均等分割させる */
+                    /* 💡 flex: 1 1 0% で均等に分配 */
                     .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; }}
                     
@@ -2205,13 +2222,13 @@ def main():
                     </style>
                     """
                     
-                    # 🛠️ [デバッグ機能] 万が一まだ空白が出る場合の調査用
+                    # 🛠️ [デバッグ用コード] レイアウト崩れが直らない場合に備えた情報表示
                     if st.checkbox("🛠️ [管理者用] 集計レイアウトのデバッグ表示", value=False):
-                        st.info(f"【デバッグ】表示列数: {len(disp_date_strs)}列 | 時間枠: {len(disp_time_labels)}枠")
-                        agg_css += "<style>.agg-wrapper { border: 2px solid red !important; } .agg-day-col { border: 1px dashed blue !important; background: #f9f9f9; }</style>"
+                        st.info(f"【デバッグ】計算された最小幅: {min_agg_width}px | 表示列数: {total_disp_cols}列 | 時間枠: {len(disp_time_labels)}枠")
+                        agg_css += "<style>.agg-wrapper { border: 2px solid red !important; } .agg-day-col { border: 1px dashed blue !important; }</style>"
 
-                    # 👇 変更: min-width: 100%; width: max-content; に修正。これで5日分の時は100%に広がり空白が消える
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; min-width: 100%; width: max-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    # 💡 変更: max-content をやめ、計算した min_width を使う
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: 100%; min-width: {min_agg_width}px; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

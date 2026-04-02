@@ -1859,6 +1859,7 @@ def main():
 
             scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
 
+            # 💡 修正: JSで幅を強制計算し、スクロール領域のタッチイベントを最適化
             html_code = f"""
             <style>
                 .tool-card {{ background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; flex: 1; min-width: 250px; font-family: sans-serif; box-sizing:border-box;}} 
@@ -1875,11 +1876,16 @@ def main():
                 .page-btn:hover:not(:disabled) {{ background: #e9ecef; }} 
                 .page-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
                 
-                .scroll-wrapper {{ {scroll_css} overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; }}
+                .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
+                
+                /* flexによる自動調整をやめ、幅を完全に固定する */
+                .day-col {{ width: calc((100vw - 65px) / {len(date_strs)}); min-width: 85px; max-width: 150px; flex-shrink: 0; box-sizing: border-box; }}
+                #g {{ display: flex; width: max-content; user-select: none; {pointer_css} }}
             </style>
+            
             {tools_html}
             <div style='display:flex; justify-content:flex-end; align-items:flex-end; margin-bottom:10px;'>
                 <div style="display:{week_nav_display}; align-items:center; gap: 20px;">
@@ -1888,13 +1894,43 @@ def main():
                     <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
                 </div>
             </div>
-            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 2px solid rgba(255,0,0,0.5); background: #fff;">
-                <div id="g" style="display:flex; width: 100%; min-width: fit-content; user-select:none; {pointer_css}">
+            
+            <div class="scroll-wrapper" id="scroll-container">
+                <div id="g">
                     {time_col_html}
                     {day_cols_html}
                 </div>
             </div>
             {submit_btn_html}
+            
+            <script>
+                // 表全体の幅を親コンテナに合わせて動的に調整するスクリプト
+                function adjustGridWidth() {{
+                    const container = document.getElementById('scroll-container');
+                    const grid = document.getElementById('g');
+                    const dayCols = document.querySelectorAll('.day-col');
+                    if(container && dayCols.length > 0) {{
+                        // 表示可能な領域の幅から、時間列(65px)を引いた分を列数で割る
+                        const availableWidth = container.clientWidth - 65;
+                        const displayCols = Array.from(dayCols).filter(col => col.style.display !== 'none').length;
+                        
+                        if(displayCols > 0) {{
+                            // 1列あたりの幅（最小85px）
+                            let colWidth = Math.max(85, availableWidth / displayCols);
+                            dayCols.forEach(col => {{
+                                col.style.width = colWidth + 'px';
+                            }});
+                        }}
+                    }}
+                }}
+                // 画面ロード時とリサイズ時に調整を実行
+                window.addEventListener('load', adjustGridWidth);
+                window.addEventListener('resize', adjustGridWidth);
+                // Streamlitからのメッセージ受信時にも実行
+                window.addEventListener('message', function(e) {{
+                    if(e.data.type === "streamlit:render") {{ setTimeout(adjustGridWidth, 100); }}
+                }});
+            </script>
             """
             
             my_cell_details = {}
@@ -2136,15 +2172,18 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
+                    # 💡 修正: JSで幅を強制計算し、右余白を完全に消滅させる
                     agg_css = f"""
                     <style>
-                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; }}
+                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* flex: auto と width で余白バグを防止、デバッグ用の青枠を追加 */
-                    .agg-day-col {{ flex: 1 1 auto; min-width: 85px; width: 85px; box-sizing: border-box; outline: 1px dashed rgba(0,0,255,0.2); }}
+                    /* flexによる自動調整をやめ、幅を完全に固定する */
+                    .agg-day-col {{ width: calc((100vw - 65px) / {len(disp_date_strs)}); min-width: 85px; max-width: 150px; flex-shrink: 0; box-sizing: border-box; }}
+                    .agg-inner-container {{ display: flex; width: max-content; background: #fdfdfd; }}
+                    
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
                     .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
@@ -2160,7 +2199,38 @@ def main():
                     </style>
                     """
 
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 2px solid rgba(255,0,0,0.5);'><div style='display:flex; width: 100%; min-width: fit-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                    {agg_css}
+                    <div class='agg-wrapper' id='agg-scroll-container'>
+                        <div class='agg-inner-container' id='agg-grid'>
+                            {agg_time_col}
+                            {agg_day_cols}
+                        </div>
+                    </div>
+                    
+                    <script>
+                        // 集計表の幅を動的に調整するスクリプト
+                        function adjustAggWidth() {{
+                            const container = document.getElementById('agg-scroll-container');
+                            const dayCols = document.querySelectorAll('.agg-day-col');
+                            if(container && dayCols.length > 0) {{
+                                const availableWidth = container.clientWidth - 65;
+                                const displayCols = {len(disp_date_strs)};
+                                
+                                if(displayCols > 0) {{
+                                    // コンテナの幅に合わせて列幅をピクセルで計算して固定
+                                    let colWidth = Math.max(85, availableWidth / displayCols);
+                                    dayCols.forEach(col => {{
+                                        col.style.width = colWidth + 'px';
+                                    }});
+                                }}
+                            }}
+                        }}
+                        // 100ms遅らせて実行することで、StreamlitのDOM生成完了を待つ
+                        setTimeout(adjustAggWidth, 100);
+                        window.addEventListener('resize', adjustAggWidth);
+                    </script>
+                    """, unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

@@ -228,7 +228,8 @@ def fetch_responses_for_event(event_id, user_map):
     return flat_responses
 
 # ==========================================
-# コンポーネント
+# カスタムコンポーネント (RTエディタ＆Optionsエディタ)
+# ※不具合の原因だった grid_editor は削除し、Streamlit標準機能に置き換えます
 # ==========================================
 if not os.path.exists("rt_editor"):
     os.makedirs("rt_editor", exist_ok=True)
@@ -379,360 +380,6 @@ if not os.path.exists("options_editor"):
         </script></body></html>
         """)
 options_editor = components.declare_component("options_editor", path="options_editor")
-
-if not os.path.exists("custom_editor"):
-    os.makedirs("custom_editor", exist_ok=True)
-    with open("custom_editor/index.html", "w", encoding="utf-8") as f:
-        f.write("""
-        <!DOCTYPE html><html><head><meta charset="utf-8"><style>
-        body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
-        .pen-btn { padding: 0; border-radius: 50%; width: 45px; height: 45px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); margin: 0 auto; }
-        .pen-btn:hover { opacity: 0.8; }
-        .pen-btn.active { border: 3px solid #333 !important; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
-        
-        #detail-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;justify-content:center;align-items:center;backdrop-filter:blur(2px);}
-        .modal-content{background:#fff;width:320px;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);position:relative;}
-        .modal-title{font-size:16px;font-weight:bold;color:#333;margin-bottom:10px;border-bottom:2px solid #4CAF50;padding-bottom:5px;}
-        .modal-label{font-size:12px;font-weight:bold;color:#666;margin-top:15px;display:block;}
-        .modal-input{width:100%;padding:8px;margin-top:5px;border:1px solid #ccc;border-radius:6px;font-size:14px;}
-        .status-switch{display:flex;gap:8px;margin-top:5px;}
-        .sw-btn{flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;background:#f9f9f9;color:#555;transition:0.2s;}
-        .sw-btn.active[data-v="1"]{background:#4CAF50;color:white;border-color:#4CAF50;}
-        .sw-btn.active[data-v="2"]{background:#FFEB3B;color:#333;border-color:#FBC02D;}
-        .sw-btn.active[data-v="0"]{background:#fff;color:#333;border-color:#999;}
-        .modal-btns{display:flex;gap:10px;margin-top:20px;}
-        .modal-btn-save{flex:1;background:#4CAF50;color:white;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;}
-        .memo-icon{position:absolute;top:1px;right:2px;font-size:10px;line-height:1;filter:drop-shadow(1px 1px 1px rgba(255,255,255,0.8));pointer-events:none;}
-        .c{position:relative;transition:filter 0.1s;}
-        @keyframes pressAnim{0%{transform:scale(1);filter:brightness(1);} 100%{transform:scale(0.92);filter:brightness(0.8);box-shadow:inset 0 4px 8px rgba(0,0,0,0.3);}}
-        .pressing{animation:pressAnim 0.4s forwards;z-index:100;}
-        </style></head><body>
-        
-        <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.85); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
-            <div style="font-size:12px; font-weight:bold; color:#666; text-align:center; pointer-events:none; user-select:none; margin-bottom:-4px;">🖊️ ペン</div>
-            <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
-            <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
-            <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
-            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#e3f2fd; color:#0277bd; border:1px solid #81d4fa; font-size:12px; margin-top:5px;">✋<br>移動</button>
-            <div style="font-size:10px; color:#888; text-align:center; line-height:1.2; margin-top:-5px;">※長押しで<br>メモ入力</div>
-        </div>
-
-        <div id="detail-modal">
-            <div class="modal-content" id="modal-content-box">
-                <div class="modal-title" id="modal-cell-title">詳細設定</div>
-                <label class="modal-label">🚥 予定のステータス</label>
-                <div class="status-switch">
-                    <button class="sw-btn" data-v="1" onclick="setModalStatus(1)">◯ 可</button>
-                    <button class="sw-btn" data-v="2" onclick="setModalStatus(2)">△ 未定</button>
-                    <button class="sw-btn" data-v="0" onclick="setModalStatus(0)">× 不可</button>
-                </div>
-                <label class="modal-label">📝 補足コメント (任意)</label>
-                <input type="text" id="modal-note" class="modal-input" placeholder="例: 13:30に移動開始, 20分遅延">
-                <div class="modal-btns">
-                    <button class="modal-btn-save" onclick="saveModal()">💾 保存して閉じる</button>
-                </div>
-                <div style="text-align:center; font-size:10px; color:#999; margin-top:10px;">※枠外をタップでキャンセル</div>
-            </div>
-        </div>
-
-        <div id="content"></div><script>
-        function sendMessageToStreamlitClient(type, data) { window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*"); }
-        function init() { sendMessageToStreamlitClient("streamlit:componentReady", {apiVersion: 1}); }
-        function setComponentValue(value) { sendMessageToStreamlitClient("streamlit:setComponentValue", {value: value, dataType: "json"}); }
-        
-        let currentWeek = 0; let totalDays = 0; let numRows = 0; let unavailColRows = {};
-        window.cellDetails = {};
-        let modalStatus = 1;
-        let editingCell = null;
-
-        const modalBg = document.getElementById('detail-modal');
-        modalBg.addEventListener('mousedown', function(e) { if(e.target === this) closeModal(); });
-        modalBg.addEventListener('touchstart', function(e) { if(e.target === this) closeModal(); }, {passive: true});
-
-        window.setModalStatus = function(v) {
-            modalStatus = v;
-            document.querySelectorAll('.sw-btn').forEach(b => {
-                b.classList.toggle('active', parseInt(b.dataset.v) === v);
-            });
-        };
-
-        window.openModal = function(cell) {
-            editingCell = cell;
-            const r = cell.dataset.r; const c = cell.dataset.c; const key = `${r}_${c}`;
-            const detail = window.cellDetails[key] || {note: ""};
-            setModalStatus(parseInt(cell.dataset.v) || 1);
-            document.getElementById('modal-note').value = detail.note || "";
-            document.getElementById('detail-modal').style.display = 'flex';
-        };
-
-        window.closeModal = function() {
-            document.getElementById('detail-modal').style.display = 'none';
-            if (editingCell) { editingCell.classList.remove('pressing'); editingCell = null; }
-        };
-
-        window.saveModal = function() {
-            if(!editingCell) return;
-            const r = editingCell.dataset.r; const c = editingCell.dataset.c; const key = `${r}_${c}`;
-            const note = document.getElementById('modal-note').value.trim();
-            if(note || modalStatus === 0) {
-                window.cellDetails[key] = {note: note};
-                window.upd(editingCell, modalStatus);
-            } else {
-                delete window.cellDetails[key];
-                window.upd(editingCell, modalStatus);
-            }
-            closeModal();
-        };
-
-        window.upd = function(el, v) { 
-            el.dataset.v = v; 
-            const key = `${el.dataset.r}_${el.dataset.c}`;
-            let detail = window.cellDetails[key];
-            
-            if (v == 0) {
-                if (detail && (detail.note === "バイト/サークル等" || detail.note === "バイト/私用")) { }
-                else { delete window.cellDetails[key]; detail = null; }
-            }
-
-            let note = detail ? detail.note : "";
-
-            if (v == 1) { el.style.background = '#4CAF50'; el.style.backgroundImage = 'none'; }
-            else if (v == 2) { el.style.background = '#FFEB3B'; el.style.backgroundImage = 'none'; }
-            else if (v == 3) { el.style.background = '#e0e0e0'; el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,.7) 5px, rgba(255,255,255,.7) 10px)'; }
-            else { el.style.background = '#fff'; el.style.backgroundImage = 'none'; }
-            
-            if (v == 0 && (note === "バイト/サークル等" || note === "バイト/私用")) {
-                el.style.backgroundImage = `repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px)`;
-            }
-
-            const existingIcon = el.querySelector('.memo-icon');
-            const hasManualSetting = detail && detail.note !== "";
-            if (hasManualSetting) {
-                if (!existingIcon) el.insertAdjacentHTML('beforeend', '<div class="memo-icon">💬</div>');
-            } else {
-                if (existingIcon) existingIcon.remove();
-            }
-        };
-        
-        window.renderWeek = function() {
-            const start = currentWeek * 7; const end = start + 7;
-            document.querySelectorAll('.day-col').forEach(el => {
-                const c = parseInt(el.dataset.c); el.style.display = (c >= start && c < end) ? 'block' : 'none';
-            });
-            const btnPrev = document.getElementById('btn-prev'); const btnNext = document.getElementById('btn-next');
-            if(btnPrev) btnPrev.disabled = (currentWeek === 0); if(btnNext) btnNext.disabled = (end >= totalDays);
-            
-            setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50}), 150);
-        };
-        window.changeWeek = function(dir) { currentWeek += dir; window.renderWeek(); };
-        
-        window.doBulk = function(btnEl) {
-            const val = document.getElementById('b-val').value;
-            const sIdx = parseInt(document.getElementById('b-start').value); const eIdx = parseInt(document.getElementById('b-end').value);
-            if(sIdx > eIdx) { alert('エラー：開始時刻は終了時刻より前に設定してください。'); return; }
-            document.querySelectorAll('.b-day-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); for(let r = sIdx; r <= eIdx; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.upd(cell, val); } } });
-            const origText = btnEl.innerText; btnEl.innerText = "✅ 完了"; setTimeout(() => btnEl.innerText = origText, 1500);
-        };
-        window.doCopy = function(btnEl) {
-            const srcIdx = parseInt(document.getElementById('c-src').value);
-            let srcData = []; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${srcIdx}"]`); srcData.push(cell ? cell.dataset.v : 0); }
-            let copied = false;
-            document.querySelectorAll('.c-tgt-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); if(cIdx !== srcIdx) { copied = true; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.upd(cell, srcData[r]); } } } });
-            if(!copied) { alert('コピー先を選択してください。'); return; }
-            const origText = btnEl.innerText; btnEl.innerText = "✅ 完了"; setTimeout(() => btnEl.innerText = origText, 1500);
-        };
-        
-        window.doTimetable = function(btnEl) {
-            if(!unavailColRows || Object.keys(unavailColRows).length === 0) { alert('時間割が登録されていないか、対象日がありません。'); return; }
-            for(let c = 0; c < totalDays; c++) {
-                let key = String(c);
-                if (unavailColRows[key]) {
-                    unavailColRows[key].forEach(r => { const cell = document.querySelector(`[data-r="${r}"][data-c="${c}"]`); if(cell) window.upd(cell, 3); });
-                }
-            }
-            const origText = btnEl.innerHTML; btnEl.innerHTML = "✅ 反映完了！"; setTimeout(() => btnEl.innerHTML = origText, 2000);
-        };
-        
-        window.toggleList = function(id) { const el = document.getElementById(id); el.style.display = el.style.display === 'none' ? 'block' : 'none'; };
-        document.addEventListener('click', function(e) { if(!e.target.closest('.ms-container')) { document.querySelectorAll('.ms-options').forEach(el => el.style.display = 'none'); } });
-
-        let selectedMode = 1;
-        window.setPen = function(mode) {
-            selectedMode = mode;
-            [-1, 0, 1, 2].forEach(m => {
-                const b = document.getElementById('pen-' + m);
-                if(b) b.classList.remove('active');
-            });
-            document.getElementById('pen-' + mode).classList.add('active');
-            // スクロールを阻害する pointerEvents の操作を完全に削除
-        };
-
-        const palette = document.getElementById('palette');
-        let isDraggingPalette = false;
-        let offsetX, offsetY;
-
-        palette.addEventListener('mousedown', e => {
-            if (e.target.tagName.toLowerCase() === 'button') return;
-            isDraggingPalette = true;
-            offsetX = e.clientX - palette.getBoundingClientRect().left;
-            offsetY = e.clientY - palette.getBoundingClientRect().top;
-        });
-        document.addEventListener('mousemove', e => {
-            if (!isDraggingPalette) return;
-            palette.style.left = (e.clientX - offsetX) + 'px';
-            palette.style.top = (e.clientY - offsetY) + 'px';
-            palette.style.right = 'auto';
-        });
-        document.addEventListener('mouseup', () => { isDraggingPalette = false; });
-
-        palette.addEventListener('touchstart', e => {
-            if (e.target.tagName.toLowerCase() === 'button') return;
-            isDraggingPalette = true;
-            const touch = e.touches[0];
-            offsetX = touch.clientX - palette.getBoundingClientRect().left;
-            offsetY = touch.clientY - palette.getBoundingClientRect().top;
-        }, {passive: false});
-        document.addEventListener('touchmove', e => {
-            if (!isDraggingPalette) return;
-            const touch = e.touches[0];
-            palette.style.left = (touch.clientX - offsetX) + 'px';
-            palette.style.top = (touch.clientY - offsetY) + 'px';
-            palette.style.right = 'auto';
-            e.preventDefault();
-        }, {passive: false});
-        document.addEventListener('touchend', () => { isDraggingPalette = false; });
-
-        window.addEventListener("message", function(event) {
-            if (event.data.type === "streamlit:render") {
-                const args = event.data.args; 
-                document.getElementById("content").innerHTML = args.html_code;
-                totalDays = args.cols; numRows = args.rows; unavailColRows = args.unavailColRows || {};
-                window.cellDetails = args.cellDetails || {};
-                
-                if(window.lastEventId !== args.eventId) { currentWeek = 0; window.lastEventId = args.eventId; }
-                window.renderWeek();
-                
-                if(args.isClosed) { palette.style.display = 'none'; return; } 
-                else { palette.style.display = 'flex'; }
-                
-                const g = document.getElementById('g'); if(!g) return;
-                let down = false;
-                let pressTimer = null;
-                let isLongPress = false;
-                let startX = 0, startY = 0;
-                let touchMode = null;
-
-                const handleStart = (e, x, y) => {
-                    if (selectedMode === -1) return;
-                    const cell = e.target.closest('.c');
-                    if(!cell) return;
-                    down = true;
-                    isLongPress = false;
-                    touchMode = null;
-                    startX = x; startY = y;
-                    
-                    pressTimer = setTimeout(() => {
-                        if (touchMode !== 'scroll' && down) {
-                            isLongPress = true;
-                            down = false;
-                            document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                            openModal(cell);
-                        }
-                    }, 400);
-                };
-
-                const handleMove = (e, x, y) => {
-                    if (selectedMode === -1 || !down) return;
-                    
-                    const dx = Math.abs(x - startX);
-                    const dy = Math.abs(y - startY);
-
-                    if (touchMode === null) {
-                        if (dx > 10 || dy > 10) {
-                            clearTimeout(pressTimer);
-                            if (dx > dy) { 
-                                touchMode = 'scroll';
-                                down = false;
-                                document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                                return;
-                            } else {
-                                touchMode = 'paint';
-                                const cell = document.elementFromPoint(startX, startY)?.closest('.c');
-                                if(cell) window.upd(cell, selectedMode);
-                            }
-                        }
-                    }
-
-                    if (touchMode === 'paint') {
-                        if (e.cancelable) e.preventDefault(); 
-                        const cell = document.elementFromPoint(x, y)?.closest('.c');
-                        if(cell) window.upd(cell, selectedMode);
-                    }
-                };
-
-                const handleEnd = () => {
-                    if (pressTimer) clearTimeout(pressTimer);
-                    document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                    
-                    if (down && touchMode === null && !isLongPress && selectedMode !== -1) {
-                        const cell = document.elementFromPoint(startX, startY)?.closest('.c');
-                        if(cell) window.upd(cell, selectedMode);
-                    }
-                    down = false;
-                    touchMode = null;
-                };
-
-                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1) window.upd(e.target.closest('.c'), selectedMode); };
-                g.onmousemove = e => {
-                    if (selectedMode === -1 || !down) return;
-                    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.c');
-                    if(cell) window.upd(cell, selectedMode);
-                }
-                window.onmouseup = handleEnd;
-                window.onmouseleave = handleEnd; 
-
-                let touchStartX = 0, touchStartY = 0;
-
-                g.addEventListener('touchstart', e => { 
-                    if (e.touches.length > 1) return;
-                    touchStartX = e.touches[0].clientX;
-                    touchStartY = e.touches[0].clientY;
-                    handleStart(e, touchStartX, touchStartY);
-                }, {passive: true});
-                
-                g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1) return; // ✋移動モード時は常にスクロール優先
-                    
-                    // ★修正: 2本指以上の操作はスクロールとみなし、ブラウザ標準のスクロールに任せる
-                    if (e.touches.length >= 2) return; 
-
-                    // 1本指の場合はペイント
-                    if(down) { 
-                        if (e.cancelable) e.preventDefault(); 
-                        const touchX = e.touches[0].clientX;
-                        const touchY = e.touches[0].clientY;
-                        handleMove(e, touchX, touchY); 
-                    } 
-                }, {passive: false});
-                
-                g.addEventListener('touchend', handleEnd);
-                g.addEventListener('touchcancel', handleEnd); // ★安全のため追加
-                
-                const btn = document.getElementById("submit-btn");
-                if(btn) { btn.onclick = () => { 
-                    const res = Array.from({length: numRows}, (_, r) => Array.from({length: totalDays}, (_, c) => parseInt(document.querySelector(`[data-r="${r}"][data-c="${c}"]`).dataset.v))); 
-                    const commentText = document.getElementById("comment-box").value; 
-                    setComponentValue({ data: res, comment: commentText, cell_details: window.cellDetails, trigger_save: true, ts: Date.now() }); 
-                    btn.innerText = "⏳ 保存処理中..."; btn.style.backgroundColor = "#ff7b7b"; btn.style.pointerEvents = "none"; palette.style.display = 'none'; 
-                }; }
-
-                document.querySelectorAll('.c').forEach(cell => {
-                    window.upd(cell, cell.dataset.v);
-                });
-            }
-        }); init(); </script></body></html>
-        """)
-grid_editor = components.declare_component("grid_editor", path="custom_editor")
 
 
 # ==========================================
@@ -1782,6 +1429,8 @@ def main():
                                                         time_label = time_master[t_idx]
                                                         if time_label in st.session_state.df_input.index:
                                                             st.session_state.df_input.loc[time_label, d_str] = 3
+                                        # カレンダー反映後にUIを強制リセット
+                                        if "ui_df" in st.session_state: del st.session_state.ui_df
                                         st.success("カレンダーの予定を反映しました！内容を確認して「提出」を押してください。")
                                         time.sleep(1)
                                         st.rerun()
@@ -1789,185 +1438,89 @@ def main():
                                     st.error("取得に失敗しました。GAS側の権限承認が済んでいるか確認してください。")
 
             st.markdown("---")
-
-            m = st.session_state.df_input[date_strs].values.tolist()
-            time_opts_html = "".join([f'<option value="{i}">{t}</option>' for i, t in enumerate(time_labels)])
-            src_opts_html = "".join([f'<option value="{i}">{l}</option>' for i, l in enumerate(clean_date_labels)])
-            b_day_opts_html = "".join([f'<label class="ms-opt"><input type="checkbox" class="b-day-chk" value="{i}" checked> {l}</label>' for i, l in enumerate(clean_date_labels)])
-            c_tgt_opts_html = "".join([f'<label class="ms-opt"><input type="checkbox" class="c-tgt-chk" value="{i}"> {l}</label>' for i, l in enumerate(clean_date_labels)])
             
-            day_cols_html = ""
-            for c, d_str in enumerate(date_strs):
-                lbl = clean_date_labels[c].replace("(", "<br>(")
-                cells_html = ""
-                for r, t_str in enumerate(time_labels):
-                    val = int(m[r][c])
-                    if val == 1: bg, bg_img = "#4CAF50", "none"
-                    elif val == 2: bg, bg_img = "#FFEB3B", "none"
-                    elif val == 3: bg, bg_img = "#e0e0e0", "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,.7) 5px, rgba(255,255,255,.7) 10px)"
-                    else: bg, bg_img = "#fff", "none"
-                    
-                    b_top = get_border_top(t_str, event_type)
-                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box;"></div>'
-                
-                day_cols_html += f'<div class="day-col" data-c="{c}" style="display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
+            # 💡 修正: Streamlitネイティブの data_editor に変更（PC・スマホ両方で完璧に動作）
+            VAL_TO_STR = {0: "× 不可", 1: "◯ 可", 2: "△ 未定", 3: "⬜ 授業等"}
+            STR_TO_VAL = {"× 不可": 0, "◯ 可": 1, "△ 未定": 2, "⬜ 授業等": 3}
 
-            time_cells_html = ""
-            for r, t_str in enumerate(time_labels):
-                b_top = get_border_top(t_str, event_type)
-                lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
-                time_cells_html += f'<div style="background:#f0f2f6; text-align:center; font-size:12px; font-weight:bold; color:#555; height:{cell_h}; line-height:{cell_h}; border-top:{b_top}; border-right:1px solid #ccc; box-sizing:border-box;">{lbl}</div>'
-            time_col_html = f'<div class="time-col"><div class="top-left-cell"></div>{time_cells_html}</div>'
+            if "ui_df" not in st.session_state or st.session_state.get("last_build_ev_id") != event.get('event_id'):
+                # 💡 修正: Pandasの内部クラッシュを回避するため、applyとmapで安全に変換
+                st.session_state.ui_df = st.session_state.df_input.apply(lambda col: col.map(VAL_TO_STR))
+                st.session_state.editor_key_version = 0
 
-            tools_html, submit_btn_html, pointer_css = "", "", ""
-            if not is_closed:
-                tt_btn_text = "🚫 該当日の自分の時間割をすべて × にする" if event_type == "time" else "🚫 自分の時間割をそのまま反映する"
-                tools_html = f"""
-                <div style='display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:10px;'>
-                    <div style='display:flex; gap:15px; font-size:14px; font-weight:bold;'>
-                        <div style='display:flex; align-items:center; gap:5px;'><div style='width:16px;height:16px;background:#4CAF50;border-radius:3px;'></div>可</div>
-                        <div style='display:flex; align-items:center; gap:5px;'><div style='width:16px;height:16px;background:#FFEB3B;border-radius:3px;'></div>未定</div>
-                        <div style='display:flex; align-items:center; gap:5px;'><div style='width:16px;height:16px;background:#fff;border:1px solid #ccc;border-radius:3px;'></div>不可</div>
-                        <div style='display:flex; align-items:center; gap:5px;'><div style='width:16px;height:16px;background:#e0e0e0;background-image:repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,.7) 3px, rgba(255,255,255,.7) 6px);border:1px solid #ccc;border-radius:3px;'></div>授業等</div>
-                    </div>
-                </div>
-                <div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom: 20px;">
-                    <div class="tool-card" style="display:{'none' if event_type == 'timetable' else 'block'};"><div class="tool-header">🪄 一括指定ツール</div>
-                        <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center; flex-wrap:wrap;">状態: <select id="b-val" class="st-sel"><option value="1">可 (緑)</option><option value="2">未定 (黄)</option><option value="0">不可 (白)</option></select>時間: <select id="b-start" class="st-sel">{time_opts_html}</select> 〜 <select id="b-end" class="st-sel"><option value="{len(time_labels)-1}" selected>{time_labels[-1]}</option>{time_opts_html}</select></div>
-                        <div style="display:flex; gap:10px; align-items:center;">対象: <div class="ms-container"><div class="ms-header" onclick="window.toggleList('b-days-list');">対象日を選択 <span>▼</span></div><div id="b-days-list" class="ms-options" style="display:none;"><label class="ms-opt" style="font-weight:bold;"><input type="checkbox" onchange="document.querySelectorAll('.b-day-chk').forEach(c => c.checked = this.checked)" checked> 全て選択 / 解除</label><hr style="margin:5px 0; border:0; border-top:1px solid #ccc;">{b_day_opts_html}</div></div><button class="st-btn" onclick="window.doBulk(this)">適用</button></div>
-                    </div>
-                    <div class="tool-card"><div class="tool-header">📋 日程コピー機能</div>
-                        <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">元: <select id="c-src" class="st-sel" style="flex:1;">{src_opts_html}</select></div>
-                        <div style="display:flex; gap:10px; align-items:center;">先: <div class="ms-container"><div class="ms-header" onclick="window.toggleList('c-tgt-list');">対象日を選択 <span>▼</span></div><div id="c-tgt-list" class="ms-options" style="display:none;"><label class="ms-opt" style="font-weight:bold;"><input type="checkbox" onchange="document.querySelectorAll('.c-tgt-chk').forEach(c => c.checked = this.checked)"> 全て選択 / 解除</label><hr style="margin:5px 0; border:0; border-top:1px solid #ccc;">{c_tgt_opts_html}</div></div><button class="st-btn" onclick="window.doCopy(this)" style="background:#FF9800;">コピー実行</button></div>
-                    </div>
-                    <div class="tool-card"><div class="tool-header">⏰ 時間割パワー反映</div>
-                        <p style="font-size:12px; color:#555; margin:0 0 10px 0;">DBに保存されたあなたの時間割を展開し、グレー色で自動反映させます。</p>
-                        <button class="st-btn" onclick="window.doTimetable(this)" style="background:#E91E63; width:100%;">{tt_btn_text}</button>
-                    </div>
-                </div>"""
-                submit_btn_html = f"""
-                <div style="margin-top: 20px;">
-                    <label style="font-size: 14px; font-weight: 600; color: #333;">📝 全体へのコメント (遅刻・早退など)</label>
-                    <textarea id="comment-box" rows="2" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; font-family: sans-serif; resize: vertical;">{st.session_state.my_comment}</textarea>
-                </div>
-                <button id="submit-btn" style="margin-top: 15px; width: 100%; padding: 14px; background-color: #FF4B4B; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.15); transition: 0.2s;">✅ すべて記入して提出 (全体が保存されます)</button>
-                """
-            else:
-                pointer_css = "pointer-events: none; opacity: 0.8;"
-                submit_btn_html = f"""<div style="margin-top: 20px;"><label style="font-size: 14px; font-weight: 600; color: #333;">📝 全体へのコメント</label><div style="width: 100%; padding: 10px; margin-top: 5px; background: #eee; border: 1px solid #ccc; border-radius: 6px; font-family: sans-serif; min-height:40px;">{st.session_state.my_comment}</div></div>"""
-
-            scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
-
-            html_code = f"""
-            <style>
-                .tool-card {{ background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; flex: 1; min-width: 250px; font-family: sans-serif; box-sizing:border-box;}} 
-                .tool-header {{ font-size: 15px; font-weight: bold; color: #333; margin-bottom: 12px; }} 
-                .st-sel {{ padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; }} 
-                .st-btn {{ padding: 6px 16px; border: none; border-radius: 4px; background: #4CAF50; color: white; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}} 
-                .st-btn:hover {{ opacity: 0.9; }} 
-                .ms-container {{ position: relative; display: inline-block; flex: 1; min-width: 150px; }} 
-                .ms-header {{ border: 1px solid #ccc; padding: 6px 10px; border-radius: 4px; cursor: pointer; background: #fff; font-size: 13px; user-select: none; display: flex; justify-content: space-between; }} 
-                .ms-options {{ position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; z-index: 100; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 5px; margin-top: 2px; }} 
-                .ms-opt {{ display: block; padding: 6px 8px; font-size: 13px; cursor: pointer; border-radius: 3px; }} 
-                .ms-opt:hover {{ background: #f0f2f6; }} 
-                .page-btn {{ padding: 8px 16px; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }} 
-                .page-btn:hover:not(:disabled) {{ background: #e9ecef; }} 
-                .page-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
-                
-                .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
-                
-                /* CSS Grid を導入し、右側の余白を完全排除 */
-                #g {{ 
-                    display: grid; 
-                    grid-template-columns: 65px repeat({len(date_strs)}, minmax(85px, 1fr)); 
-                    width: 100%; 
-                    min-width: max-content; 
-                    user-select: none; 
-                    {pointer_css} 
-                }}
-                
-                .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }}
-                .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
-                .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
-                
-                .day-col {{ box-sizing: border-box; }}
-            </style>
-            
-            {tools_html}
-            <div style='display:flex; justify-content:flex-end; align-items:flex-end; margin-bottom:10px;'>
-                <div style="display:{week_nav_display}; align-items:center; gap: 20px;">
-                    <button id="btn-prev" class="page-btn" onclick="window.changeWeek(-1)">◀ 前の週</button>
-                    <div style="font-weight:bold; color:#4CAF50;">📅 全 {len(date_strs)} 日間</div>
-                    <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
-                </div>
-            </div>
-            
-            <div class="scroll-wrapper" id="scroll-container">
-                <div id="g">
-                    {time_col_html}
-                    {day_cols_html}
-                </div>
-            </div>
-            {submit_btn_html}
-            """
-            
-            my_cell_details = {}
-            for r in st.session_state.event_responses:
-                if str(r.get('user_id')) == str(user.get('user_id')) and r.get('cell_details'):
-                    try:
-                        my_cell_details = json.loads(r['cell_details'])
-                        break
-                    except:
-                        pass
-
-            raw = grid_editor(
-                html_code=html_code, 
-                rows=len(time_labels), 
-                cols=len(date_strs), 
-                eventId=event.get('event_id'), 
-                isClosed=is_closed, 
-                unavailColRows=unavail_col_rows, 
-                saveTs=st.session_state.get("last_saved_ts", 0), 
-                cellDetails=my_cell_details,
-                default=None, 
-                key=f"editor_{event.get('event_id')}"
-            )
-            
-            if raw and isinstance(raw, dict) and "data" in raw:
-                if raw.get("trigger_save") and st.session_state.get("last_saved_ts") != raw.get("ts"):
-                    st.session_state.last_saved_ts = raw.get("ts")
-                    st.session_state.df_input = pd.DataFrame(raw["data"], index=time_labels, columns=date_strs)
-                    st.session_state.my_comment = raw.get("comment", "")
-                    
-                    cell_details_json = raw.get("cell_details", {})
-                    cell_details_str = json.dumps(cell_details_json, separators=(',', ':')) if cell_details_json else "{}"
-                    
-                    all_res = []
-                    for d_id in date_strs:
-                        bits = ["0"] * 96
-                        has_data = False
-                        for t_idx in range(len(time_labels)): 
-                            val = int(st.session_state.df_input.loc[time_labels[t_idx], d_id])
-                            if val > 0: has_data = True
-                            if event_type == 'time': bits[s_idx + t_idx] = str(val)
-                            else: bits[t_idx] = str(val)
-                            
-                        if has_data:
-                            all_res.append({"date": d_id, "binary_data": "".join(bits)})
-                            
-                    if not all_res:
-                        all_res.append({"date": date_strs[0], "binary_data": "0"*96})
-
-                    payload = {
-                        "event_id": event.get("event_id"), 
-                        "user_id": user.get("user_id"), 
-                        "comment": st.session_state.my_comment, 
-                        "cell_details": cell_details_str, 
-                        "responses": all_res
-                    }
-                    if save_response_hybrid(payload):
-                        st.session_state.save_success_msg = "回答を保存しました！"
+            st.markdown("##### 🪄 一括指定ツール")
+            col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+            with col1: bulk_val = st.selectbox("状態", ["◯ 可", "△ 未定", "× 不可", "⬜ 授業等"], label_visibility="collapsed")
+            with col2: bulk_start = st.selectbox("開始", time_labels, label_visibility="collapsed")
+            with col3: bulk_end = st.selectbox("終了", time_labels, index=len(time_labels)-1, label_visibility="collapsed")
+            with col4:
+                if st.button("適用", use_container_width=True):
+                    s_idx = time_labels.index(bulk_start)
+                    e_idx = time_labels.index(bulk_end)
+                    if s_idx <= e_idx:
+                        st.session_state.ui_df.loc[time_labels[s_idx:e_idx+1], :] = bulk_val
+                        st.session_state.editor_key_version += 1 # 強制再描画
                         st.rerun()
+                    else:
+                        st.error("開始時刻は終了時刻より前にしてください")
+
+            if st.button("⏰ 時間割パワー反映 (プロフィール設定から)", use_container_width=True):
+                if not unavail_col_rows:
+                    st.warning("時間割が登録されていないか、対象日がありません。")
+                else:
+                    for c_idx, rows in unavail_col_rows.items():
+                        col_name = date_strs[int(c_idx)]
+                        for r in rows:
+                            if r < len(time_labels):
+                                st.session_state.ui_df.loc[time_labels[r], col_name] = "⬜ 授業等"
+                    st.session_state.editor_key_version += 1
+                    st.rerun()
+
+            st.markdown("##### 📅 スケジュール入力 (セルをタップして変更)")
+            edited_df = st.data_editor(
+                st.session_state.ui_df,
+                column_config={
+                    col: st.column_config.SelectboxColumn(
+                        options=["◯ 可", "△ 未定", "× 不可", "⬜ 授業等"],
+                        required=True
+                    ) for col in date_strs
+                },
+                use_container_width=True,
+                height=min(600, len(time_labels) * 40 + 40),
+                key=f"native_editor_{event.get('event_id')}_{st.session_state.editor_key_version}"
+            )
+            st.session_state.ui_df = edited_df
+
+            st.markdown("##### 📝 全体へのコメント (遅刻・早退など)")
+            my_comment = st.text_area("コメント", value=st.session_state.my_comment, label_visibility="collapsed")
+
+            if st.button("✅ すべて記入して提出", type="primary", use_container_width=True):
+                # 💡 修正: 提出時も安全な変換メソッドを使用
+                final_df = edited_df.apply(lambda col: col.map(STR_TO_VAL))
+                all_res = []
+                for d_id in date_strs:
+                    bits = ["0"] * 96
+                    has_data = False
+                    for t_idx in range(len(time_labels)):
+                        val = int(final_df.loc[time_labels[t_idx], d_id])
+                        if val > 0: has_data = True
+                        if event_type == 'time': bits[s_idx + t_idx] = str(val)
+                        else: bits[t_idx] = str(val)
+                    if has_data:
+                        all_res.append({"date": d_id, "binary_data": "".join(bits)})
+                if not all_res:
+                    all_res.append({"date": date_strs[0], "binary_data": "0"*96})
+
+                payload = {
+                    "event_id": event.get("event_id"),
+                    "user_id": user.get("user_id"),
+                    "comment": my_comment,
+                    "cell_details": "{}",
+                    "responses": all_res
+                }
+                if save_response_hybrid(payload):
+                    st.session_state.save_success_msg = "回答を保存しました！"
+                    st.rerun()
 
         with tab_graph:
             st.subheader("📊 全体の集計結果")
@@ -2116,82 +1669,57 @@ def main():
                     
                     max_z = np.max(z) if np.max(z) > 0 else 1
                     
-                    agg_time_cells = ""
+                    # 💡 修正: バグが絶対に発生しない純粋なHTMLテーブルで再構築
+                    agg_html = f"""
+                    <style>
+                    .agg-table-wrapper {{ width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; background: #fff; max-height: 75vh; }}
+                    .agg-table {{ width: 100%; min-width: max-content; border-collapse: collapse; text-align: center; font-family: sans-serif; font-size: 13px; }}
+                    .agg-table th, .agg-table td {{ border: 1px solid #eee; padding: 0; position: relative; }}
+                    .agg-table th {{ background: #eee; padding: 8px 4px; position: sticky; top: 0; z-index: 11; border-bottom: 2px solid #555; min-width: 85px; }}
+                    .agg-table .time-col {{ position: sticky; left: 0; background: #f0f2f6; z-index: 12; font-weight: bold; color: #555; border-right: 1px solid #ccc; padding: 0 5px; width: 65px; }}
+                    .agg-table th.top-left {{ position: sticky; top: 0; left: 0; z-index: 13; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; min-width: 65px; }}
+                    .cell-content {{ display: flex; align-items: center; justify-content: center; height: 45px; width: 100%; font-weight: bold; cursor: pointer; }}
+                    .cell-content .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
+                    .cell-content .tooltip::-webkit-scrollbar {{ width: 4px; }}
+                    .cell-content .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
+                    .cell-content .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
+                    .cell-content .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
+                    .cell-content .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
+                    .cell-content:hover .tooltip {{ visibility: visible; opacity: 1; }}
+                    </style>
+                    <div class="agg-table-wrapper">
+                        <table class="agg-table">
+                            <thead>
+                                <tr>
+                                    <th class="top-left"></th>
+                    """
+                    for lbl in disp_clean_date_labels:
+                        agg_html += f"<th>{lbl.replace('(', '<br>(')}</th>"
+                    agg_html += "</tr></thead><tbody>"
+
                     for r, t_str in enumerate(disp_time_labels):
-                        b_top = get_border_top(t_str, event_type)
                         lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
-                        agg_time_cells += f'<div class="agg-time-cell" style="border-top:{b_top}; height:{cell_h};">{lbl}</div>'
-                        
-                    agg_time_col = f'<div class="agg-time-col"><div class="agg-top-left"></div>{agg_time_cells}</div>'
-                    
-                    agg_day_cols = ""
-                    for c, d_str in enumerate(disp_date_strs):
-                        lbl = disp_clean_date_labels[c].replace("(", "<br>(")
-                        cells_html = ""
-                        for r, t_str in enumerate(disp_time_labels):
+                        b_top = "2px solid #aaa" if t_str.endswith(":00") else "1px solid #eee"
+                        agg_html += f"<tr><td class='time-col' style='border-top:{b_top};'>{lbl}</td>"
+
+                        for c, d_str in enumerate(disp_date_strs):
                             val = z[r][c]
-                            b_top = get_border_top(t_str, event_type)
                             if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
                             else:
                                 ratio = val / max_z
                                 r_col = int(240 - (240 - 46) * ratio); g_col = int(248 - (248 - 125) * ratio); b_col = int(242 - (242 - 50) * ratio)
                                 bg, txt_color, val_txt = f"rgb({r_col}, {g_col}, {b_col})", ("#000" if ratio < 0.6 else "#fff"), f"{val:g}"
-                            
+
                             if not can_view_details: tooltip_txt = f"この時間帯は {val_txt} 人が参加可能です"
                             else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
-                                
-                            agg_font_size = "11px" if cell_h == "20px" else "15px"
-                            
+
                             tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
-                            cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
-                        
-                        agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
+                            agg_html += f"<td style='border-top:{b_top}; background:{bg};'><div class='cell-content' style='color:{txt_color};'>{val_txt}<span class='{tooltip_class}'>{t_str}<br><b>{val_txt}人</b><br><hr style='margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);'>{tooltip_txt}</span></div></td>"
+                        agg_html += "</tr>"
 
-                    agg_scroll_h = "680px" if event_type == "time" else "auto"
+                    agg_html += "</tbody></table></div>"
 
-                    agg_css = f"""
-                    <style>
-                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
-                    
-                    /* CSS Grid を使用して右余白を完全排除 */
-                    .agg-inner-container {{ 
-                        display: grid; 
-                        grid-template-columns: 65px repeat({len(disp_date_strs)}, minmax(85px, 1fr)); 
-                        width: 100%; 
-                        min-width: max-content; 
-                        background: #fdfdfd; 
-                    }}
-                    
-                    .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }}
-                    .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
-                    .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
-                    
-                    .agg-day-col {{ box-sizing: border-box; }}
-                    
-                    .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
-                    
-                    .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
-                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 4px; }}
-                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
-                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
-                    
-                    .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
-                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
-                    
-                    .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
-                    .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
-                    </style>
-                    """
-
-                    st.markdown(f"""
-                    {agg_css}
-                    <div class='agg-wrapper' id='agg-scroll-container'>
-                        <div class='agg-inner-container' id='agg-grid'>
-                            {agg_time_col}
-                            {agg_day_cols}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(agg_html, unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

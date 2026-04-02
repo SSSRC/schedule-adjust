@@ -691,19 +691,39 @@ if not os.path.exists("custom_editor"):
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
 
+                let touchStartX = 0, touchStartY = 0;
+                let isScrolling = false;
+
                 g.addEventListener('touchstart', e => { 
                     if (e.touches.length > 1) return;
-                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    isScrolling = false;
+                    handleStart(e, touchStartX, touchStartY);
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    // ★修正：移動(✋)モードの時は処理を完全放棄し、ブラウザの標準スクロールに任せる
-                    if (selectedMode === -1) return; 
-                    
+                    if (selectedMode === -1) return; // ✋移動モード時は常にスクロール優先
+                    if (e.touches.length >= 2) return; // 2本指操作時もスクロール優先
+
+                    const touchX = e.touches[0].clientX;
+                    const touchY = e.touches[0].clientY;
+                    const dx = Math.abs(touchX - touchStartX);
+                    const dy = Math.abs(touchY - touchStartY);
+
+                    // 横移動が支配的（スクロール意図）か判定
+                    if (!isScrolling && (dx > 10 || dy > 10)) {
+                        if (dx > dy) {
+                            isScrolling = true;
+                        }
+                    }
+
+                    // スクロールと判定された場合は preventDefault せずブラウザに任せる
+                    if (isScrolling) return;
+
                     if(down) { 
-                        // ペイントモードの時は画面スクロールを止めて色を塗る
                         if (e.cancelable) e.preventDefault(); 
-                        handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
+                        handleMove(e, touchX, touchY); 
                     } 
                 }, {passive: false});
                 
@@ -1870,15 +1890,15 @@ def main():
                 /* スクロール領域の定義 */
                 .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 
-                /* ★魔法のCSS: 画面より大きければスクロールし、小さければ100%に広がる */
-                #g {{ display: flex; width: 100%; min-width: max-content; user-select: none; {pointer_css} }}
+                /* 💡 修正: inline-flex と min-width: 100% に変更し、右余白バグを完全解消 */
+                #g {{ display: inline-flex; min-width: 100%; user-select: none; {pointer_css} }}
                 
                 .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 
-                /* flex: 1 1 0% によって幅の均等割付を強制し右余白を撲滅 */
-                .day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
+                /* 💡 修正: flex: 1 1 auto に変更して画面幅に合わせて均等に伸ばす */
+                .day-col {{ flex: 1 1 auto; min-width: 85px; box-sizing: border-box; }}
             </style>
             
             {tools_html}
@@ -2143,15 +2163,15 @@ def main():
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                     
-                    /* ★魔法のCSS: width:100% と min-width:max-content のコンボ */
-                    .agg-inner-container {{ display: flex; width: 100%; min-width: max-content; background: #fdfdfd; }}
+                    /* 💡 修正: inline-flex と min-width: 100% の組み合わせで右余白バグを完全排除 */
+                    .agg-inner-container {{ display: inline-flex; min-width: 100%; background: #fdfdfd; }}
                     
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* flex: 1 1 0% によって幅の均等割付を保証。 */
-                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
+                    /* 💡 修正: flex: 1 1 auto に変更（デバッグ用の赤い点線も削除） */
+                    .agg-day-col {{ flex: 1 1 auto; min-width: 85px; box-sizing: border-box; }}
                     
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     

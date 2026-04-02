@@ -667,6 +667,10 @@ if not os.path.exists("custom_editor"):
                 window.onmouseleave = handleEnd; 
 
                 g.addEventListener('touchstart', e => { 
+                    // 💡 追加: セル（マス目）以外を触った時は、処理を中断してブラウザ標準のスクロールを許可する
+                    const cell = e.target.closest('.c');
+                    if(!cell) return; 
+
                     handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
                     if(!isLongPress) e.preventDefault();
                 }, {passive: false});
@@ -1895,10 +1899,13 @@ def main():
                     <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
                 </div>
             </div>
-            <div class="scroll-wrapper" style="width: 100%; max-width: 100vw; -webkit-overflow-scrolling: touch;">
-                <div id="g" style="display:flex; width:max-content; min-width:100%; user-select:none; {pointer_css}">
-                    {time_col_html}
-                    {day_cols_html}
+            <div style="display: flex; width: 100%;">
+                <div style="width: 15px; flex-shrink: 0; background: transparent;"></div>
+                <div class="scroll-wrapper" style="flex: 1; max-width: calc(100vw - 15px); -webkit-overflow-scrolling: touch;">
+                    <div id="g" style="display:flex; width:max-content; min-width:100%; user-select:none; {pointer_css}">
+                        {time_col_html}
+                        {day_cols_html}
+                    </div>
                 </div>
             </div>
             {submit_btn_html}
@@ -2167,8 +2174,8 @@ def main():
                     .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
                     </style>
                     """
-                    # ▼ 修正: display: flex の div でラップして、横幅が縮んでしまうのを防止する ▼
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; max-width: 100vw; -webkit-overflow-scrolling: touch;'><div style='display:flex; width:max-content; min-width:100%;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    # ▼ 修正: 左側に15pxのスクロール用余白を設け、横幅が縮まないようにラップする ▼
+                    st.markdown(f"{agg_css}<div style='display:flex; width:100%;'><div style='width:15px; flex-shrink:0;'></div><div class='agg-wrapper' style='flex:1; max-width:calc(100vw - 15px); -webkit-overflow-scrolling:touch;'><div style='display:flex; width:max-content; min-width:100%;'>{agg_time_col}{agg_day_cols}</div></div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

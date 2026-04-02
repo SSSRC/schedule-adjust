@@ -30,9 +30,10 @@ APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 st.markdown("""
     <style>
         /* 💡 変更: 確実に左余白を確保するための強力なCSS */
+        /* 💡 修正: 左の余白をさらに広く確保し、親指でもスクロールしやすくする */
         @media (max-width: 650px) {
             div[data-testid="stAppViewBlockContainer"] {
-                padding-left: 35px !important; /* 左の余白をさらに広く(25px→35px) */
+                padding-left: 45px !important; 
                 padding-right: 15px !important;
             }
         }
@@ -900,7 +901,8 @@ def main():
                             st.error("エラー: その氏名は既に登録されています。")
                         else:
                             all_users_count = len(list(db.collection("users").stream()))
-                            new_user_id = "U" + str(uuid.uuid4()).replace("-", "")[:8]
+                            # 💡 修正: ランダム(uuid)をやめ、登録順に U001, U002... と連番を振る
+                            new_user_id = f"U{all_users_count + 1:03d}"
                             role = "top_admin" if all_users_count == 0 else "guest" # 1人目は自動的に最高管理者
                             
                             new_u = {
@@ -1871,8 +1873,11 @@ def main():
                     else: bg, bg_img = "#fff", "none"
                     
                     b_top = get_border_top(t_str, event_type)
-                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box;"></div>'
-                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex:1; min-width:85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
+                    # 💡 修正: touch-action を追加してブラウザの標準スクロールを邪魔しないようにする
+                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; touch-action: pan-x pan-y;"></div>'
+                
+                # 💡 修正: flex: 1 による自動伸縮を強制禁止し、幅を85pxに完全固定する！
+                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 0 0 85px; width: 85px; max-width: 85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
 
             time_cells_html = ""
             for r, t_str in enumerate(time_labels):
@@ -2248,8 +2253,8 @@ def main():
                         st.info(f"【デバッグ】計算された最小幅: {min_agg_width}px | 表示列数: {total_disp_cols}列 | 時間枠: {len(disp_time_labels)}枠")
                         agg_css += "<style>.agg-wrapper { border: 2px solid red !important; } .agg-day-col { border: 1px dashed blue !important; }</style>"
 
-                    # 💡 変更: max-content をやめ、計算した min_width を使う
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: 100%; min-width: {min_agg_width}px; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    # 💡 修正: min-width ではなく、width: max-content を使い、子要素(85px固定)の合計値にコンテナ幅をピッタリ合わせる
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: max-content; min-width: 100%; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

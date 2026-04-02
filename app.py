@@ -703,9 +703,9 @@ if not os.path.exists("custom_editor"):
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1) return; // ✋移動モード時は常にスクロール優先
+                    if (selectedMode === -1) return; // 移動モードは常にスクロール
                     
-                    // ✅ 修正: 2本指以上の操作はスクロールとみなし、ブラウザに任せる
+                    // ★修正: 2本指以上の操作はスクロールとみなし何もしない
                     if (e.touches.length >= 2) return; 
 
                     // 1本指の場合はペイント
@@ -718,7 +718,7 @@ if not os.path.exists("custom_editor"):
                 }, {passive: false});
                 
                 g.addEventListener('touchend', handleEnd);
-                g.addEventListener('touchcancel', handleEnd); // ★安全のため追加
+                g.addEventListener('touchcancel', handleEnd);
                 
                 const btn = document.getElementById("submit-btn");
                 if(btn) { btn.onclick = () => { 
@@ -1861,7 +1861,7 @@ def main():
 
             scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
 
-            # 💡 修正: JS計算を廃止し、純粋なCSS（width: 100% と min-width: max-content）で余白を完全排除
+            # 💡 修正: スクロールを確実に発生させるCSSに変更
             html_code = f"""
             <style>
                 .tool-card {{ background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; flex: 1; min-width: 250px; font-family: sans-serif; box-sizing:border-box;}} 
@@ -1878,18 +1878,18 @@ def main():
                 .page-btn:hover:not(:disabled) {{ background: #e9ecef; }} 
                 .page-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
                 
-                /* スクロール領域の定義 */
-                .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
+                /* ★修正: overflow-x を scroll に変更して確実にスクロールバーを出す */
+                .scroll-wrapper {{ {scroll_css} overflow-x: scroll; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 
-                /* ★修正: width: max-content と min-width: 100% の正しい組み合わせ */
+                /* ★修正: width: max-content; min-width: 100%; に変更 */
                 #g {{ display: flex; width: max-content; min-width: 100%; user-select: none; {pointer_css} }}
                 
                 .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 
-                /* ★修正: flex: 1 1 0% に戻す */
-                .day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
+                /* ★修正: min-widthを100pxに広げてオーバーフローさせる */
+                .day-col {{ flex: 1 1 0%; min-width: 100px; box-sizing: border-box; }}
             </style>
             
             {tools_html}
@@ -2149,12 +2149,11 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                    # ★修正: CSS Grid を導入し、右側の余白を絶対に作らない堅牢な構造に
+                    # ★修正: CSS Grid を使用して右余白を完全に排除
                     agg_css = f"""
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                     
-                    /* ★ CSS Grid を使用して列幅を均等配分 */
                     .agg-inner-container {{ 
                         display: grid; 
                         grid-template-columns: 65px repeat({len(disp_date_strs)}, minmax(85px, 1fr)); 
@@ -2167,7 +2166,6 @@ def main():
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* flexを削除し、Gridの子要素として機能させる */
                     .agg-day-col {{ box-sizing: border-box; }}
                     
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}

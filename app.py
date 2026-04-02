@@ -417,7 +417,7 @@ if not os.path.exists("custom_editor_v3"):
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
             <hr style="margin:0; border-top:1px solid #ddd;">
             <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#9C27B0; color:#fff; border:2px solid #7B1FA2; font-size:10px; margin-top:0px;">📜<br>ｽｸﾛｰﾙ</button>
-            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;">※2本指で<br>ｽｸﾛｰﾙ可</div>
+            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;"></div>
         </div>
 
         <div id="detail-modal">

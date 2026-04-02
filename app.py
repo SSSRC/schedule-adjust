@@ -119,7 +119,8 @@ def save_response_hybrid(payload):
         st.error(f"Firestoreへの保存に失敗しました: {e}")
         return False
 
-    backup_to_gas_async("submit_binary_response", payload)
+    # 💡 修正: GASが受け取れるように {"payload": ...} の階層で包んで送信する
+    backup_to_gas_async("submit_binary_response", {"payload": payload})
     return True
 
 def get_app_data_from_firestore(user):
@@ -417,9 +418,8 @@ if not os.path.exists("custom_editor_v3"):
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
             <hr style="margin:0; border-top:1px solid #ddd;">
             <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#9C27B0; color:#fff; border:2px solid #7B1FA2; font-size:10px; margin-top:0px;">📜<br>ｽｸﾛｰﾙ</button>
-            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;"></div>
+            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;">※動かす<br>時はコレ!</div>
         </div>
-
         <div id="detail-modal">
             <div class="modal-content" id="modal-content-box">
                 <div class="modal-title" id="modal-cell-title">詳細設定</div>

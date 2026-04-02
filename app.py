@@ -1046,8 +1046,11 @@ def main():
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
             }
             @media (max-width: 650px) {
+                /* ▼ 修正: 時間割ブロック全体を確実に横スクロール可能にする ▼ */
+                [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"],
                 [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
-                    overflow-x: auto !important; padding-bottom: 15px !important;
+                    overflow-x: auto !important; padding-bottom: 15px !important; 
+                    -webkit-overflow-scrolling: touch !important; /* スマホ特有の滑らかなスクロール */
                 }
                 [data-testid="stHorizontalBlock"] {
                     display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
@@ -1892,8 +1895,8 @@ def main():
                     <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
                 </div>
             </div>
-            <div class="scroll-wrapper">
-                <div id="g" style="display:flex; width:100%; user-select:none; {pointer_css}">
+            <div class="scroll-wrapper" style="width: 100%; max-width: 100vw; -webkit-overflow-scrolling: touch;">
+                <div id="g" style="display:flex; width:max-content; min-width:100%; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
@@ -2131,26 +2134,41 @@ def main():
                             else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
                                 
                             agg_font_size = "11px" if cell_h == "20px" else "15px"
-                            cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="tooltip">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
+                            
+                            # ▼ 修正: 1行目・2行目だけはツールチップを下向きに表示させるクラスを付与 ▼
+                            tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
+                            cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
+                        
                         agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
                     agg_css = f"""
                     <style>
-                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; display: flex; background: #fff; }}
+                    /* ▼ 修正: display: flex を外し、スクロールの挙動を調整 ▼ */
+                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; }}
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     .agg-day-col {{ flex: 1; min-width: 85px; box-sizing: border-box; }}
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; }}
-                    .agg-cell .tooltip {{ visibility: hidden; width: 160px; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: none; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }}
+                    
+                    /* ▼ 修正: max-height を追加し、ツールチップ内部でスクロール可能にする (pointer-events: auto;) ▼ */
+                    .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
+                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 4px; }}
+                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
                     .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
+                    
+                    /* ▼ 追加: 1行目・2行目用の下向きツールチップスタイル ▼ */
+                    .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
+                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
+                    
                     .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
                     .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
                     </style>
                     """
-                    st.markdown(f"{agg_css}<div class='agg-wrapper'>{agg_time_col}{agg_day_cols}</div>", unsafe_allow_html=True)
+                    # ▼ 修正: display: flex の div でラップして、横幅が縮んでしまうのを防止する ▼
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; max-width: 100vw; -webkit-overflow-scrolling: touch;'><div style='display:flex; width:max-content; min-width:100%;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

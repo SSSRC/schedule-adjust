@@ -408,13 +408,14 @@ if not os.path.exists("custom_editor"):
         .pressing{animation:pressAnim 0.4s forwards;z-index:100;}
         </style></head><body>
         
-        <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.85); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
+        <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.95); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.2); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
             <div style="font-size:12px; font-weight:bold; color:#666; text-align:center; pointer-events:none; user-select:none; margin-bottom:-4px;">🖊️ ペン</div>
             <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
             <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
-            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#9C27B0; color:#fff; border:1px solid #7B1FA2; font-size:10px; margin-top:5px;">📜<br>ｽｸﾛｰﾙ</button>
-            <div style="font-size:10px; color:#888; text-align:center; line-height:1.2; margin-top:-5px;">※2本指で<br>ｽｸﾛｰﾙ可</div>
+            <hr style="margin:0; border-top:1px solid #ddd;">
+            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#fff; color:#000; border:2px solid #000; font-size:11px; margin-top:0px;">✋<br>ｽｸﾛｰﾙ</button>
+            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;">※動かす<br>時はコレ!</div>
         </div>
 
         <div id="detail-modal">
@@ -564,6 +565,16 @@ if not os.path.exists("custom_editor"):
                 if(b) b.classList.remove('active');
             });
             document.getElementById('pen-' + mode).classList.add('active');
+            
+            // ダイナミックに touch-action を操作してスクロールを制御
+            const g = document.getElementById('g');
+            if (g) {
+                if (mode === -1) {
+                    g.style.touchAction = 'pan-x pan-y'; // 移動(スクロール)モード時はブラウザのスクロールを許可
+                } else {
+                    g.style.touchAction = 'none'; // ペイント時はスクロールを禁止して安定させる
+                }
+            }
         };
 
         const palette = document.getElementById('palette');
@@ -614,14 +625,15 @@ if not os.path.exists("custom_editor"):
                 if(args.isClosed) { palette.style.display = 'none'; return; } 
                 else { palette.style.display = 'flex'; }
                 
-                const g = document.getElementById('g'); if(!g) return;
+                // レンダリング直後に選択されているペンモードのCSS（touch-action）を適用
+                setTimeout(() => { window.setPen(selectedMode); }, 50);
                 
+                const g = document.getElementById('g'); if(!g) return;
                 let down = false;
                 let pressTimer = null;
                 let isLongPress = false;
                 let startX = 0, startY = 0;
                 let touchMode = null;
-                let isScrolling = false;
 
                 const handleStart = (e, x, y) => {
                     if (selectedMode === -1) return;
@@ -645,30 +657,10 @@ if not os.path.exists("custom_editor"):
                 const handleMove = (e, x, y) => {
                     if (selectedMode === -1 || !down) return;
                     
-                    const dx = Math.abs(x - startX);
-                    const dy = Math.abs(y - startY);
-
-                    if (touchMode === null) {
-                        if (dx > 10 || dy > 10) {
-                            clearTimeout(pressTimer);
-                            if (dx > dy) { 
-                                touchMode = 'scroll';
-                                down = false;
-                                document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                                return;
-                            } else {
-                                touchMode = 'paint';
-                                const cell = document.elementFromPoint(startX, startY)?.closest('.c');
-                                if(cell) window.upd(cell, selectedMode);
-                            }
-                        }
-                    }
-
-                    if (touchMode === 'paint') {
-                        if (e.cancelable) e.preventDefault(); 
-                        const cell = document.elementFromPoint(x, y)?.closest('.c');
-                        if(cell) window.upd(cell, selectedMode);
-                    }
+                    // ペイントモードの時は色を塗る
+                    if (e.cancelable) e.preventDefault(); 
+                    const cell = document.elementFromPoint(x, y)?.closest('.c');
+                    if(cell) window.upd(cell, selectedMode);
                 };
 
                 const handleEnd = () => {
@@ -681,7 +673,6 @@ if not os.path.exists("custom_editor"):
                     }
                     down = false;
                     touchMode = null;
-                    isScrolling = false;
                 };
 
                 g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1) window.upd(e.target.closest('.c'), selectedMode); };
@@ -693,38 +684,18 @@ if not os.path.exists("custom_editor"):
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
 
-                let touchStartX = 0, touchStartY = 0;
-
                 g.addEventListener('touchstart', e => { 
                     if (e.touches.length > 1) return;
-                    touchStartX = e.touches[0].clientX;
-                    touchStartY = e.touches[0].clientY;
-                    isScrolling = false;
-                    handleStart(e, touchStartX, touchStartY);
+                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1) return; // ✋移動モード時は常にスクロール優先
-                    if (e.touches.length >= 2) return; // 2本指操作時もスクロール優先
-
-                    const touchX = e.touches[0].clientX;
-                    const touchY = e.touches[0].clientY;
-                    const dx = Math.abs(touchX - touchStartX);
-                    const dy = Math.abs(touchY - touchStartY);
-
-                    // 横移動が支配的（スクロール意図）か判定
-                    if (!isScrolling && (dx > 10 || dy > 10)) {
-                        if (dx > dy) {
-                            isScrolling = true;
-                        }
-                    }
-
-                    // スクロールと判定された場合は preventDefault せずブラウザに任せる
-                    if (isScrolling) return;
-
+                    // 移動(スクロール)モード時は、ブラウザに標準スクロールを任せて一切干渉しない
+                    if (selectedMode === -1) return; 
+                    
                     if(down) { 
                         if (e.cancelable) e.preventDefault(); 
-                        handleMove(e, touchX, touchY); 
+                        handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
                     } 
                 }, {passive: false});
                 
@@ -1400,7 +1371,7 @@ def main():
                 st.markdown("<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; word-break: break-all; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_ev}</div>', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                st.subheader("⚙️ ステータス手動変更")
+                st.subheader("⚙️ ステータス手 कटोच変更")
                 if active_events:
                     with st.form("update_status_form"):
                         target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})")
@@ -1888,14 +1859,16 @@ def main():
                 .page-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
                 
                 /* スクロール領域の定義 */
-                .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
+                .scroll-wrapper {{ {scroll_css} overflow-x: scroll; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 
+                /* ★修正: width: max-content; min-width: 100%; に変更 */
                 #g {{ display: flex; width: max-content; min-width: 100%; user-select: none; {pointer_css} }}
                 
                 .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 
+                /* ★修正: min-widthを100pxに広げてオーバーフローさせる */
                 .day-col {{ flex: 1 1 0%; min-width: 100px; box-sizing: border-box; }}
             </style>
             
@@ -2155,6 +2128,7 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
+                    # ★修正: CSS Grid を使用して右余白を完全に排除
                     agg_css = f"""
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}

@@ -633,7 +633,7 @@ if not os.path.exists("custom_editor"):
                 let startX = 0, startY = 0;
                 
                 const handleStart = (e, x, y) => {
-                    if (selectedMode === -1) return; // 💡 追加: 移動モード時はスクロールを妨害しない
+                    if (selectedMode === -1) return; // 💡 移動モード時はスクロールを妨害しない
                     const cell = e.target.closest('.c');
                     if(!cell) return;
                     down = true;
@@ -650,7 +650,7 @@ if not os.path.exists("custom_editor"):
                 };
 
                 const handleMove = (e, x, y) => {
-                    if (selectedMode === -1) return; // 💡 追加: 移動モード時は無視
+                    if (selectedMode === -1) return; // 💡 移動モード時は無視
                     if(!down) return;
                     if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) {
                         clearTimeout(pressTimer);
@@ -668,9 +668,22 @@ if not os.path.exists("custom_editor"):
                     down = false;
                 };
 
-                const handleMove = (e, x, y) => {
-                    if (selectedMode === -1) return; // 💡 追加: 移動モード時は無視
-                    if(!down) return;
+                g.onmousedown = e => handleStart(e, e.clientX, e.clientY);
+                g.onmousemove = e => handleMove(e, e.clientX, e.clientY);
+                window.onmouseup = handleEnd;
+                window.onmouseleave = handleEnd; 
+
+                g.addEventListener('touchstart', e => { 
+                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
+                    if(!isLongPress && selectedMode !== -1) e.preventDefault(); 
+                }, {passive: false});
+                g.addEventListener('touchmove', e => { 
+                    if(down && selectedMode !== -1) { 
+                        handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
+                        e.preventDefault(); 
+                    } 
+                }, {passive: false});
+                g.addEventListener('touchend', handleEnd);
                 
                 const btn = document.getElementById("submit-btn");
                 if(btn) { btn.onclick = () => { 
@@ -1889,14 +1902,11 @@ def main():
                     <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
                 </div>
             </div>
-            <div style="display: flex; width: 100%;">
-                <div style="width: 15px; flex-shrink: 0; background: transparent;"></div>
-                <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <div id="g" style="display:flex; min-width: max-content; width: 100%; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
-            </div>
             </div>
             {submit_btn_html}
             """

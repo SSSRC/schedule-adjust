@@ -413,8 +413,8 @@ if not os.path.exists("custom_editor"):
             <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
             <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
-            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#e3f2fd; color:#0277bd; border:1px solid #81d4fa; font-size:12px; margin-top:5px;">✋<br>移動</button>
-            <div style="font-size:10px; color:#888; text-align:center; line-height:1.2; margin-top:-5px;">※長押しで<br>メモ入力</div>
+            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#9C27B0; color:#fff; border:1px solid #7B1FA2; font-size:10px; margin-top:5px;">📜<br>ｽｸﾛｰﾙ</button>
+            <div style="font-size:10px; color:#888; text-align:center; line-height:1.2; margin-top:-5px;">※2本指で<br>ｽｸﾛｰﾙ可</div>
         </div>
 
         <div id="detail-modal">
@@ -1881,14 +1881,14 @@ def main():
                 /* スクロール領域の定義 */
                 .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 
-                /* 💡 修正: flex に戻す */
-                #g {{ display: flex; width: 100%; min-width: max-content; user-select: none; {pointer_css} }}
+                /* ★修正: width: max-content と min-width: 100% の正しい組み合わせ */
+                #g {{ display: flex; width: max-content; min-width: 100%; user-select: none; {pointer_css} }}
                 
                 .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 
-                /* 💡 修正: flex: 1 1 0% に戻す */
+                /* ★修正: flex: 1 1 0% に戻す */
                 .day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
             </style>
             
@@ -2149,7 +2149,7 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                    # ✅ 代替案を採用: CSS Grid を導入し、右余白を絶対に作らない堅牢な構造に
+                    # ★修正: CSS Grid を導入し、右側の余白を絶対に作らない堅牢な構造に
                     agg_css = f"""
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}

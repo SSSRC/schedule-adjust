@@ -29,13 +29,19 @@ APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 # ==========================================
 st.markdown("""
     <style>
-        /* 💡 変更: 確実に左余白を確保するための強力なCSS */
-        /* スマホ時に左余白を大きく取り、スワイプでのスクロールを持ちやすくする */
+        /* 💡 修正1: トップ画面のスマホ対応 */
+        /* スマホ時に画面を広く使えるよう、極端な余白を削除し適切なパディングを設定 */
         @media (max-width: 650px) {
             .main .block-container,
             div[data-testid="stAppViewBlockContainer"] {
-                padding-left: 50px !important; 
-                padding-right: 10px !important;
+                padding-left: 1rem !important; 
+                padding-right: 1rem !important;
+                padding-top: 1rem !important;
+            }
+            /* iframeが画面外にはみ出してスクロールを阻害するのを防ぐ */
+            iframe {
+                max-width: 100vw !important;
+                width: 100% !important;
             }
         }
         
@@ -55,7 +61,7 @@ st.markdown("""
         .af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; border: none; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block; box-shadow: 0 2px 4px rgba(33,150,243,0.3); letter-spacing: 0.5px;}
         .status-off { color: #9e9e9e; background: #ffffff; padding: 4px 0; border-radius: 6px; border: 1px dashed #d0d0d0; font-size: 12px; text-align: center; margin-top: -10px; margin-bottom: 5px; display: block;}
         
-        /* 💡 時間割設定のスマホ対応（横スクロール＆極限までコンパクト化）用CSS */
+        /* 時間割設定のスマホ対応（横スクロール＆極限までコンパクト化）用CSS */
         .tt-wrapper { overflow-x: auto; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;}
         .tt-table { width: 100%; min-width: 280px; border-collapse: collapse; table-layout: fixed; }
         .tt-table th, .tt-table td { padding: 5px 0px; text-align: center; border-bottom: 1px solid #eee; }
@@ -86,11 +92,11 @@ st.markdown("""
             @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         }
         @media (max-width: 650px) {
-            /* ▼ 修正: 時間割ブロック全体を確実に横スクロール可能にする ▼ */
-            [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"],
+            /* 💡 修正2: :has() 疑似クラスを用いて、時間割行をまとめる親要素に横スクロールを適用 */
+            div[data-testid="stVerticalBlock"]:has(> div > [data-testid="stHorizontalBlock"]),
             [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
                 overflow-x: auto !important; padding-bottom: 15px !important; 
-                -webkit-overflow-scrolling: touch !important; /* スマホ特有の滑らかなスクロール */
+                -webkit-overflow-scrolling: touch !important; 
             }
             [data-testid="stHorizontalBlock"] {
                 display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
@@ -431,7 +437,6 @@ if not os.path.exists("custom_editor"):
         .pen-btn:hover { opacity: 0.8; }
         .pen-btn.active { border: 3px solid #333 !important; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
         
-        /* 💡 セルのコメント機能用スタイル */
         #detail-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;justify-content:center;align-items:center;backdrop-filter:blur(2px);}
         .modal-content{background:#fff;width:320px;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);position:relative;}
         .modal-title{font-size:16px;font-weight:bold;color:#333;margin-bottom:10px;border-bottom:2px solid #4CAF50;padding-bottom:5px;}
@@ -866,7 +871,6 @@ def main():
                     n = st.text_input("氏名", autocomplete="username")
                     p = st.text_input("PIN", type="password", autocomplete="current-password")
                     if st.form_submit_button("ログイン", use_container_width=True, type="primary"):
-                        # ▼ 変更: GASを待たず、Firestoreに直接問い合わせて認証する
                         users_ref = db.collection("users").where("name", "==", n).stream()
                         user_doc = None
                         for doc in users_ref:
@@ -882,7 +886,7 @@ def main():
                                 st.session_state.auth = user_doc
                                 st.rerun()
                                 
-                            # 2. 【神機能】過去の平文PINのままのユーザーへの救済措置（こっそりハッシュ化して保存し直す）
+                            # 2. 【神機能】過去の平文PINのままのユーザーへの救済措置
                             elif stored_pin == p:
                                 db.collection("users").document(user_doc["user_id"]).update({"pin": hashed_input})
                                 user_doc["pin"] = hashed_input
@@ -920,21 +924,19 @@ def main():
                     if not clean_name or not reg_p or not reg_s: 
                         st.warning("氏名、PIN、秘密の合言葉はすべて必須です。")
                     else:
-                        # ▼ 変更: 重複チェックと登録をFirestoreで直接行う
                         existing_check = list(db.collection("users").where("name", "==", clean_name).stream())
                         if existing_check:
                             st.error("エラー: その氏名は既に登録されています。")
                         else:
                             all_users_count = len(list(db.collection("users").stream()))
-                            # 💡 修正: uuidによるランダムをやめ、登録順に U001, U002... と連番を振る
                             new_user_id = f"U{all_users_count + 1:03d}"
-                            role = "top_admin" if all_users_count == 0 else "guest" # 1人目は自動的に最高管理者
+                            role = "top_admin" if all_users_count == 0 else "guest"
                             
                             new_u = {
                                 "user_id": new_user_id,
                                 "name": clean_name,
                                 "pin": hash_pin(reg_p), 
-                                "secret_word": hash_pin(reg_s), # 🌟 ここもハッシュ化！
+                                "secret_word": hash_pin(reg_s),
                                 "role": role,
                                 "group_1": ", ".join(g1), "group_2": ", ".join(g2),
                                 "group_3": ", ".join(g3), "group_4": ", ".join(g4),
@@ -946,7 +948,7 @@ def main():
                                 
                                 gas_payload = new_u.copy()
                                 gas_payload["pin"] = "PROTECTED"
-                                gas_payload["secret_word"] = "PROTECTED" # 🌟 スプレッドシートには送らない！
+                                gas_payload["secret_word"] = "PROTECTED"
                                 backup_to_gas_async("register_user", {"payload": gas_payload})
                                 
                                 st.session_state.auth = new_u
@@ -965,7 +967,6 @@ def main():
                         if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
                             clean_n = rec_n.replace(" ","").replace("　","")
                             
-                            # 🌟 名前だけで検索して引っ張ってくる
                             users_ref = db.collection("users").where("name", "==", clean_n).stream()
                             target_doc = None
                             
@@ -974,14 +975,13 @@ def main():
                                 stored_secret = doc_data.get("secret_word", "")
                                 hashed_input_secret = hash_pin(rec_s)
                                 
-                                # 🌟 ハッシュ化された合言葉、または過去の平文の合言葉と一致するかチェック
                                 if stored_secret == hashed_input_secret or stored_secret == rec_s:
                                     target_doc = doc_data
                                     break
                                 
                             if target_doc and new_p:
                                 hashed_new_pin = hash_pin(new_p)
-                                hashed_secret = hash_pin(rec_s) # 平文だった場合のために合言葉もハッシュ化し直す
+                                hashed_secret = hash_pin(rec_s)
                                 
                                 db.collection("users").document(target_doc["user_id"]).update({
                                     "pin": hashed_new_pin,
@@ -1066,13 +1066,7 @@ def main():
         st.write("GoogleカレンダーやiPhoneの「非公開URL（iCal形式 / .ics）」を設定しておくと、日程調整の際に自分の予定を自動でグレーアウトできます。")
         upd_cal_url = st.text_input("カレンダーの非公開URL", value=user.get('calendar_url', ''), placeholder="https://calendar.google.com/calendar/ical/.../basic.ics")
 
-        # ▼ 変更前 ▼
-        # res = call_gas("update_user", {"payload": payload}, method="POST")
-        # if res.get("status") == "success": ...
-
-        # ▼ 変更後 ▼
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
-            # Firestore用のフルデータ
             payload = {
                 "user_id": user['user_id'], 
                 "group_1": ", ".join(upd_g1), 
@@ -1082,20 +1076,13 @@ def main():
                 "calendar_url": upd_cal_url
             }
             
-            # GAS送付用のバックアップデータ（セキュリティに関わる項目を隠匿）
             gas_payload = payload.copy()
             gas_payload["calendar_url"] = "LINKED" if upd_cal_url else ""
-            # PINのハッシュ化対応もここで行う場合は追加
-            # gas_payload["pin"] = "PROTECTED" 
 
             try:
-                # 1. Firestoreを更新（ここには生のURLを保存）
                 db.collection("users").document(str(user["user_id"])).update(payload)
-                
-                # 2. GASへバックアップ送信（URLは送らない）
                 backup_to_gas_async("update_user", {"payload": gas_payload})
                 
-                # セッション情報を更新
                 updated_u = {**user, **payload}
                 st.session_state.auth = updated_u
                 st.success("✅ プロフィールを保存しました！")
@@ -1116,11 +1103,11 @@ def main():
         <style>
             .mobile-rotate-guide { display: none; }
             @media (max-width: 650px) {
-                /* ▼ 修正: 時間割ブロック全体を確実に横スクロール可能にする ▼ */
-                [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"],
+                /* 💡 修正3: 横スクロールが確実に行えるように CSS セレクタを修正 */
+                div[data-testid="stVerticalBlock"]:has(> div > [data-testid="stHorizontalBlock"]),
                 [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
                     overflow-x: auto !important; padding-bottom: 15px !important; 
-                    -webkit-overflow-scrolling: touch !important; /* スマホ特有の滑らかなスクロール */
+                    -webkit-overflow-scrolling: touch !important;
                 }
                 [data-testid="stHorizontalBlock"] {
                     display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
@@ -1315,7 +1302,6 @@ def main():
                     "users": [u['user_id'] for u in t_users]
                 })
 
-            # ▼▼ 修正箇所：メンションのプレビューを生成して画面に表示 ▼▼
             preview_mentions = []
             if is_all_members:
                 preview_mentions.append("@channel")
@@ -1355,7 +1341,6 @@ def main():
                 st.code(" ".join(preview_mentions), language="text")
             else:
                 st.write("※メンションは設定されていません（個別のユーザー指定のみ、または通知なし）")
-            # ▲▲ 修正箇所ここまで ▲▲
 
         st.markdown("<br>", unsafe_allow_html=True)
         with st.container(border=True):
@@ -1374,18 +1359,16 @@ def main():
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")
             elif not is_all_members and target_scope_json == '{"groups": [], "users": []}': st.error("対象メンバーを指定するか、「全員に公開する」にチェックを入れてください。")
             else:
-                # ▼▼ 修正：表示用の @channel を Slack送信用に置換 ▼▼
                 mention_text = " ".join(preview_mentions).replace("@channel", " < !channel > ").replace(" ", "")
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 
-                # ▼ ここを以前のGASと同じ「日付＋乱数」の形式にする場合
                 import random
                 now_str = datetime.now().strftime("%m%d-%H%M%S")
                 rand_num = random.randint(1000, 9999)
                 created_event_id = f"EV-{now_str}-{rand_num}"
 
                 payload = {
-                    "event_id": created_event_id,  # 生成したIDをセット
+                    "event_id": created_event_id,  
                     "title": ev_title, 
                     "description": ev_desc, 
                     "start_date": ev_start.strftime("%Y-%m-%d") if ev_type == "time" else "", 
@@ -1403,12 +1386,8 @@ def main():
                     "mention_text": mention_text
                 }
                 
-                # ▼ 変更: Firestoreに即保存し、非同期でGASへ送る
                 try:
-                    # 1. メインDB(Firestore)に保存
                     db.collection("events").document(created_event_id).set(payload)
-                    
-                    # 2. バックアップ・通知用にGASへ裏側で送信 (UIはブロックしない)
                     backup_to_gas_async("create_event", {"payload": payload})
                     
                     st.success(f"「{ev_title}」を作成しました！")
@@ -1514,12 +1493,12 @@ def main():
                                     if set(t_groups).intersection(set(u_g)):
                                         target_users.append(u.get('name', ''))
 
-                            if target_users:
-                                st.warning(f"⚠️ 対象者のうち、未回答の人が {len(target_users)} 名います。")
-                                target_users = sorted(target_users)
-                                st.code("\n".join(target_users), language="text")
-                            else:
-                                st.success("🎉 対象者は全員回答済みです！")
+                        if target_users:
+                            st.warning(f"⚠️ 対象者のうち、未回答の人が {len(target_users)} 名います。")
+                            target_users = sorted(target_users)
+                            st.code("\n".join(target_users), language="text")
+                        else:
+                            st.success("🎉 対象者は全員回答済みです！")
 
                 st.markdown("---")
                 st.subheader("📦 アーカイブ済み")
@@ -1571,10 +1550,9 @@ def main():
                             updates = {"role": new_u_role}
                             gas_payload = {"user_id": tgt_user['user_id'], "role": new_u_role}
                             
-                            # ▼ 新しいPINが入力された場合のみ、ハッシュ化して更新
                             if new_u_pin:
                                 updates["pin"] = hash_pin(new_u_pin)
-                                gas_payload["new_pin"] = "PROTECTED" # スプレッドシートには送らない
+                                gas_payload["new_pin"] = "PROTECTED"
                                 
                             db.collection("users").document(str(tgt_user['user_id'])).update(updates)
                             backup_to_gas_async("admin_update_user", {"payload": gas_payload})
@@ -1888,8 +1866,8 @@ def main():
                     
                     b_top = get_border_top(t_str, event_type)
                     cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; touch-action: pan-x pan-y;"></div>'
-                # 💡 修正: flex: 1 1 85px を指定して、広い時は伸び、狭い時は85pxを維持させる
-                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 1 1 85px; min-width: 85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
+                # 💡 修正4: flex: 1 1 0% を指定して、右側に余白ができないようにする
+                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 1 1 0%; min-width: 85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
 
             time_cells_html = ""
             for r, t_str in enumerate(time_labels):
@@ -1967,7 +1945,7 @@ def main():
                 </div>
             </div>
             <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc; background: #fff;">
-                <div id="g" style="display:flex; width: 100%; min-width: max-content; user-select:none; {pointer_css}">
+                <div id="g" style="display:flex; width: max-content; min-width: 100%; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
@@ -2209,6 +2187,7 @@ def main():
                             tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
                             cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
                         
+                        # 💡 修正4: flex: 1 1 0% を指定して、右側に余白ができないようにする
                         agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
@@ -2220,8 +2199,8 @@ def main():
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* 💡 修正: flex: 1 1 85px でPCの空白を防ぎつつ、スマホのスクロール幅を確保 */
-                    .agg-day-col {{ flex: 1 1 85px; min-width: 85px; box-sizing: border-box; }}
+                    /* 💡 修正5: 均等に幅を埋めて右余白をなくす */
+                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
                     .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
@@ -2237,12 +2216,7 @@ def main():
                     </style>
                     """
 
-                    # 🛠️ [デバッグ用コード] レイアウト崩れが直らない場合に備えた情報表示
-                    if st.checkbox("🛠️ [管理者用] 集計レイアウトのデバッグ表示", value=False):
-                        st.info(f"【デバッグ】表示列数: {total_disp_cols}列 | 時間枠: {len(disp_time_labels)}枠")
-                        agg_css += "<style>.agg-wrapper { border: 2px solid red !important; } .agg-day-col { border: 1px dashed blue !important; }</style>"
-
-                    # 💡 修正: min-width ではなく、width: max-content を使い、子要素(85px固定)の合計値にコンテナ幅をピッタリ合わせる
+                    # 💡 修正6: width: max-content と min-width: 100% を組み合わせてスマホでの横スクロールを担保
                     st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: max-content; min-width: 100%; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:

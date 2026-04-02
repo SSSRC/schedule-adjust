@@ -18,7 +18,7 @@ def hash_pin(pin_str):
     """PINをSHA-256でハッシュ化する関数"""
     if not pin_str: return ""
     return hashlib.sha256(pin_str.encode('utf-8')).hexdigest()
-# ▲▲ ここまで追加 ▲▲
+
 st.set_page_config(page_title="SSScheduler", layout="wide")
 
 # 💡 ご自身のStreamlitアプリのURLに変更してください
@@ -30,13 +30,15 @@ APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 st.markdown("""
     <style>
         /* 💡 変更: 確実に左余白を確保するための強力なCSS */
-        /* 💡 修正: 左の余白をさらに広く確保し、親指でもスクロールしやすくする */
+        /* スマホ時に左余白を大きく取り、スワイプでのスクロールを持ちやすくする */
         @media (max-width: 650px) {
+            .main .block-container,
             div[data-testid="stAppViewBlockContainer"] {
-                padding-left: 45px !important; 
-                padding-right: 15px !important;
+                padding-left: 50px !important; 
+                padding-right: 10px !important;
             }
         }
+        
         .stDeployStatus, [data-testid="stStatusWidget"] label { display: none !important; }
         [data-testid="stStatusWidget"] { visibility: visible !important; display: flex !important; position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: rgba(255, 255, 255, 0.95) !important; color: #333 !important; padding: 20px 40px !important; border-radius: 12px !important; z-index: 999999 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; border: 2px solid #4CAF50 !important; text-align: center !important; justify-content: center !important; }
         [data-testid="stStatusWidget"]::after { content: "⏳ 通信中 \\A 処理しています..."; white-space: pre-wrap; font-size: 20px !important; font-weight: bold !important; line-height: 1.5 !important; }
@@ -70,6 +72,40 @@ st.markdown("""
         .tt-table [data-testid="stCheckbox"] div[role="checkbox"] { margin: 0 auto !important; }
         /* 「あり」という文字を非表示にする（チェックボックスの四角だけで判定させる） */
         .tt-table [data-testid="stCheckbox"] p { display: none !important; }
+
+        .mobile-rotate-guide { display: none; }
+        @media (max-width: 650px) and (orientation: portrait) {
+            .mobile-rotate-guide {
+                display: flex; align-items: center; justify-content: center;
+                background: linear-gradient(135deg, #e8f5e9, #c8e6c9); color: #2e7d32;
+                padding: 12px 15px; border-radius: 8px; margin-bottom: 20px;
+                font-size: 13px; font-weight: bold; border-left: 5px solid #4CAF50;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.05); animation: fadeIn 0.5s ease-in-out;
+            }
+            .mobile-rotate-guide::before { content: "📱🔄"; font-size: 20px; margin-right: 10px; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        }
+        @media (max-width: 650px) {
+            /* ▼ 修正: 時間割ブロック全体を確実に横スクロール可能にする ▼ */
+            [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"],
+            [data-testid="stForm"] > div > div > [data-testid="stVerticalBlock"] {
+                overflow-x: auto !important; padding-bottom: 15px !important; 
+                -webkit-overflow-scrolling: touch !important; /* スマホ特有の滑らかなスクロール */
+            }
+            [data-testid="stHorizontalBlock"] {
+                display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
+                min-width: 480px !important; gap: 2px !important;
+            }
+            [data-testid="column"] { min-width: 0 !important; flex: 1 1 0px !important; padding: 0 !important; }
+            [data-testid="column"]:first-child { flex: 0 0 55px !important; }
+            .tt-day-header { font-size: 13px !important; padding: 4px 0 !important; }
+            .tt-time-cell { font-size: 11px !important; padding: 4px 2px !important; border-left: 2px solid #4CAF50 !important; }
+            .tt-time-sub { font-size: 9px !important; display: block; line-height: 1.1; }
+            .status-on, .status-off, .af-status-on { font-size: 10px !important; padding: 2px 0 !important; }
+            [data-testid="stCheckbox"] { margin: 0 auto !important; padding: 0 !important; justify-content: center; }
+            [data-testid="stCheckbox"] label p { display: none !important; }
+            [data-testid="stSelectbox"] { min-width: 0 !important; }
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -81,7 +117,6 @@ GAS_URL = "https://script.google.com/macros/s/AKfycbx8GCHdyb9DDFIUajiKjceSn20-rf
 @st.cache_resource
 def get_firestore_client():
     key_dict = dict(st.secrets["firebase"])
-    # 💡 Streamlit Secretsの改行文字エスケープ対策
     if "private_key" in key_dict:
         key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
     creds = service_account.Credentials.from_service_account_info(key_dict)
@@ -90,7 +125,6 @@ def get_firestore_client():
 
 db = get_firestore_client()
 
-# --- 裏側でGASにバックアップを送る非同期関数 ---
 def backup_to_gas_async(action, payload=None):
     def _call():
         try:
@@ -101,13 +135,11 @@ def backup_to_gas_async(action, payload=None):
             print(f"GAS backup failed: {e}")
     threading.Thread(target=_call).start()
 
-# --- 回答データのハイブリッド保存関数 ---
 def save_response_hybrid(payload):
     try:
         event_id = payload["event_id"]
         user_id = payload["user_id"]
         
-        # コメントやセルの詳細（メモ）をまとめて保存
         cell_details_dict = json.loads(payload.get("cell_details", "{}"))
         if payload.get("comment"):
             cell_details_dict["global_comment"] = payload["comment"]
@@ -131,7 +163,6 @@ def save_response_hybrid(payload):
     backup_to_gas_async("submit_binary_response", payload)
     return True
 
-# --- [爆速] メインデータの取得関数 ---
 def get_app_data_from_firestore(user):
     user_id = str(user.get("user_id", ""))
     
@@ -147,12 +178,10 @@ def get_app_data_from_firestore(user):
     now = datetime.now()
     active_events = []
     
-    # ユーザーの所属属性をリスト化（権限マッチ用）
     user_groups = []
     for g_key in ['group_1', 'group_2', 'group_3', 'group_4']:
         user_groups.extend([g.strip() for g in str(user.get(g_key,"")).split(",") if g.strip()])
     
-    # シスマネや系長などの役職を「上位概念」として展開
     expanded_user_groups = set(user_groups)
     if any(m in user_groups for m in ["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ"]):
         expanded_user_groups.add("シスマネ")
@@ -165,7 +194,6 @@ def get_app_data_from_firestore(user):
         if ev.get("status") not in ["open", "closed"]: 
             continue
         
-        # 互換性確保
         ev_type = ev.get("type") or ev.get("event_type", "time")
         ev_close_time = ev.get("close_time") or ev.get("deadline", "")
         
@@ -202,14 +230,12 @@ def get_app_data_from_firestore(user):
             
         if is_target:
             ev["is_answered"] = ev["event_id"] in answered_ids
-            # 旧型式のキー補完
             if "deadline" not in ev and "close_time" in ev: ev["deadline"] = ev["close_time"]
             if "event_type" not in ev and "type" in ev: ev["event_type"] = ev["type"]
             active_events.append(ev)
 
     return all_users, active_events, user_map
 
-# --- [爆速] イベントの回答詳細の取得関数 ---
 def fetch_responses_for_event(event_id, user_map):
     docs = db.collection("responses").where("event_id", "==", event_id).stream()
     flat_responses = []
@@ -243,7 +269,7 @@ def fetch_responses_for_event(event_id, user_map):
     return flat_responses
 
 # ==========================================
-# コンポーネント (rt_editor, options_editor, grid_editor)
+# コンポーネント
 # ==========================================
 if not os.path.exists("rt_editor"):
     os.makedirs("rt_editor", exist_ok=True)
@@ -581,13 +607,12 @@ if not os.path.exists("custom_editor"):
             });
             document.getElementById('pen-' + mode).classList.add('active');
 
-            // 💡 追加: ✋移動モード時はカレンダーへのタッチ判定を完全に切り、ネイティブスクロールさせる！
             const gElem = document.getElementById('g');
             if (gElem) {
                 if (mode === -1) {
-                    gElem.style.pointerEvents = 'none'; // タッチ無効化（スクロール100%成功）
+                    gElem.style.pointerEvents = 'none';
                 } else {
-                    gElem.style.pointerEvents = 'auto'; // タッチ有効化（色塗りモード）
+                    gElem.style.pointerEvents = 'auto';
                 }
             }
         };
@@ -645,17 +670,15 @@ if not os.path.exists("custom_editor"):
                 let pressTimer = null;
                 let isLongPress = false;
                 let startX = 0, startY = 0;
-                
-                // 💡 追加: スクロール判定フラグ
-                let touchMode = null; // 'paint' または 'scroll'
+                let touchMode = null;
 
                 const handleStart = (e, x, y) => {
-                    if (selectedMode === -1) return; // ✋移動モード時は無視
+                    if (selectedMode === -1) return;
                     const cell = e.target.closest('.c');
                     if(!cell) return;
                     down = true;
                     isLongPress = false;
-                    touchMode = null; // 💡 タッチごとにリセット
+                    touchMode = null;
                     startX = x; startY = y;
                     
                     pressTimer = setTimeout(() => {
@@ -665,36 +688,24 @@ if not os.path.exists("custom_editor"):
                             document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
                             openModal(cell);
                         }
-                    }, 400); // 長押しの時間
+                    }, 400);
                 };
 
-                g.addEventListener('touchstart', e => { 
-                    if (e.touches.length > 1) return; // 複数指タップは無視
-                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
-                }, {passive: true}); // 💡 passive: true でブラウザのスクロール準備を邪魔しない
-                
-                // 💡 変更前: g.addEventListener('touchmove', e => { ... }) の部分をまるごと以下に差し替え！
-
-                g.addEventListener('touchmove', e => { 
+                const handleMove = (e, x, y) => {
                     if (selectedMode === -1 || !down) return;
                     
-                    const x = e.touches[0].clientX;
-                    const y = e.touches[0].clientY;
                     const dx = Math.abs(x - startX);
                     const dy = Math.abs(y - startY);
 
-                    // 💡 スワイプ直後に「縦」か「横」か判定する
                     if (touchMode === null) {
                         if (dx > 10 || dy > 10) {
                             clearTimeout(pressTimer);
-                            // 💡 横方向への移動が大きい ＝ スクロールと判定
                             if (dx > dy) { 
                                 touchMode = 'scroll';
-                                down = false; // 色塗りを強制終了
+                                down = false;
                                 document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                                return; // ここで return するだけでネイティブスクロールが発動する
+                                return;
                             } else {
-                                // 縦方向への移動が大きい ＝ 色塗りと判定
                                 touchMode = 'paint';
                                 const cell = document.elementFromPoint(startX, startY)?.closest('.c');
                                 if(cell) window.upd(cell, selectedMode);
@@ -702,19 +713,17 @@ if not os.path.exists("custom_editor"):
                         }
                     }
 
-                    // 💡 色塗りと判定された場合のみ、画面全体のスクロールを止める
                     if (touchMode === 'paint') {
                         if (e.cancelable) e.preventDefault(); 
                         const cell = document.elementFromPoint(x, y)?.closest('.c');
                         if(cell) window.upd(cell, selectedMode);
                     }
-                }, {passive: false}); // passive: false はそのまま（preventDefaultを呼ぶため）
+                };
 
                 const handleEnd = () => {
                     if (pressTimer) clearTimeout(pressTimer);
                     document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
                     
-                    // 指を動かさずに離した場合は「タップ（色塗り）」として処理
                     if (down && touchMode === null && !isLongPress && selectedMode !== -1) {
                         const cell = document.elementFromPoint(startX, startY)?.closest('.c');
                         if(cell) window.upd(cell, selectedMode);
@@ -731,6 +740,22 @@ if not os.path.exists("custom_editor"):
                 }
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
+
+                g.addEventListener('touchstart', e => { 
+                    if (e.touches.length > 1) return;
+                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
+                }, {passive: true});
+                
+                g.addEventListener('touchmove', e => { 
+                    if (selectedMode === -1) return;
+                    if(down) { 
+                        handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
+                        if (touchMode === 'paint' && e.cancelable) {
+                            e.preventDefault(); 
+                        }
+                    } 
+                }, {passive: false});
+                
                 g.addEventListener('touchend', handleEnd);
                 
                 const btn = document.getElementById("submit-btn");
@@ -1090,17 +1115,6 @@ def main():
         st.markdown("""
         <style>
             .mobile-rotate-guide { display: none; }
-            @media (max-width: 650px) {
-                /* 💡 修正: より強力なクラス指定で、左の余白を50pxまで広げてスクロールしやすくする */
-                .main .block-container,
-                div[data-testid="stAppViewBlockContainer"] { 
-                    padding-left: 50px !important; 
-                    padding-right: 10px !important; 
-                }
-            }
-                .mobile-rotate-guide::before { content: "📱🔄"; font-size: 20px; margin-right: 10px; }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-            }
             @media (max-width: 650px) {
                 /* ▼ 修正: 時間割ブロック全体を確実に横スクロール可能にする ▼ */
                 [data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"],
@@ -1873,7 +1887,7 @@ def main():
                     else: bg, bg_img = "#fff", "none"
                     
                     b_top = get_border_top(t_str, event_type)
-                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box;"></div>'
+                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; touch-action: pan-x pan-y;"></div>'
                 # 💡 修正: flex: 1 1 85px を指定して、広い時は伸び、狭い時は85pxを維持させる
                 day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 1 1 85px; min-width: 85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
 
@@ -1923,7 +1937,6 @@ def main():
 
             scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
 
-            # 💡 追加: 列数から最低限必要な横幅を計算し、空白を防ぐ
             html_code = f"""
             <style>
                 .tool-card {{ background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; flex: 1; min-width: 250px; font-family: sans-serif; box-sizing:border-box;}} 
@@ -1954,7 +1967,7 @@ def main():
                 </div>
             </div>
             <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc; background: #fff;">
-                <div id="g" style="display:flex; width: 100%; min-width: {min_grid_width}px; user-select:none; {pointer_css}">
+                <div id="g" style="display:flex; width: 100%; min-width: max-content; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
@@ -2193,7 +2206,6 @@ def main():
                                 
                             agg_font_size = "11px" if cell_h == "20px" else "15px"
                             
-                            # ▼ 修正: 1行目・2行目だけはツールチップを下向きに表示させるクラスを付与 ▼
                             tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
                             cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
                         
@@ -2225,8 +2237,13 @@ def main():
                     </style>
                     """
 
-                    # 💡 修正: min-width: max-content; を使う
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: 100%; min-width: max-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    # 🛠️ [デバッグ用コード] レイアウト崩れが直らない場合に備えた情報表示
+                    if st.checkbox("🛠️ [管理者用] 集計レイアウトのデバッグ表示", value=False):
+                        st.info(f"【デバッグ】表示列数: {total_disp_cols}列 | 時間枠: {len(disp_time_labels)}枠")
+                        agg_css += "<style>.agg-wrapper { border: 2px solid red !important; } .agg-day-col { border: 1px dashed blue !important; }</style>"
+
+                    # 💡 修正: min-width ではなく、width: max-content を使い、子要素(85px固定)の合計値にコンテナ幅をピッタリ合わせる
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: max-content; min-width: 100%; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")
@@ -2326,7 +2343,7 @@ def main():
                         else:
                             if fg in u_g4: match_g4 = True; break
                     if not match_g4: continue
-
+                    
                 filtered_data.append(r)
 
             unique_all = len(set([r.get('user_id') for r in all_res_data]))

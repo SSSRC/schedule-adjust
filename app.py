@@ -380,9 +380,11 @@ if not os.path.exists("options_editor"):
         """)
 options_editor = components.declare_component("options_editor", path="options_editor")
 
-if not os.path.exists("custom_editor"):
-    os.makedirs("custom_editor", exist_ok=True)
-    with open("custom_editor/index.html", "w", encoding="utf-8") as f:
+
+# 🚀 キャッシュ突破のためのフォルダ名「custom_editor_v3」
+if not os.path.exists("custom_editor_v3"):
+    os.makedirs("custom_editor_v3", exist_ok=True)
+    with open("custom_editor_v3/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -414,8 +416,8 @@ if not os.path.exists("custom_editor"):
             <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
             <hr style="margin:0; border-top:1px solid #ddd;">
-            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#fff; color:#000; border:2px solid #000; font-size:11px; margin-top:0px;">✋<br>ｽｸﾛｰﾙ</button>
-            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;">※動かす<br>時はコレ!</div>
+            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#9C27B0; color:#fff; border:2px solid #7B1FA2; font-size:10px; margin-top:0px;">📜<br>ｽｸﾛｰﾙ</button>
+            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;">※2本指で<br>ｽｸﾛｰﾙ可</div>
         </div>
 
         <div id="detail-modal">
@@ -566,13 +568,12 @@ if not os.path.exists("custom_editor"):
             });
             document.getElementById('pen-' + mode).classList.add('active');
             
-            // ダイナミックに touch-action を操作してスクロールを制御
             const g = document.getElementById('g');
             if (g) {
                 if (mode === -1) {
-                    g.style.touchAction = 'pan-x pan-y'; // 移動(スクロール)モード時はブラウザのスクロールを許可
+                    g.style.touchAction = 'pan-x pan-y';
                 } else {
-                    g.style.touchAction = 'none'; // ペイント時はスクロールを禁止して安定させる
+                    g.style.touchAction = 'none';
                 }
             }
         };
@@ -625,7 +626,6 @@ if not os.path.exists("custom_editor"):
                 if(args.isClosed) { palette.style.display = 'none'; return; } 
                 else { palette.style.display = 'flex'; }
                 
-                // レンダリング直後に選択されているペンモードのCSS（touch-action）を適用
                 setTimeout(() => { window.setPen(selectedMode); }, 50);
                 
                 const g = document.getElementById('g'); if(!g) return;
@@ -656,8 +656,6 @@ if not os.path.exists("custom_editor"):
 
                 const handleMove = (e, x, y) => {
                     if (selectedMode === -1 || !down) return;
-                    
-                    // ペイントモードの時は色を塗る
                     if (e.cancelable) e.preventDefault(); 
                     const cell = document.elementFromPoint(x, y)?.closest('.c');
                     if(cell) window.upd(cell, selectedMode);
@@ -690,9 +688,8 @@ if not os.path.exists("custom_editor"):
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    // 移動(スクロール)モード時は、ブラウザに標準スクロールを任せて一切干渉しない
                     if (selectedMode === -1) return; 
-                    
+                    if (e.touches.length >= 2) return; 
                     if(down) { 
                         if (e.cancelable) e.preventDefault(); 
                         handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
@@ -716,7 +713,7 @@ if not os.path.exists("custom_editor"):
             }
         }); init(); </script></body></html>
         """)
-grid_editor = components.declare_component("grid_editor", path="custom_editor")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v3")
 
 
 # ==========================================
@@ -1371,7 +1368,7 @@ def main():
                 st.markdown("<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; word-break: break-all; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_ev}</div>', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                st.subheader("⚙️ ステータス手 कटोच変更")
+                st.subheader("⚙️ ステータス手動変更")
                 if active_events:
                     with st.form("update_status_form"):
                         target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})")
@@ -1858,17 +1855,14 @@ def main():
                 .page-btn:hover:not(:disabled) {{ background: #e9ecef; }} 
                 .page-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
                 
-                /* スクロール領域の定義 */
                 .scroll-wrapper {{ {scroll_css} overflow-x: scroll; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 
-                /* ★修正: width: max-content; min-width: 100%; に変更 */
                 #g {{ display: flex; width: max-content; min-width: 100%; user-select: none; {pointer_css} }}
                 
                 .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 
-                /* ★修正: min-widthを100pxに広げてオーバーフローさせる */
                 .day-col {{ flex: 1 1 0%; min-width: 100px; box-sizing: border-box; }}
             </style>
             
@@ -2095,82 +2089,56 @@ def main():
                     
                     max_z = np.max(z) if np.max(z) > 0 else 1
                     
-                    agg_time_cells = ""
+                    agg_html = f"""
+                    <style>
+                    .agg-table-wrapper {{ width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; background: #fff; max-height: 75vh; }}
+                    .agg-table {{ width: 100%; min-width: max-content; border-collapse: collapse; text-align: center; font-family: sans-serif; font-size: 13px; }}
+                    .agg-table th, .agg-table td {{ border: 1px solid #eee; padding: 0; position: relative; }}
+                    .agg-table th {{ background: #eee; padding: 8px 4px; position: sticky; top: 0; z-index: 11; border-bottom: 2px solid #555; min-width: 85px; }}
+                    .agg-table .time-col {{ position: sticky; left: 0; background: #f0f2f6; z-index: 12; font-weight: bold; color: #555; border-right: 1px solid #ccc; padding: 0 5px; width: 65px; }}
+                    .agg-table th.top-left {{ position: sticky; top: 0; left: 0; z-index: 13; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; min-width: 65px; }}
+                    .cell-content {{ display: flex; align-items: center; justify-content: center; height: 45px; width: 100%; font-weight: bold; cursor: pointer; }}
+                    .cell-content .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
+                    .cell-content .tooltip::-webkit-scrollbar {{ width: 4px; }}
+                    .cell-content .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
+                    .cell-content .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
+                    .cell-content .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
+                    .cell-content .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
+                    .cell-content:hover .tooltip {{ visibility: visible; opacity: 1; }}
+                    </style>
+                    <div class="agg-table-wrapper">
+                        <table class="agg-table">
+                            <thead>
+                                <tr>
+                                    <th class="top-left"></th>
+                    """
+                    for lbl in disp_clean_date_labels:
+                        agg_html += f"<th>{lbl.replace('(', '<br>(')}</th>"
+                    agg_html += "</tr></thead><tbody>"
+
                     for r, t_str in enumerate(disp_time_labels):
-                        b_top = get_border_top(t_str, event_type)
                         lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
-                        agg_time_cells += f'<div class="agg-time-cell" style="border-top:{b_top}; height:{cell_h};">{lbl}</div>'
-                        
-                    agg_time_col = f'<div class="agg-time-col"><div class="agg-top-left"></div>{agg_time_cells}</div>'
-                    
-                    agg_day_cols = ""
-                    for c, d_str in enumerate(disp_date_strs):
-                        lbl = disp_clean_date_labels[c].replace("(", "<br>(")
-                        cells_html = ""
-                        for r, t_str in enumerate(disp_time_labels):
+                        b_top = "2px solid #aaa" if t_str.endswith(":00") else "1px solid #eee"
+                        agg_html += f"<tr><td class='time-col' style='border-top:{b_top};'>{lbl}</td>"
+
+                        for c, d_str in enumerate(disp_date_strs):
                             val = z[r][c]
-                            b_top = get_border_top(t_str, event_type)
                             if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
                             else:
                                 ratio = val / max_z
                                 r_col = int(240 - (240 - 46) * ratio); g_col = int(248 - (248 - 125) * ratio); b_col = int(242 - (242 - 50) * ratio)
                                 bg, txt_color, val_txt = f"rgb({r_col}, {g_col}, {b_col})", ("#000" if ratio < 0.6 else "#fff"), f"{val:g}"
-                            
+
                             if not can_view_details: tooltip_txt = f"この時間帯は {val_txt} 人が参加可能です"
                             else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
-                                
-                            agg_font_size = "11px" if cell_h == "20px" else "15px"
-                            
+
                             tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
-                            cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
-                        
-                        agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
+                            agg_html += f"<td style='border-top:{b_top}; background:{bg};'><div class='cell-content' style='color:{txt_color};'>{val_txt}<span class='{tooltip_class}'>{t_str}<br><b>{val_txt}人</b><br><hr style='margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);'>{tooltip_txt}</span></div></td>"
+                        agg_html += "</tr>"
 
-                    agg_scroll_h = "680px" if event_type == "time" else "auto"
+                    agg_html += "</tbody></table></div>"
 
-                    # ★修正: CSS Grid を使用して右余白を完全に排除
-                    agg_css = f"""
-                    <style>
-                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
-                    
-                    .agg-inner-container {{ 
-                        display: grid; 
-                        grid-template-columns: 65px repeat({len(disp_date_strs)}, minmax(85px, 1fr)); 
-                        width: 100%; 
-                        min-width: max-content; 
-                        background: #fdfdfd; 
-                    }}
-                    
-                    .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }}
-                    .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
-                    .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
-                    
-                    .agg-day-col {{ box-sizing: border-box; }}
-                    
-                    .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
-                    
-                    .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
-                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 4px; }}
-                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
-                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
-                    
-                    .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
-                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
-                    
-                    .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
-                    .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
-                    </style>
-                    """
-
-                    st.markdown(f"""
-                    {agg_css}
-                    <div class='agg-wrapper' id='agg-scroll-container'>
-                        <div class='agg-inner-container' id='agg-grid'>
-                            {agg_time_col}
-                            {agg_day_cols}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(agg_html, unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

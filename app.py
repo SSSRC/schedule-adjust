@@ -962,7 +962,7 @@ def main():
     # ----------------------------------------------------
     if view_mode == "👤 プロフィール設定":
         st.title("👤 プロフィール設定")
-        st.write("所属グループの更新を行います。（未所属にする場合は選択を解除してください）")
+        st.write("登録情報や所属グループの更新を行います。（未所属にする場合は選択を解除してください）")
         
         def_g1 = [x for x in user.get('group_1', '').split(', ') if x]
         
@@ -977,6 +977,9 @@ def main():
         
         def_g3 = [x for x in user.get('group_3', '').split(', ') if x]
         def_g4 = [x for x in user.get('group_4', '').split(', ') if x]
+
+        st.markdown("##### 📛 基本情報")
+        upd_name = st.text_input("氏名（※ログインIDとしても使用されます）", value=user.get('name', ''))
 
         upd_g1 = st.multiselect("🚀 プロジェクト", ["衛星", "ロケット", "BizSat"], default=def_g1, key="upd_g1")
         upd_g2_opts, upd_g4_opts = [], []
@@ -1002,29 +1005,58 @@ def main():
         upd_cal_url = st.text_input("カレンダーの非公開URL", value=user.get('calendar_url', ''), placeholder="https://calendar.google.com/calendar/ical/.../basic.ics")
 
         if st.button("💾 プロフィールを更新", use_container_width=True, type="primary"):
-            payload = {
-                "user_id": user['user_id'], 
-                "group_1": ", ".join(upd_g1), 
-                "group_2": ", ".join(upd_g2), 
-                "group_3": ", ".join(upd_g3), 
-                "group_4": ", ".join(upd_g4), 
-                "calendar_url": upd_cal_url
-            }
-            
-            gas_payload = payload.copy()
-            gas_payload["calendar_url"] = "LINKED" if upd_cal_url else ""
+            clean_name = upd_name.replace(" ", "").replace("　", "")
+            if not clean_name:
+                st.error("氏名は空にできません。")
+            else:
+                # 名前が変更された場合は重複チェック
+                if clean_name != user.get('name'):
+                    existing = list(db.collection("users").where("name", "==", clean_name).stream())
+                    if existing:
+                        st.error(f"エラー: '{clean_name}' という名前は既に使われています。別の名前を指定してください。")
+                        st.stop()
 
-            try:
-                db.collection("users").document(str(user["user_id"])).update(payload)
-                backup_to_gas_async("update_user", {"payload": gas_payload})
+                payload = {
+                    "user_id": user['user_id'], 
+                    "name": clean_name,
+                    "group_1": ", ".join(upd_g1), 
+                    "group_2": ", ".join(upd_g2), 
+                    "group_3": ", ".join(upd_g3), 
+                    "group_4": ", ".join(upd_g4), 
+                    "calendar_url": upd_cal_url
+                }
                 
-                updated_u = {**user, **payload}
-                st.session_state.auth = updated_u
-                st.success("✅ プロフィールを保存しました！")
-                time.sleep(1.0)
+                gas_payload = payload.copy()
+                gas_payload["calendar_url"] = "LINKED" if upd_cal_url else ""
+
+                try:
+                    db.collection("users").document(str(user["user_id"])).update(payload)
+                    backup_to_gas_async("update_user", {"payload": gas_payload})
+                    
+                    updated_u = {**user, **payload}
+                    st.session_state.auth = updated_u
+                    st.success("✅ プロフィールを保存しました！")
+                    time.sleep(1.0)
+                    st.rerun()
+                except Exception as e: 
+                    st.error(f"更新に失敗しました: {e}")
+                    
+        st.markdown("---")
+        st.markdown("##### ⚠️ アカウントの削除（退会）")
+        with st.expander("退会手続きを開く"):
+            st.warning("退会すると、これまでの回答データや時間割がすべて削除され、元に戻すことはできません。")
+            if st.button("💥 本当に退会する", type="primary"):
+                uid = str(user["user_id"])
+                # 1. ユーザー削除
+                db.collection("users").document(uid).delete()
+                # 2. 回答データの削除
+                res_docs = db.collection("responses").where("user_id", "==", uid).stream()
+                for d in res_docs:
+                    db.collection("responses").document(d.id).delete()
+                
+                backup_to_gas_async("delete_user", {"payload": {"user_id": uid}})
+                st.session_state.auth = None
                 st.rerun()
-            except Exception as e: 
-                st.error(f"更新に失敗しました: {e}")
         return
 
     # ----------------------------------------------------
@@ -1472,57 +1504,69 @@ def main():
                         new_u_id = tgt_user.get('user_id')
                         new_u_name = tgt_user.get('name')
                         new_u_role = tgt_user.get('role')
+                        
+                    del_check = st.checkbox("💥 このユーザーを完全に削除する (復旧不可)")
 
-                    if st.form_submit_button("更新実行", type="primary"):
-                        if tgt_user.get('role') == 'top_admin' and new_u_role != 'top_admin':
-                            st.error("最高管理者の権限は変更できません。")
-                        else:
-                            old_uid = str(tgt_user['user_id'])
-                            new_uid = new_u_id.strip() if new_u_id else old_uid
-                            new_name = new_u_name.strip() if new_u_name else tgt_user.get('name')
-                            
-                            updates = {"role": new_u_role, "name": new_name}
-                            gas_payload = {"user_id": old_uid, "role": new_u_role, "name": new_name}
-                            
-                            if new_uid != old_uid:
-                                updates["user_id"] = new_uid
-                                gas_payload["new_user_id"] = new_uid
+                    if st.form_submit_button("更新/削除 実行", type="primary"):
+                        if del_check:
+                            if tgt_user.get('role') == 'top_admin':
+                                st.error("最高管理者は削除できません。先に譲渡してください。")
+                            else:
+                                uid = str(tgt_user['user_id'])
+                                db.collection("users").document(uid).delete()
+                                res_docs = db.collection("responses").where("user_id", "==", uid).stream()
+                                for d in res_docs:
+                                    db.collection("responses").document(d.id).delete()
                                 
-                            if new_u_pin:
-                                updates["pin"] = hash_pin(new_u_pin)
-                                gas_payload["new_pin"] = "PROTECTED"
-                                
-                            try:
-                                if new_uid != old_uid:
-                                    # 既存IDとの重複チェック
-                                    existing = db.collection("users").document(new_uid).get()
-                                    if existing.exists:
-                                        st.error(f"エラー: ユーザーID '{new_uid}' は既に存在します。別のIDを指定してください。")
-                                        st.stop()
-                                        
-                                    # 1. ユーザーID変更処理
-                                    new_user_data = {**tgt_user, **updates}
-                                    db.collection("users").document(new_uid).set(new_user_data)
-                                    db.collection("users").document(old_uid).delete()
-                                    
-                                    # 2. responsesの移行
-                                    res_docs = db.collection("responses").where("user_id", "==", old_uid).stream()
-                                    for r_doc in res_docs:
-                                        r_data = r_doc.to_dict()
-                                        r_event_id = r_data.get("event_id")
-                                        r_data["user_id"] = new_uid
-                                        
-                                        db.collection("responses").document(f"{r_event_id}_{new_uid}").set(r_data)
-                                        db.collection("responses").document(r_doc.id).delete()
-                                else:
-                                    db.collection("users").document(old_uid).update(updates)
-                                    
-                                backup_to_gas_async("admin_update_user", {"payload": gas_payload})
-                                st.toast("ユーザー情報を更新しました", icon="✅")
+                                backup_to_gas_async("delete_user", {"payload": {"user_id": uid}})
+                                st.toast(f"ユーザー {uid} を削除しました", icon="✅")
                                 st.rerun()
+                        else:
+                            if tgt_user.get('role') == 'top_admin' and new_u_role != 'top_admin':
+                                st.error("最高管理者の権限は変更できません。")
+                            else:
+                                old_uid = str(tgt_user['user_id'])
+                                new_uid = new_u_id.strip() if new_u_id else old_uid
+                                new_name = new_u_name.strip() if new_u_name else tgt_user.get('name')
                                 
-                            except Exception as e:
-                                st.error(f"更新中にエラーが発生しました: {e}")
+                                updates = {"role": new_u_role, "name": new_name}
+                                gas_payload = {"user_id": old_uid, "role": new_u_role, "name": new_name}
+                                
+                                if new_uid != old_uid:
+                                    updates["user_id"] = new_uid
+                                    gas_payload["new_user_id"] = new_uid
+                                    
+                                if new_u_pin:
+                                    updates["pin"] = hash_pin(new_u_pin)
+                                    gas_payload["new_pin"] = "PROTECTED"
+                                    
+                                try:
+                                    if new_uid != old_uid:
+                                        existing = db.collection("users").document(new_uid).get()
+                                        if existing.exists:
+                                            st.error(f"エラー: ユーザーID '{new_uid}' は既に存在します。")
+                                            st.stop()
+                                            
+                                        new_user_data = {**tgt_user, **updates}
+                                        db.collection("users").document(new_uid).set(new_user_data)
+                                        db.collection("users").document(old_uid).delete()
+                                        
+                                        res_docs = db.collection("responses").where("user_id", "==", old_uid).stream()
+                                        for r_doc in res_docs:
+                                            r_data = r_doc.to_dict()
+                                            r_event_id = r_data.get("event_id")
+                                            r_data["user_id"] = new_uid
+                                            db.collection("responses").document(f"{r_event_id}_{new_uid}").set(r_data)
+                                            db.collection("responses").document(r_doc.id).delete()
+                                    else:
+                                        db.collection("users").document(old_uid).update(updates)
+                                        
+                                    backup_to_gas_async("admin_update_user", {"payload": gas_payload})
+                                    st.toast("ユーザー情報を更新しました", icon="✅")
+                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    st.error(f"更新中にエラーが発生しました: {e}")
 
                 if user.get("role") == "top_admin":
                     st.markdown("---")

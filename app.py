@@ -564,15 +564,7 @@ if not os.path.exists("custom_editor"):
                 if(b) b.classList.remove('active');
             });
             document.getElementById('pen-' + mode).classList.add('active');
-
-            const gElem = document.getElementById('g');
-            if (gElem) {
-                if (mode === -1) {
-                    gElem.style.pointerEvents = 'none';
-                } else {
-                    gElem.style.pointerEvents = 'auto';
-                }
-            }
+            // スクロールを阻害する pointerEvents の操作を完全に削除
         };
 
         const palette = document.getElementById('palette');
@@ -705,13 +697,13 @@ if not os.path.exists("custom_editor"):
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1) return;
-                    if (touchMode === 'scroll') return; // ★追加：スクロール判定時はJSの介入を完全停止
+                    // ★修正：移動(✋)モードの時は処理を完全放棄し、ブラウザの標準スクロールに任せる
+                    if (selectedMode === -1) return; 
+                    
                     if(down) { 
+                        // ペイントモードの時は画面スクロールを止めて色を塗る
+                        if (e.cancelable) e.preventDefault(); 
                         handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
-                        if (touchMode === 'paint' && e.cancelable) {
-                            e.preventDefault(); 
-                        }
                     } 
                 }, {passive: false});
                 
@@ -1858,7 +1850,7 @@ def main():
 
             scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
 
-            # 💡 修正: JS計算を廃止し、width: 100% と min-width: max-content の魔法のコンボで余白を消滅
+            # 💡 修正: JS計算を廃止し、純粋なCSS（width: 100% と min-width: max-content）で余白を完全排除
             html_code = f"""
             <style>
                 .tool-card {{ background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; flex: 1; min-width: 250px; font-family: sans-serif; box-sizing:border-box;}} 
@@ -1878,15 +1870,15 @@ def main():
                 /* スクロール領域の定義 */
                 .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 
-                /* グリッド本体。画面より大きければスクロール、小さければ100%に広がる最強の設定 */
+                /* ★魔法のCSS: 画面より大きければスクロールし、小さければ100%に広がる */
                 #g {{ display: flex; width: 100%; min-width: max-content; user-select: none; {pointer_css} }}
                 
                 .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 
-                /* flex: 1 1 0% によって幅の均等割付を強制し右余白を撲滅。min-width で縮小を防止 */
-                .day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; outline: 1px dashed rgba(255,0,0,0.3); }}
+                /* flex: 1 1 0% によって幅の均等割付を強制し右余白を撲滅 */
+                .day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
             </style>
             
             {tools_html}

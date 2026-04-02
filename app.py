@@ -2138,20 +2138,20 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                    # 💡 修正: 純粋なFlexboxで右余白を完全消滅。JSに依存しない構造。
+                    # 💡 修正: 純粋なFlexboxで右余白を完全消滅。JSに依存するスクリプトは排除。
                     agg_css = f"""
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                     
-                    /* ★魔法のCSS: width:100% と min-width:max-content */
+                    /* ★魔法のCSS: width:100% と min-width:max-content のコンボ */
                     .agg-inner-container {{ display: flex; width: 100%; min-width: max-content; background: #fdfdfd; }}
                     
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* flex: 1 1 0% によって幅の均等割付を保証。min-width でスマホ時の縮小を防止 */
-                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; outline: 1px dashed rgba(255,0,0,0.3); }}
+                    /* flex: 1 1 0% によって幅の均等割付を保証。 */
+                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
                     
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     

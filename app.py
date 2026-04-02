@@ -119,7 +119,6 @@ def save_response_hybrid(payload):
         st.error(f"Firestoreへの保存に失敗しました: {e}")
         return False
 
-    # 💡 修正: GASが受け取れるように {"payload": ...} の階層で包んで送信する
     backup_to_gas_async("submit_binary_response", {"payload": payload})
     return True
 
@@ -382,10 +381,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 キャッシュ突破のためのフォルダ名「custom_editor_v3」
-if not os.path.exists("custom_editor_v3"):
-    os.makedirs("custom_editor_v3", exist_ok=True)
-    with open("custom_editor_v3/index.html", "w", encoding="utf-8") as f:
+# 🚀 キャッシュを完全に破壊するための v4
+if not os.path.exists("custom_editor_v4"):
+    os.makedirs("custom_editor_v4", exist_ok=True)
+    with open("custom_editor_v4/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -418,8 +417,8 @@ if not os.path.exists("custom_editor_v3"):
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
             <hr style="margin:0; border-top:1px solid #ddd;">
             <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#9C27B0; color:#fff; border:2px solid #7B1FA2; font-size:10px; margin-top:0px;">📜<br>ｽｸﾛｰﾙ</button>
-            <div style="font-size:10px; color:#E91E63; font-weight:bold; text-align:center; line-height:1.2; margin-top:-5px;">※動かす<br>時はコレ!</div>
         </div>
+
         <div id="detail-modal">
             <div class="modal-content" id="modal-content-box">
                 <div class="modal-title" id="modal-cell-title">詳細設定</div>
@@ -432,7 +431,7 @@ if not os.path.exists("custom_editor_v3"):
                 <label class="modal-label">📝 補足コメント (任意)</label>
                 <input type="text" id="modal-note" class="modal-input" placeholder="例: 13:30に移動開始, 20分遅延">
                 <div class="modal-btns">
-                    <button class="modal-btn-save" onclick="saveModal()">💾 保存して閉じる</button>
+                    <button class="modal-btn-save" onclick="saveModal()">💾 保存して闭じる</button>
                 </div>
                 <div style="text-align:center; font-size:10px; color:#999; margin-top:10px;">※枠外をタップでキャンセル</div>
             </div>
@@ -713,7 +712,7 @@ if not os.path.exists("custom_editor_v3"):
             }
         }); init(); </script></body></html>
         """)
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v3")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v4")
 
 
 # ==========================================
@@ -1450,12 +1449,17 @@ def main():
                 st.markdown(table_html, unsafe_allow_html=True)
                 
                 st.markdown("---")
-                st.subheader("🚨 ユーザー情報の更新 (PINリセット等)")
+                st.subheader("🚨 ユーザー情報の更新 (ID・氏名・PINリセット等)")
                 tgt_user = st.selectbox("対象ユーザー", all_users, format_func=lambda x: f"{x.get('name')} (ID: {x.get('user_id')})")
                 
                 with st.form("admin_user_update"):
-                    new_u_pin = st.text_input("新しいPIN (リセットする場合)", type="password", autocomplete="new-password")
+                    new_u_pin = st.text_input("新しいPIN (リセットする場合のみ入力)", type="password", autocomplete="new-password")
+                    
                     if user.get("role") == "top_admin":
+                        st.info("👑 最高管理者メニュー: ユーザーIDと氏名の変更が可能です。")
+                        new_u_id = st.text_input("ユーザーID", value=tgt_user.get('user_id'))
+                        new_u_name = st.text_input("氏名", value=tgt_user.get('name'))
+                        
                         role_opts = ["guest", "user", "admin"]
                         if tgt_user.get('role') == 'top_admin':
                             st.info("※最高管理者の権限はここで変更できません。下の譲渡メニューを使用してください。")
@@ -1464,25 +1468,61 @@ def main():
                             current_role = tgt_user.get('role') if tgt_user.get('role') in role_opts else "guest"
                             new_u_role = st.selectbox("権限の変更", role_opts, index=role_opts.index(current_role))
                     else:
-                        st.info("※権限（Role）の変更は top_admin のみ可能です。")
+                        st.info("※権限（Role）やユーザーIDの変更は top_admin のみ可能です。")
+                        new_u_id = tgt_user.get('user_id')
+                        new_u_name = tgt_user.get('name')
                         new_u_role = tgt_user.get('role')
 
                     if st.form_submit_button("更新実行", type="primary"):
                         if tgt_user.get('role') == 'top_admin' and new_u_role != 'top_admin':
                             st.error("最高管理者の権限は変更できません。")
                         else:
-                            updates = {"role": new_u_role}
-                            gas_payload = {"user_id": tgt_user['user_id'], "role": new_u_role}
+                            old_uid = str(tgt_user['user_id'])
+                            new_uid = new_u_id.strip() if new_u_id else old_uid
+                            new_name = new_u_name.strip() if new_u_name else tgt_user.get('name')
                             
+                            updates = {"role": new_u_role, "name": new_name}
+                            gas_payload = {"user_id": old_uid, "role": new_u_role, "name": new_name}
+                            
+                            if new_uid != old_uid:
+                                updates["user_id"] = new_uid
+                                gas_payload["new_user_id"] = new_uid
+                                
                             if new_u_pin:
                                 updates["pin"] = hash_pin(new_u_pin)
                                 gas_payload["new_pin"] = "PROTECTED"
                                 
-                            db.collection("users").document(str(tgt_user['user_id'])).update(updates)
-                            backup_to_gas_async("admin_update_user", {"payload": gas_payload})
-                            
-                            st.toast("ユーザー情報を更新しました", icon="✅")
-                            st.rerun()
+                            try:
+                                if new_uid != old_uid:
+                                    # 既存IDとの重複チェック
+                                    existing = db.collection("users").document(new_uid).get()
+                                    if existing.exists:
+                                        st.error(f"エラー: ユーザーID '{new_uid}' は既に存在します。別のIDを指定してください。")
+                                        st.stop()
+                                        
+                                    # 1. ユーザーID変更処理
+                                    new_user_data = {**tgt_user, **updates}
+                                    db.collection("users").document(new_uid).set(new_user_data)
+                                    db.collection("users").document(old_uid).delete()
+                                    
+                                    # 2. responsesの移行
+                                    res_docs = db.collection("responses").where("user_id", "==", old_uid).stream()
+                                    for r_doc in res_docs:
+                                        r_data = r_doc.to_dict()
+                                        r_event_id = r_data.get("event_id")
+                                        r_data["user_id"] = new_uid
+                                        
+                                        db.collection("responses").document(f"{r_event_id}_{new_uid}").set(r_data)
+                                        db.collection("responses").document(r_doc.id).delete()
+                                else:
+                                    db.collection("users").document(old_uid).update(updates)
+                                    
+                                backup_to_gas_async("admin_update_user", {"payload": gas_payload})
+                                st.toast("ユーザー情報を更新しました", icon="✅")
+                                st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"更新中にエラーが発生しました: {e}")
 
                 if user.get("role") == "top_admin":
                     st.markdown("---")
@@ -1855,15 +1895,22 @@ def main():
                 .page-btn:hover:not(:disabled) {{ background: #e9ecef; }} 
                 .page-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
                 
-                .scroll-wrapper {{ {scroll_css} overflow-x: scroll; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
+                .scroll-wrapper {{ {scroll_css} overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
                 
-                #g {{ display: flex; width: max-content; min-width: 100%; user-select: none; {pointer_css} }}
+                #g {{ 
+                    display: grid; 
+                    grid-template-columns: 65px repeat({len(date_strs)}, minmax(85px, 1fr)); 
+                    width: 100%; 
+                    min-width: max-content; 
+                    user-select: none; 
+                    {pointer_css} 
+                }}
                 
-                .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex: 0 0 65px; width: 65px; box-sizing: border-box; }}
+                .time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }}
                 .header-cell {{ position: sticky; top: 0; z-index: 11; background: #eee; text-align: center; font-size: 13px; padding: 5px 0; font-weight: bold; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; line-height: 1.2; }}
                 .top-left-cell {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-sizing: border-box; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 
-                .day-col {{ flex: 1 1 0%; min-width: 100px; box-sizing: border-box; }}
+                .day-col {{ box-sizing: border-box; }}
             </style>
             
             {tools_html}
@@ -2089,56 +2136,81 @@ def main():
                     
                     max_z = np.max(z) if np.max(z) > 0 else 1
                     
-                    agg_html = f"""
-                    <style>
-                    .agg-table-wrapper {{ width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; background: #fff; max-height: 75vh; }}
-                    .agg-table {{ width: 100%; min-width: max-content; border-collapse: collapse; text-align: center; font-family: sans-serif; font-size: 13px; }}
-                    .agg-table th, .agg-table td {{ border: 1px solid #eee; padding: 0; position: relative; }}
-                    .agg-table th {{ background: #eee; padding: 8px 4px; position: sticky; top: 0; z-index: 11; border-bottom: 2px solid #555; min-width: 85px; }}
-                    .agg-table .time-col {{ position: sticky; left: 0; background: #f0f2f6; z-index: 12; font-weight: bold; color: #555; border-right: 1px solid #ccc; padding: 0 5px; width: 65px; }}
-                    .agg-table th.top-left {{ position: sticky; top: 0; left: 0; z-index: 13; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; min-width: 65px; }}
-                    .cell-content {{ display: flex; align-items: center; justify-content: center; height: 45px; width: 100%; font-weight: bold; cursor: pointer; }}
-                    .cell-content .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
-                    .cell-content .tooltip::-webkit-scrollbar {{ width: 4px; }}
-                    .cell-content .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
-                    .cell-content .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
-                    .cell-content .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
-                    .cell-content .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
-                    .cell-content:hover .tooltip {{ visibility: visible; opacity: 1; }}
-                    </style>
-                    <div class="agg-table-wrapper">
-                        <table class="agg-table">
-                            <thead>
-                                <tr>
-                                    <th class="top-left"></th>
-                    """
-                    for lbl in disp_clean_date_labels:
-                        agg_html += f"<th>{lbl.replace('(', '<br>(')}</th>"
-                    agg_html += "</tr></thead><tbody>"
-
+                    agg_time_cells = ""
                     for r, t_str in enumerate(disp_time_labels):
+                        b_top = get_border_top(t_str, event_type)
                         lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
-                        b_top = "2px solid #aaa" if t_str.endswith(":00") else "1px solid #eee"
-                        agg_html += f"<tr><td class='time-col' style='border-top:{b_top};'>{lbl}</td>"
-
-                        for c, d_str in enumerate(disp_date_strs):
+                        agg_time_cells += f'<div class="agg-time-cell" style="border-top:{b_top}; height:{cell_h};">{lbl}</div>'
+                        
+                    agg_time_col = f'<div class="agg-time-col"><div class="agg-top-left"></div>{agg_time_cells}</div>'
+                    
+                    agg_day_cols = ""
+                    for c, d_str in enumerate(disp_date_strs):
+                        lbl = disp_clean_date_labels[c].replace("(", "<br>(")
+                        cells_html = ""
+                        for r, t_str in enumerate(disp_time_labels):
                             val = z[r][c]
+                            b_top = get_border_top(t_str, event_type)
                             if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
                             else:
                                 ratio = val / max_z
                                 r_col = int(240 - (240 - 46) * ratio); g_col = int(248 - (248 - 125) * ratio); b_col = int(242 - (242 - 50) * ratio)
                                 bg, txt_color, val_txt = f"rgb({r_col}, {g_col}, {b_col})", ("#000" if ratio < 0.6 else "#fff"), f"{val:g}"
-
+                            
                             if not can_view_details: tooltip_txt = f"この時間帯は {val_txt} 人が参加可能です"
                             else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
-
+                                
+                            agg_font_size = "11px" if cell_h == "20px" else "15px"
+                            
                             tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
-                            agg_html += f"<td style='border-top:{b_top}; background:{bg};'><div class='cell-content' style='color:{txt_color};'>{val_txt}<span class='{tooltip_class}'>{t_str}<br><b>{val_txt}人</b><br><hr style='margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);'>{tooltip_txt}</span></div></td>"
-                        agg_html += "</tr>"
+                            cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
+                        
+                        agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
 
-                    agg_html += "</tbody></table></div>"
+                    agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                    st.markdown(agg_html, unsafe_allow_html=True)
+                    agg_css = f"""
+                    <style>
+                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
+                    
+                    .agg-inner-container {{ 
+                        display: grid; 
+                        grid-template-columns: 65px repeat({len(disp_date_strs)}, minmax(85px, 1fr)); 
+                        width: 100%; 
+                        min-width: max-content; 
+                        background: #fdfdfd; 
+                    }}
+                    
+                    .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }}
+                    .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
+                    .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
+                    
+                    .agg-day-col {{ box-sizing: border-box; }}
+                    
+                    .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
+                    
+                    .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
+                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 4px; }}
+                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
+                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
+                    
+                    .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
+                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
+                    
+                    .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
+                    .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
+                    </style>
+                    """
+
+                    st.markdown(f"""
+                    {agg_css}
+                    <div class='agg-wrapper' id='agg-scroll-container'>
+                        <div class='agg-inner-container' id='agg-grid'>
+                            {agg_time_col}
+                            {agg_day_cols}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

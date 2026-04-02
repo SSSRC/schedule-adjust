@@ -29,8 +29,12 @@ APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 # ==========================================
 st.markdown("""
     <style>
+        /* 💡 変更: 確実に左余白を確保するための強力なCSS */
         @media (max-width: 650px) {
-            .main .block-container { padding-left: 25px !important; padding-right: 5px !important; }
+            div[data-testid="stAppViewBlockContainer"] {
+                padding-left: 35px !important; /* 左の余白をさらに広く(25px→35px) */
+                padding-right: 15px !important;
+            }
         }
         .stDeployStatus, [data-testid="stStatusWidget"] label { display: none !important; }
         [data-testid="stStatusWidget"] { visibility: visible !important; display: flex !important; position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: rgba(255, 255, 255, 0.95) !important; color: #333 !important; padding: 20px 40px !important; border-radius: 12px !important; z-index: 999999 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; border: 2px solid #4CAF50 !important; text-align: center !important; justify-content: center !important; }
@@ -668,6 +672,8 @@ if not os.path.exists("custom_editor"):
                     handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
                 }, {passive: true}); // 💡 passive: true でブラウザのスクロール準備を邪魔しない
                 
+                // 💡 変更前: g.addEventListener('touchmove', e => { ... }) の部分をまるごと以下に差し替え！
+
                 g.addEventListener('touchmove', e => { 
                     if (selectedMode === -1 || !down) return;
                     
@@ -680,12 +686,12 @@ if not os.path.exists("custom_editor"):
                     if (touchMode === null) {
                         if (dx > 10 || dy > 10) {
                             clearTimeout(pressTimer);
-                            if (dx > dy * 1.2) { 
-                                // 横方向への移動が大きい ＝ スクロールと判定
+                            // 💡 横方向への移動が大きい ＝ スクロールと判定
+                            if (dx > dy) { 
                                 touchMode = 'scroll';
                                 down = false; // 色塗りを強制終了
                                 document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                                return; // returnすることで native の横スクロールが発動する！
+                                return; // ここで return するだけでネイティブスクロールが発動する
                             } else {
                                 // 縦方向への移動が大きい ＝ 色塗りと判定
                                 touchMode = 'paint';
@@ -695,13 +701,13 @@ if not os.path.exists("custom_editor"):
                         }
                     }
 
-                    // 色塗りと判定された場合のみ処理を続ける
+                    // 💡 色塗りと判定された場合のみ、画面全体のスクロールを止める
                     if (touchMode === 'paint') {
-                        if (e.cancelable) e.preventDefault(); // 縦スクロールを防止
+                        if (e.cancelable) e.preventDefault(); 
                         const cell = document.elementFromPoint(x, y)?.closest('.c');
                         if(cell) window.upd(cell, selectedMode);
                     }
-                }, {passive: false});
+                }, {passive: false}); // passive: false はそのまま（preventDefaultを呼ぶため）
 
                 const handleEnd = () => {
                     if (pressTimer) clearTimeout(pressTimer);
@@ -2196,6 +2202,13 @@ def main():
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
                     # 💡 追加: 集計欄でも正確な最低幅を計算する
+                    # 💡 変更前: 
+                    # total_disp_cols = len(disp_date_strs)
+                    # min_agg_width = 65 + (total_disp_cols * 85)
+                    #
+                    # agg_css = f""" ... """
+
+                    # 💡 変更後: 1セルあたりの幅を 85px に「完全固定」する
                     total_disp_cols = len(disp_date_strs)
                     min_agg_width = 65 + (total_disp_cols * 85)
 
@@ -2205,9 +2218,17 @@ def main():
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
-                    /* 💡 flex: 1 1 0% で均等に分配 */
-                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
-                    .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; }}
+                    
+                    /* 💡 変更: セル幅が文字数によって変わらないように 85px に完全固定する */
+                    .agg-day-col {{ 
+                        flex: 1 0 auto; 
+                        width: 85px !important; 
+                        min-width: 85px !important; 
+                        max-width: 85px !important; 
+                        box-sizing: border-box; 
+                    }}
+                    
+                    .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
                     .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
                     .agg-cell .tooltip::-webkit-scrollbar {{ width: 4px; }}

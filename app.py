@@ -901,7 +901,7 @@ def main():
                             st.error("エラー: その氏名は既に登録されています。")
                         else:
                             all_users_count = len(list(db.collection("users").stream()))
-                            # 💡 修正: ランダム(uuid)をやめ、登録順に U001, U002... と連番を振る
+                            # 💡 修正: uuidによるランダムをやめ、登録順に U001, U002... と連番を振る
                             new_user_id = f"U{all_users_count + 1:03d}"
                             role = "top_admin" if all_users_count == 0 else "guest" # 1人目は自動的に最高管理者
                             
@@ -1090,14 +1090,14 @@ def main():
         st.markdown("""
         <style>
             .mobile-rotate-guide { display: none; }
-            @media (max-width: 650px) and (orientation: portrait) {
-                .mobile-rotate-guide {
-                    display: flex; align-items: center; justify-content: center;
-                    background: linear-gradient(135deg, #e8f5e9, #c8e6c9); color: #2e7d32;
-                    padding: 12px 15px; border-radius: 8px; margin-bottom: 20px;
-                    font-size: 13px; font-weight: bold; border-left: 5px solid #4CAF50;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.05); animation: fadeIn 0.5s ease-in-out;
+            @media (max-width: 650px) {
+                /* 💡 修正: より強力なクラス指定で、左の余白を50pxまで広げてスクロールしやすくする */
+                .main .block-container,
+                div[data-testid="stAppViewBlockContainer"] { 
+                    padding-left: 50px !important; 
+                    padding-right: 10px !important; 
                 }
+            }
                 .mobile-rotate-guide::before { content: "📱🔄"; font-size: 20px; margin-right: 10px; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
             }
@@ -1873,11 +1873,9 @@ def main():
                     else: bg, bg_img = "#fff", "none"
                     
                     b_top = get_border_top(t_str, event_type)
-                    # 💡 修正: touch-action を追加してブラウザの標準スクロールを邪魔しないようにする
-                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; touch-action: pan-x pan-y;"></div>'
-                
-                # 💡 修正: flex: 1 による自動伸縮を強制禁止し、幅を85pxに完全固定する！
-                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 0 0 85px; width: 85px; max-width: 85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
+                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box;"></div>'
+                # 💡 修正: flex: 1 1 85px を指定して、広い時は伸び、狭い時は85pxを維持させる
+                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 1 1 85px; min-width: 85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
 
             time_cells_html = ""
             for r, t_str in enumerate(time_labels):
@@ -1926,9 +1924,6 @@ def main():
             scroll_css = f"height: {scroll_h};" if scroll_h != "auto" else "height: auto;"
 
             # 💡 追加: 列数から最低限必要な横幅を計算し、空白を防ぐ
-            total_cols = len(date_strs)
-            min_grid_width = 65 + (total_cols * 85) # 時間枠(65px) + (列数 × 85px)
-
             html_code = f"""
             <style>
                 .tool-card {{ background: #fdfdfd; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; flex: 1; min-width: 250px; font-family: sans-serif; box-sizing:border-box;}} 
@@ -2206,17 +2201,6 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                    # 💡 追加: 集計欄でも正確な最低幅を計算する
-                    # 💡 変更前: 
-                    # total_disp_cols = len(disp_date_strs)
-                    # min_agg_width = 65 + (total_disp_cols * 85)
-                    #
-                    # agg_css = f""" ... """
-
-                    # 💡 変更後: 1セルあたりの幅を 85px に「完全固定」する
-                    total_disp_cols = len(disp_date_strs)
-                    min_agg_width = 65 + (total_disp_cols * 85)
-
                     agg_css = f"""
                     <style>
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; }}
@@ -2224,15 +2208,8 @@ def main():
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* 💡 変更: セル幅が文字数によって変わらないように 85px に完全固定する */
-                    .agg-day-col {{ 
-                        flex: 1 0 auto; 
-                        width: 85px !important; 
-                        min-width: 85px !important; 
-                        max-width: 85px !important; 
-                        box-sizing: border-box; 
-                    }}
-                    
+                    /* 💡 修正: flex: 1 1 85px でPCの空白を防ぎつつ、スマホのスクロール幅を確保 */
+                    .agg-day-col {{ flex: 1 1 85px; min-width: 85px; box-sizing: border-box; }}
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
                     .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
@@ -2247,14 +2224,9 @@ def main():
                     .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
                     </style>
                     """
-                    
-                    # 🛠️ [デバッグ用コード] レイアウト崩れが直らない場合に備えた情報表示
-                    if st.checkbox("🛠️ [管理者用] 集計レイアウトのデバッグ表示", value=False):
-                        st.info(f"【デバッグ】計算された最小幅: {min_agg_width}px | 表示列数: {total_disp_cols}列 | 時間枠: {len(disp_time_labels)}枠")
-                        agg_css += "<style>.agg-wrapper { border: 2px solid red !important; } .agg-day-col { border: 1px dashed blue !important; }</style>"
 
-                    # 💡 修正: min-width ではなく、width: max-content を使い、子要素(85px固定)の合計値にコンテナ幅をピッタリ合わせる
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: max-content; min-width: 100%; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    # 💡 修正: min-width: max-content; を使う
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: 100%; min-width: max-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

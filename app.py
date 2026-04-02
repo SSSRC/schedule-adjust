@@ -706,6 +706,7 @@ if not os.path.exists("custom_editor"):
                 
                 g.addEventListener('touchmove', e => { 
                     if (selectedMode === -1) return;
+                    if (touchMode === 'scroll') return; // ★追加：スクロール判定時はJSの介入を完全停止
                     if(down) { 
                         handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
                         if (touchMode === 'paint' && e.cancelable) {
@@ -1806,9 +1807,11 @@ def main():
                     else: bg, bg_img = "#fff", "none"
                     
                     b_top = get_border_top(t_str, event_type)
-                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; touch-action: pan-x pan-y;"></div>'
-                # 💡 修正4: flex: 1 1 0% を指定して、右側に余白ができないようにする
-                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 1 1 0%; min-width: 85px; box-sizing:border-box; display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
+                    # JSとの競合を防ぐため touch-action を削除
+                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box;"></div>'
+                
+                # flex: 1 1 auto と width: 85px で計算バグを防止＋デバッグ用青枠
+                day_cols_html += f'<div class="day-col" data-c="{c}" style="flex: 1 1 auto; min-width: 85px; width: 85px; box-sizing:border-box; display:none; outline: 1px dashed rgba(0,0,255,0.2);"><div class="header-cell">{lbl}</div>{cells_html}</div>'
 
             time_cells_html = ""
             for r, t_str in enumerate(time_labels):
@@ -1885,8 +1888,8 @@ def main():
                     <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
                 </div>
             </div>
-            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc; background: #fff;">
-                <div id="g" style="display:flex; width: 100%; min-width: max-content; user-select:none; {pointer_css}">
+            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 2px solid rgba(255,0,0,0.5); background: #fff;">
+                <div id="g" style="display:flex; width: 100%; min-width: fit-content; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
@@ -2140,8 +2143,8 @@ def main():
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
                     
-                    /* 💡 修正5: 均等に幅を埋めて右余白をなくす */
-                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
+                    /* flex: auto と width で余白バグを防止、デバッグ用の青枠を追加 */
+                    .agg-day-col {{ flex: 1 1 auto; min-width: 85px; width: 85px; box-sizing: border-box; outline: 1px dashed rgba(0,0,255,0.2); }}
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
                     .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
@@ -2157,7 +2160,7 @@ def main():
                     </style>
                     """
 
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; width: 100%; min-width: max-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 2px solid rgba(255,0,0,0.5);'><div style='display:flex; width: 100%; min-width: fit-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")

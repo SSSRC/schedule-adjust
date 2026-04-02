@@ -632,55 +632,89 @@ if not os.path.exists("custom_editor"):
                 let isLongPress = false;
                 let startX = 0, startY = 0;
                 
+                let isScrolling = false;
+
                 const handleStart = (e, x, y) => {
-                    if (selectedMode === -1) return; // 💡 移動モード時はスクロールを妨害しない
+                    if (selectedMode === -1) return; // ✋移動モード時は無視
                     const cell = e.target.closest('.c');
                     if(!cell) return;
                     down = true;
                     isLongPress = false;
+                    isScrolling = false;
                     startX = x; startY = y;
-                    window.upd(cell, selectedMode);
-                    cell.classList.add('pressing');
+                    
+                    // すぐに色を塗らず、少し待つ（スクロール判定のため）
                     pressTimer = setTimeout(() => {
-                        isLongPress = true;
-                        down = false;
-                        cell.classList.remove('pressing');
-                        openModal(cell);
-                    }, 400); // 💡 長押しの時間（ミリ秒）
+                        if (!isScrolling && down) {
+                            isLongPress = true;
+                            down = false;
+                            document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                            openModal(cell);
+                        }
+                    }, 400); // 💡 長押しの時間
                 };
 
                 const handleMove = (e, x, y) => {
-                    if (selectedMode === -1) return; // 💡 移動モード時は無視
-                    if(!down) return;
-                    if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) {
+                    if (selectedMode === -1 || !down) return;
+
+                    const dx = Math.abs(x - startX);
+                    const dy = Math.abs(y - startY);
+
+                    // タッチ直後の動きで、スクロールか色塗りかを判定する
+                    if (!isScrolling && (dx > 10 || dy > 10)) {
                         clearTimeout(pressTimer);
-                        document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                        if (dx > dy) {
+                            // 💡 横方向の移動が大きい ＝ スクロールと判定して色塗りをやめる！
+                            isScrolling = true;
+                            down = false; 
+                            document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                            return; 
+                        } else {
+                            // 💡 縦方向の移動が大きい ＝ 色塗りと判定
+                            isScrolling = true;
+                        }
                     }
-                    if(!isLongPress) {
+
+                    // 色塗りモード継続中の場合のみ塗る
+                    if (isScrolling && down) {
                         const cell = document.elementFromPoint(x, y)?.closest('.c');
                         if(cell) window.upd(cell, selectedMode);
                     }
                 };
 
                 const handleEnd = () => {
-                    if (down && pressTimer) clearTimeout(pressTimer);
+                    if (pressTimer) clearTimeout(pressTimer);
                     document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                    
+                    // スクロールせずに指を離したら「タップ」として色を塗る
+                    if (down && !isScrolling && !isLongPress && selectedMode !== -1) {
+                        const cell = document.elementFromPoint(startX, startY)?.closest('.c');
+                        if(cell) window.upd(cell, selectedMode);
+                    }
                     down = false;
+                    isScrolling = false;
                 };
 
-                g.onmousedown = e => handleStart(e, e.clientX, e.clientY);
+                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1 && !isScrolling) window.upd(e.target.closest('.c'), selectedMode); };
                 g.onmousemove = e => handleMove(e, e.clientX, e.clientY);
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
 
                 g.addEventListener('touchstart', e => { 
                     handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
-                    if(!isLongPress && selectedMode !== -1) e.preventDefault(); 
-                }, {passive: false});
+                    // 🚨 ここで preventDefault を呼ばないことで、ブラウザ本来の横スクロールを許可する
+                }, {passive: true});
+                
                 g.addEventListener('touchmove', e => { 
-                    if(down && selectedMode !== -1) { 
+                    if (selectedMode === -1) return;
+                    if(down) { 
                         handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
-                        e.preventDefault(); 
+                        // 縦スワイプ（色塗り）と判定された場合のみ、画面全体のスクロールを止める
+                        const dx = Math.abs(e.touches[0].clientX - startX);
+                        const dy = Math.abs(e.touches[0].clientY - startY);
+                        if (dy >= dx && e.cancelable) {
+                            e.preventDefault(); 
+                        }
                     } 
                 }, {passive: false});
                 g.addEventListener('touchend', handleEnd);
@@ -1902,7 +1936,7 @@ def main():
                     <button id="btn-next" class="page-btn" onclick="window.changeWeek(1)">次の週 ▶</button>
                 </div>
             </div>
-            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;">
                 <div id="g" style="display:flex; min-width: max-content; width: 100%; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}

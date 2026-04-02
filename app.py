@@ -632,7 +632,8 @@ if not os.path.exists("custom_editor"):
                 let isLongPress = false;
                 let startX = 0, startY = 0;
                 
-                let isScrolling = false;
+                // 💡 追加: スクロール判定フラグ
+                let touchMode = null; // 'paint' または 'scroll'
 
                 const handleStart = (e, x, y) => {
                     if (selectedMode === -1) return; // ✋移動モード時は無視
@@ -640,83 +641,80 @@ if not os.path.exists("custom_editor"):
                     if(!cell) return;
                     down = true;
                     isLongPress = false;
-                    isScrolling = false;
+                    touchMode = null; // 💡 タッチごとにリセット
                     startX = x; startY = y;
                     
-                    // すぐに色を塗らず、少し待つ（スクロール判定のため）
                     pressTimer = setTimeout(() => {
-                        if (!isScrolling && down) {
+                        if (touchMode !== 'scroll' && down) {
                             isLongPress = true;
                             down = false;
                             document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
                             openModal(cell);
                         }
-                    }, 400); // 💡 長押しの時間
+                    }, 400); // 長押しの時間
                 };
 
-                const handleMove = (e, x, y) => {
+                g.addEventListener('touchstart', e => { 
+                    if (e.touches.length > 1) return; // 複数指タップは無視
+                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
+                }, {passive: true}); // 💡 passive: true でブラウザのスクロール準備を邪魔しない
+                
+                g.addEventListener('touchmove', e => { 
                     if (selectedMode === -1 || !down) return;
-
+                    
+                    const x = e.touches[0].clientX;
+                    const y = e.touches[0].clientY;
                     const dx = Math.abs(x - startX);
                     const dy = Math.abs(y - startY);
 
-                    // タッチ直後の動きで、スクロールか色塗りかを判定する
-                    if (!isScrolling && (dx > 10 || dy > 10)) {
-                        clearTimeout(pressTimer);
-                        if (dx > dy) {
-                            // 💡 横方向の移動が大きい ＝ スクロールと判定して色塗りをやめる！
-                            isScrolling = true;
-                            down = false; 
-                            document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                            return; 
-                        } else {
-                            // 💡 縦方向の移動が大きい ＝ 色塗りと判定
-                            isScrolling = true;
+                    // 💡 スワイプ直後に「縦」か「横」か判定する
+                    if (touchMode === null) {
+                        if (dx > 10 || dy > 10) {
+                            clearTimeout(pressTimer);
+                            if (dx > dy * 1.2) { 
+                                // 横方向への移動が大きい ＝ スクロールと判定
+                                touchMode = 'scroll';
+                                down = false; // 色塗りを強制終了
+                                document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                                return; // returnすることで native の横スクロールが発動する！
+                            } else {
+                                // 縦方向への移動が大きい ＝ 色塗りと判定
+                                touchMode = 'paint';
+                                const cell = document.elementFromPoint(startX, startY)?.closest('.c');
+                                if(cell) window.upd(cell, selectedMode);
+                            }
                         }
                     }
 
-                    // 色塗りモード継続中の場合のみ塗る
-                    if (isScrolling && down) {
+                    // 色塗りと判定された場合のみ処理を続ける
+                    if (touchMode === 'paint') {
+                        if (e.cancelable) e.preventDefault(); // 縦スクロールを防止
                         const cell = document.elementFromPoint(x, y)?.closest('.c');
                         if(cell) window.upd(cell, selectedMode);
                     }
-                };
+                }, {passive: false});
 
                 const handleEnd = () => {
                     if (pressTimer) clearTimeout(pressTimer);
                     document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
                     
-                    // スクロールせずに指を離したら「タップ」として色を塗る
-                    if (down && !isScrolling && !isLongPress && selectedMode !== -1) {
+                    // 指を動かさずに離した場合は「タップ（色塗り）」として処理
+                    if (down && touchMode === null && !isLongPress && selectedMode !== -1) {
                         const cell = document.elementFromPoint(startX, startY)?.closest('.c');
                         if(cell) window.upd(cell, selectedMode);
                     }
                     down = false;
-                    isScrolling = false;
+                    touchMode = null;
                 };
 
-                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1 && !isScrolling) window.upd(e.target.closest('.c'), selectedMode); };
-                g.onmousemove = e => handleMove(e, e.clientX, e.clientY);
+                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1) window.upd(e.target.closest('.c'), selectedMode); };
+                g.onmousemove = e => {
+                    if (selectedMode === -1 || !down) return;
+                    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.c');
+                    if(cell) window.upd(cell, selectedMode);
+                }
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
-
-                g.addEventListener('touchstart', e => { 
-                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
-                    // 🚨 ここで preventDefault を呼ばないことで、ブラウザ本来の横スクロールを許可する
-                }, {passive: true});
-                
-                g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1) return;
-                    if(down) { 
-                        handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
-                        // 縦スワイプ（色塗り）と判定された場合のみ、画面全体のスクロールを止める
-                        const dx = Math.abs(e.touches[0].clientX - startX);
-                        const dy = Math.abs(e.touches[0].clientY - startY);
-                        if (dy >= dx && e.cancelable) {
-                            e.preventDefault(); 
-                        }
-                    } 
-                }, {passive: false});
                 g.addEventListener('touchend', handleEnd);
                 
                 const btn = document.getElementById("submit-btn");
@@ -1937,7 +1935,7 @@ def main():
                 </div>
             </div>
             <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;">
-                <div id="g" style="display:flex; min-width: max-content; width: 100%; user-select:none; {pointer_css}">
+                <div id="g" style="display:flex; min-width: 100%; width: max-content; user-select:none; {pointer_css}">
                     {time_col_html}
                     {day_cols_html}
                 </div>
@@ -2186,21 +2184,19 @@ def main():
 
                     agg_css = f"""
                     <style>
-                    /* ▼ 修正: display: flex を外し、スクロールの挙動を調整 ▼ */
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow: auto; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; }}
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; width: 65px; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
-                    .agg-day-col {{ flex: 1; min-width: 85px; box-sizing: border-box; }}
+                    /* 👇 変更: flex: 1 1 0% に強制することで、コンテナ幅を完全に均等分割させる */
+                    .agg-day-col {{ flex: 1 1 0%; min-width: 85px; box-sizing: border-box; }}
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; }}
                     
-                    /* ▼ 修正: max-height を追加し、ツールチップ内部でスクロール可能にする (pointer-events: auto;) ▼ */
                     .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
                     .agg-cell .tooltip::-webkit-scrollbar {{ width: 4px; }}
                     .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
                     .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
                     
-                    /* ▼ 追加: 1行目・2行目用の下向きツールチップスタイル ▼ */
                     .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
                     .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
                     
@@ -2208,8 +2204,15 @@ def main():
                     .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
                     </style>
                     """
-                    # 👇 変更: min-width: max-content; width: 100%; にして、時間割(5日分)の時の右側の余白を消す
-                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;'><div style='display:flex; min-width: max-content; width: 100%;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    
+                    # 🛠️ [デバッグ機能] 万が一まだ空白が出る場合の調査用
+                    if st.checkbox("🛠️ [管理者用] 集計レイアウトのデバッグ表示", value=False):
+                        st.info(f"【デバッグ】表示列数: {len(disp_date_strs)}列 | 時間枠: {len(disp_time_labels)}枠")
+                        agg_css += "<style>.agg-wrapper { border: 2px solid red !important; } .agg-day-col { border: 1px dashed blue !important; background: #f9f9f9; }</style>"
+
+                    # 👇 変更: min-width: 100%; width: max-content; に修正。これで5日分の時は100%に広がり空白が消える
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-right: 1px solid #ccc;'><div style='display:flex; min-width: 100%; width: max-content; background: #fdfdfd;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
+                    
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")
                         for c in comments_list: st.info(f"**{c['user']}**: {c['comment']}")

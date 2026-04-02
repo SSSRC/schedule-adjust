@@ -1799,7 +1799,8 @@ def main():
             STR_TO_VAL = {"× 不可": 0, "◯ 可": 1, "△ 未定": 2, "⬜ 授業等": 3}
 
             if "ui_df" not in st.session_state or st.session_state.get("last_build_ev_id") != event.get('event_id'):
-                st.session_state.ui_df = st.session_state.df_input.replace(VAL_TO_STR)
+                # 💡 修正: Pandasの内部クラッシュを回避するため、applyとmapで安全に変換
+                st.session_state.ui_df = st.session_state.df_input.apply(lambda col: col.map(VAL_TO_STR))
                 st.session_state.editor_key_version = 0
 
             st.markdown("##### 🪄 一括指定ツール")
@@ -1849,7 +1850,8 @@ def main():
             my_comment = st.text_area("コメント", value=st.session_state.my_comment, label_visibility="collapsed")
 
             if st.button("✅ すべて記入して提出", type="primary", use_container_width=True):
-                final_df = edited_df.replace(STR_TO_VAL)
+                # 💡 修正: 提出時も安全な変換メソッドを使用
+                final_df = edited_df.apply(lambda col: col.map(STR_TO_VAL))
                 all_res = []
                 for d_id in date_strs:
                     bits = ["0"] * 96

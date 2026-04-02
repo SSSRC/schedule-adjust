@@ -29,6 +29,9 @@ APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 # ==========================================
 st.markdown("""
     <style>
+        @media (max-width: 650px) {
+            .main .block-container { padding-left: 25px !important; padding-right: 5px !important; }
+        }
         .stDeployStatus, [data-testid="stStatusWidget"] label { display: none !important; }
         [data-testid="stStatusWidget"] { visibility: visible !important; display: flex !important; position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: rgba(255, 255, 255, 0.95) !important; color: #333 !important; padding: 20px 40px !important; border-radius: 12px !important; z-index: 999999 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; border: 2px solid #4CAF50 !important; text-align: center !important; justify-content: center !important; }
         [data-testid="stStatusWidget"]::after { content: "⏳ 通信中 \\A 処理しています..."; white-space: pre-wrap; font-size: 20px !important; font-weight: bold !important; line-height: 1.5 !important; }
@@ -421,6 +424,7 @@ if not os.path.exists("custom_editor"):
             <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
             <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
+            <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#e3f2fd; color:#0277bd; border:1px solid #81d4fa; font-size:12px; margin-top:5px;">✋<br>移動</button>
             <div style="font-size:10px; color:#888; text-align:center; line-height:1.2; margin-top:-5px;">※長押しで<br>メモ入力</div>
         </div>
 
@@ -566,9 +570,10 @@ if not os.path.exists("custom_editor"):
         let selectedMode = 1;
         window.setPen = function(mode) {
             selectedMode = mode;
-            [0, 1, 2].forEach(m => {
+            /* 👇 変更: -1 (移動モード) を追加 */
+            [-1, 0, 1, 2].forEach(m => {
                 const b = document.getElementById('pen-' + m);
-                b.classList.remove('active');
+                if(b) b.classList.remove('active');
             });
             document.getElementById('pen-' + mode).classList.add('active');
         };
@@ -628,6 +633,7 @@ if not os.path.exists("custom_editor"):
                 let startX = 0, startY = 0;
                 
                 const handleStart = (e, x, y) => {
+                    if (selectedMode === -1) return; // 💡 追加: 移動モード時はスクロールを妨害しない
                     const cell = e.target.closest('.c');
                     if(!cell) return;
                     down = true;
@@ -644,6 +650,7 @@ if not os.path.exists("custom_editor"):
                 };
 
                 const handleMove = (e, x, y) => {
+                    if (selectedMode === -1) return; // 💡 追加: 移動モード時は無視
                     if(!down) return;
                     if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) {
                         clearTimeout(pressTimer);
@@ -661,26 +668,9 @@ if not os.path.exists("custom_editor"):
                     down = false;
                 };
 
-                g.onmousedown = e => handleStart(e, e.clientX, e.clientY);
-                g.onmousemove = e => handleMove(e, e.clientX, e.clientY);
-                window.onmouseup = handleEnd;
-                window.onmouseleave = handleEnd; 
-
-                g.addEventListener('touchstart', e => { 
-                    // 💡 追加: セル（マス目）以外を触った時は、処理を中断してブラウザ標準のスクロールを許可する
-                    const cell = e.target.closest('.c');
-                    if(!cell) return; 
-
-                    handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
-                    if(!isLongPress) e.preventDefault();
-                }, {passive: false});
-                g.addEventListener('touchmove', e => { 
-                    if(down) { 
-                        handleMove(e, e.touches[0].clientX, e.touches[0].clientY); 
-                        e.preventDefault(); 
-                    } 
-                }, {passive: false});
-                g.addEventListener('touchend', handleEnd);
+                const handleMove = (e, x, y) => {
+                    if (selectedMode === -1) return; // 💡 追加: 移動モード時は無視
+                    if(!down) return;
                 
                 const btn = document.getElementById("submit-btn");
                 if(btn) { btn.onclick = () => { 
@@ -1901,12 +1891,12 @@ def main():
             </div>
             <div style="display: flex; width: 100%;">
                 <div style="width: 15px; flex-shrink: 0; background: transparent;"></div>
-                <div class="scroll-wrapper" style="flex: 1; max-width: calc(100vw - 15px); -webkit-overflow-scrolling: touch;">
-                    <div id="g" style="display:flex; width:max-content; min-width:100%; user-select:none; {pointer_css}">
-                        {time_col_html}
-                        {day_cols_html}
-                    </div>
+                <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <div id="g" style="display:flex; min-width: max-content; width: 100%; user-select:none; {pointer_css}">
+                    {time_col_html}
+                    {day_cols_html}
                 </div>
+            </div>
             </div>
             {submit_btn_html}
             """
@@ -2174,9 +2164,8 @@ def main():
                     .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
                     </style>
                     """
-                    # ▼ 修正: 左側に15pxのスクロール用余白を設け、横幅が縮まないようにラップする ▼
-                    st.markdown(f"{agg_css}<div style='display:flex; width:100%;'><div style='width:15px; flex-shrink:0;'></div><div class='agg-wrapper' style='flex:1; max-width:calc(100vw - 15px); -webkit-overflow-scrolling:touch;'><div style='display:flex; width:max-content; min-width:100%;'>{agg_time_col}{agg_day_cols}</div></div></div>", unsafe_allow_html=True)
-                    
+                    # 👇 変更: min-width: max-content; width: 100%; にして、時間割(5日分)の時の右側の余白を消す
+                    st.markdown(f"{agg_css}<div class='agg-wrapper' style='width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;'><div style='display:flex; min-width: max-content; width: 100%;'>{agg_time_col}{agg_day_cols}</div></div>", unsafe_allow_html=True)
                     if comments_list and can_view_details:
                         st.markdown("### 💬 参加者からのコメント")
                         for c in comments_list: st.info(f"**{c['user']}**: {c['comment']}")

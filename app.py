@@ -1041,6 +1041,49 @@ def main():
                 except Exception as e: 
                     st.error(f"更新に失敗しました: {e}")
                     
+        # ---------- ここから追加 ----------
+        st.markdown("---")
+        st.markdown("##### 🔐 セキュリティ設定 (PIN・合言葉の変更)")
+        with st.expander("PINや合言葉を変更する"):
+            st.write("本人確認のため、現在のPINを入力してから新しい情報を設定してください。")
+            with st.form("security_update_form"):
+                current_p = st.text_input("現在のPIN (必須)", type="password")
+                st.markdown("<br>", unsafe_allow_html=True)
+                new_p = st.text_input("新しいPIN (変更しない場合は空欄)", type="password")
+                new_s = st.text_input("新しい秘密の合言葉 (変更しない場合は空欄)")
+                
+                if st.form_submit_button("更新する", use_container_width=True, type="primary"):
+                    if not current_p:
+                        st.error("エラー: 現在のPINを入力してください。")
+                    # 現在のPINがハッシュ値または平文（過去互換）と一致するか確認
+                    elif hash_pin(current_p) != user.get("pin") and current_p != user.get("pin"):
+                        st.error("エラー: 現在のPINが間違っています。")
+                    elif not new_p and not new_s:
+                        st.warning("変更する新しいPINまたは合言葉を入力してください。")
+                    else:
+                        updates = {}
+                        if new_p: updates["pin"] = hash_pin(new_p)
+                        if new_s: updates["secret_word"] = hash_pin(new_s)
+                        
+                        try:
+                            db.collection("users").document(str(user["user_id"])).update(updates)
+                            
+                            # GASへのバックアップ
+                            gas_payload = {"user_id": user["user_id"]}
+                            if new_p: gas_payload["pin"] = "PROTECTED"
+                            if new_s: gas_payload["secret_word"] = "PROTECTED"
+                            backup_to_gas_async("update_user", {"payload": gas_payload})
+                            
+                            # セッションの更新
+                            updated_u = {**user, **updates}
+                            st.session_state.auth = updated_u
+                            st.success("✅ セキュリティ情報を更新しました！")
+                            time.sleep(1.0)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"更新に失敗しました: {e}")
+        # ---------- ここまで追加 ----------
+
         st.markdown("---")
         st.markdown("##### ⚠️ アカウントの削除（退会）")
         with st.expander("退会手続きを開く"):

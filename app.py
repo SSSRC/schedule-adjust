@@ -271,7 +271,7 @@ if not os.path.exists("rt_editor"):
                 const url = prompt('リンク先のURLを入力', 'https://');
                 if (url) { const text = prompt('表示するテキストを入力', 'こちらをクリック'); if (text) { const linkTag = `<a href='${url}' target='_blank'>${text}</a>`; const start = editor.selectionStart; const val = editor.value; editor.value = val.substring(0, start) + linkTag + val.substring(editor.selectionEnd); sendValue(); } }
             }
-            editor.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(sendValue, 500); });
+            // 💡 文字入力中の自動送信を削除し、フォーカスが外れた時だけ送信するように変更
             editor.addEventListener('blur', sendValue);
             window.addEventListener("message", function(event) { if (event.data.type === "streamlit:render") { sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 15}); } });
             init();
@@ -1309,6 +1309,8 @@ def main():
         
         if st.button("🚀 イベントを作成", use_container_width=True, type="primary"):
             if not ev_title: st.warning("イベント名を入力してください。")
+            # 💡 日付が未入力(None)のまま送信された際のエラーを防ぐチェックを追加
+            elif ev_type == "time" and (not ev_start or not ev_end): st.error("開始日と終了日を正しく入力してください。")
             elif ev_type == "time" and ev_start > ev_end: st.error("終了日は開始日以降に設定してください。")
             elif ev_type == "time" and time_master.index(t_start) >= time_master.index(t_end): st.error("終了時刻は開始時刻より後に設定してください。")
             elif ev_type == "options" and not any(o.strip() for o in opts_list): st.error("最低1つの候補を入力してください。")

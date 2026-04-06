@@ -1444,16 +1444,94 @@ def main():
                 st.markdown("<style>.custom-tbl { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; } .custom-tbl th { background-color: #f0f2f6; padding: 10px; border-bottom: 2px solid #4CAF50; white-space: nowrap; } .custom-tbl td { padding: 10px; border-bottom: 1px solid #eee; word-break: break-all; }</style>" + f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_ev}</div>', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                st.subheader("⚙️ ステータス手動変更")
-                if active_events:
-                    with st.form("update_status_form"):
-                        target_ev = st.selectbox("対象イベント", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})")
-                        new_status = st.selectbox("ステータス", ["open", "closed", "archived"], index=1)
-                        if st.form_submit_button("更新する"):
-                            db.collection("events").document(target_ev['event_id']).update({"status": new_status})
-                            backup_to_gas_async("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}})
-                            st.toast("ステータスを更新しました", icon="✅")
-                            st.rerun()
+                st.subheader("⚙️ イベントの編集・ステータス管理・削除")
+                if all_events:
+                    # active_eventsだけでなく、全イベントを対象に選択できるように変更
+                    target_ev = st.selectbox("管理するイベントを選択", all_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})", key="manage_target_ev")
+                    
+                    tab_edit, tab_status, tab_delete = st.tabs(["✏️ 情報編集", "⚙️ ステータス変更", "🗑️ 削除"])
+                    
+                    # 1. 編集機能のタブ（タイトル・説明文・期限のみ変更可）
+                    with tab_edit:
+                        with st.form("edit_event_form"):
+                            st.info("💡 日程の枠組みは変更できません。タイトル、説明文、回答期限のみ編集可能です。")
+                            new_title = st.text_input("タイトル", value=target_ev.get('title', ''))
+                            new_desc = st.text_area("説明文・備考 (HTMLタグが含まれる場合があります)", value=target_ev.get('description', ''), height=150)
+                            
+                            orig_deadline = target_ev.get('deadline') or target_ev.get('close_time', '')
+                            try:
+                                dt = pd.to_datetime(orig_deadline)
+                                d_val = dt.date()
+                                t_val = dt.time()
+                            except:
+                                d_val = datetime.today().date()
+                                t_val = datetime.strptime("23:59", "%H:%M").time()
+                                
+                            col_d1, col_d2 = st.columns([1, 1])
+                            with col_d1: new_dl_date = st.date_input("回答期限 (日付)", value=d_val, key="edit_dl_d")
+                            with col_d2: new_dl_time = st.time_input("回答期限 (時刻)", value=t_val, key="edit_dl_t")
+                            
+                            if st.form_submit_button("💾 変更を保存", type="primary"):
+                                if not new_title:
+                                    st.error("タイトルは必須です。")
+                                else:
+                                    new_dl_str = f"{new_dl_date.strftime('%Y-%m-%d')} {new_dl_time.strftime('%H:%M')}"
+                                    updates = {
+                                        "title": new_title,
+                                        "description": new_desc,
+                                        "deadline": new_dl_str
+                                    }
+                                    db.collection("events").document(target_ev['event_id']).update(updates)
+                                    backup_to_gas_async("update_event", {"payload": {"event_id": target_ev['event_id'], **updates}})
+                                    st.toast("✅ イベント情報を更新しました")
+                                    time.sleep(1)
+                                    st.rerun()
+
+                    # 2. ステータス変更のタブ（元の機能）
+                    with tab_status:
+                        with st.form("update_status_form"):
+                            current_status = target_ev.get('status', 'open')
+                            status_opts = ["open", "closed", "archived"]
+                            idx = status_opts.index(current_status) if current_status in status_opts else 0
+                            new_status = st.selectbox("ステータス", status_opts, index=idx)
+                            if st.form_submit_button("更新する"):
+                                db.collection("events").document(target_ev['event_id']).update({"status": new_status})
+                                backup_to_gas_async("update_event_status", {"payload": {"event_id": target_ev['event_id'], "status": new_status}})
+                                st.toast("✅ ステータスを更新しました")
+                                time.sleep(1)
+                                st.rerun()
+
+                    # 3. 削除機能のタブ（安全対策あり）
+                    with tab_delete:
+                        st.warning("⚠️ **イベントの削除**\n\n削除すると元に戻せません。回答データもすべて削除されます。")
+                        
+                        # Firestoreから回答数を取得して警告表示
+                        ans_docs = list(db.collection("responses").where("event_id", "==", target_ev['event_id']).stream())
+                        ans_count = len(ans_docs)
+                        
+                        if ans_count > 0:
+                            st.error(f"🚨 **すでに {ans_count} 件の回答があります！**")
+                        else:
+                            st.info("回答はまだありません。")
+                            
+                        ev_id_str = target_ev['event_id']
+                        last_4 = ev_id_str[-4:] if len(ev_id_str) >= 4 else ev_id_str
+                        
+                        with st.form("delete_event_form"):
+                            st.write(f"誤操作を防ぐため、イベントIDの下4桁「**{last_4}**」を入力してください。")
+                            confirm_str = st.text_input("イベントIDの下4桁", key="del_confirm")
+                            
+                            if st.form_submit_button("🗑️ イベントを完全に削除する"):
+                                if confirm_str == last_4:
+                                    db.collection("events").document(ev_id_str).delete()
+                                    for d in ans_docs:
+                                        db.collection("responses").document(d.id).delete()
+                                    backup_to_gas_async("delete_event", {"payload": {"event_id": ev_id_str}})
+                                    st.toast("🗑️ イベントを削除しました")
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("入力された確認コードが一致しません。")
                             
                 st.markdown("---")
                 st.subheader("👀 未回答者の抽出")

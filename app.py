@@ -897,7 +897,8 @@ def main():
                     with st.form("recovery_auth_form"):
                         st.markdown("<small>登録時に設定した合言葉がわかる方はこちら</small>", unsafe_allow_html=True)
                         rec_n = st.text_input("氏名", autocomplete="username")
-                        rec_s = st.text_input("秘密の合言葉", type="password")
+                        # 👇 修正：type="password" を削除して日本語入力を可能にする
+                        rec_s = st.text_input("秘密の合言葉")
                         new_p = st.text_input("設定したい新しいPIN", type="password", autocomplete="new-password")
                         if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
                             clean_n = rec_n.replace(" ","").replace("　","")

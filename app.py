@@ -15,7 +15,7 @@ import uuid
 import hashlib
 
 def hash_pin(pin_str):
-    """PINをSHA-256でハッシュ化する関数"""
+    """PINをSHA-256でハッシュ化する関数"""
     if not pin_str: return ""
     return hashlib.sha256(pin_str.encode('utf-8')).hexdigest()
 

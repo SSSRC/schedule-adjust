@@ -820,22 +820,6 @@ def format_deadline_jp(date_str):
     except:
         return str(date_str)
 
-campus_legend_html = """
-<div style="margin: 10px 0 20px 0; padding: 12px; background: #fdfdfd; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 13px; line-height: 1.8; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-    <strong style="color:#2e7d32; display:block; margin-bottom:8px; font-size: 14px;">🎨 キャンパスの色と文字</strong>
-    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#FFA726; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">な</span> なかもず</span>
-    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#42A5F5; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">す</span> 杉本</span>
-    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#66BB6A; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">も</span> もりのみや</span>
-    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#EC407A; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">あ</span> あべの</span>
-    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#AB47BC; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">り</span> りんくう</span>
-    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#9E9E9E; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">他</span> 移動/その他</span>
-    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#E0E0E0; color:#555; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">授</span> 授業等</span>
-    <div style="color:#d32f2f; font-weight:bold; font-size:12px; margin-top:8px; border-top:1px dashed #ddd; padding-top:6px;">
-        ※「未定(△)」を選ぶと、同じ色が薄く（半透明に）表示されます。
-    </div>
-</div>
-"""
-
 # ==========================================
 # 時間割マスターの定義（昼休みを追加）
 # ==========================================
@@ -1094,7 +1078,6 @@ def main():
             if not clean_name:
                 st.error("氏名は空にできません。")
             else:
-                # 名前が変更された場合は重複チェック
                 if clean_name != user.get('name'):
                     existing = list(db.collection("users").where("name", "==", clean_name).stream())
                     if existing:
@@ -1151,13 +1134,11 @@ def main():
                         try:
                             db.collection("users").document(str(user["user_id"])).update(updates)
                             
-                            # GASへのバックアップ
                             gas_payload = {"user_id": user["user_id"]}
                             if new_p: gas_payload["pin"] = "PROTECTED"
                             if new_s: gas_payload["secret_word"] = "PROTECTED"
                             backup_to_gas_async("update_user", {"payload": gas_payload})
                             
-                            # セッションの更新
                             updated_u = {**user, **updates}
                             st.session_state.auth = updated_u
                             st.success("✅ セキュリティ情報を更新しました！")
@@ -1834,7 +1815,6 @@ def main():
 
     current_ev_id = st.session_state.get("target_ev_id", "")
     
-    # 🚀 ここで Firestore からデータを取得し、events 変数を定義します
     all_users_fs, events, user_map_fs = get_app_data_from_firestore(user)
 
     if not events: 
@@ -1937,7 +1917,6 @@ def main():
         st.markdown(f"<div style='color: #E91E63; font-weight: bold; margin-bottom: 10px;'>⏳ 回答期限: {format_deadline_jp(ev_close_time)}</div>", unsafe_allow_html=True)
 
     if event.get('description'): 
-        # 💡 st.expander をやめて、直接 st.markdown で表示（折りたたまない）
         st.markdown("##### 📝 イベントの説明・管理者からのメッセージ")
         st.markdown(f"<div style='font-size:14px; line-height:1.6; background:#f8f9fa; padding:15px; border-radius:8px; border-left:4px solid #4CAF50; margin-bottom:20px;'>{event['description'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
         
@@ -2011,7 +1990,7 @@ def main():
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
         elif event_type == 'date_timetable':
-            s_idx, e_idx = 0, len(PERIODS_MASTER) + 1 # 1限〜5限＋昼休み＋放課後
+            s_idx, e_idx = 0, len(PERIODS_MASTER) + 1 
             time_labels = [p[0] for p in PERIODS_MASTER] + ["放課後"]
             scroll_h = "auto"
             cell_h = "50px"
@@ -2037,7 +2016,7 @@ def main():
                     u_rows = []
                     for r, (p_name, _, p_start, p_end, p_key) in enumerate(PERIODS_MASTER):
                         if "1" in day_bin[p_start:p_end]: u_rows.append(r)
-                    if "1" in day_bin[74:]: u_rows.append(len(PERIODS_MASTER)) # 放課後
+                    if "1" in day_bin[74:]: u_rows.append(len(PERIODS_MASTER)) 
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
         if "df_input" not in st.session_state or st.session_state.get("last_build_ev_id") != event.get('event_id'):
@@ -2067,14 +2046,6 @@ def main():
             if event_type == 'time': cell_h = "36px"
 
         with tab_in:
-            user_campuses = [x.strip() for x in str(user.get('group_1', '')).split(',') if x.strip()]
-            default_campus_initial = user_campuses[0] if user_campuses else "なかもず"
-            
-            with st.expander("🎨 色の意味 / 💡 基本的な使い方", expanded=False):
-                st.markdown(campus_legend_html, unsafe_allow_html=True)
-                st.markdown("<p style='font-size:14px; font-weight:bold; color:#2196F3;'>※詳しい操作のコツや便利ツールの使い方は、左側メニューの「📖 使い方ガイド」をご覧ください。</p>", unsafe_allow_html=True)
-
-            # 💡 カレンダー連携を expander の中に入れる
             if event_type == 'time':
                 with st.expander("📅 Googleカレンダー連携（自動反映）", expanded=False):
                     c_import1, c_import2 = st.columns([3, 1])
@@ -2258,7 +2229,6 @@ def main():
                 unavailColRows=unavail_col_rows, 
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
-                defaultCampus=default_campus_initial,
                 default=None, 
                 key=f"editor_v11_{event.get('event_id')}"
             )
@@ -2492,12 +2462,12 @@ def main():
 
                     agg_css_template = """
                     <style>
-                    /* 💡 Streamlit特有のコンテナの切り取り(overflow:hidden)を強制的に解除 */
+                    /* Streamlit特有のコンテナの切り取り(overflow:hidden)を強制的に解除 */
                     .stTabs [data-baseweb="tab-panel"] { overflow: visible !important; padding-bottom: 200px; }
                     div[data-testid="stVerticalBlock"] { overflow: visible !important; }
                     div[data-testid="stVerticalBlockBorderWrapper"] { overflow: visible !important; }
                     
-                    /* 💡 グラフ全体を包む枠。下部に十分な余白(padding-bottom)を取り、ツールチップが隠れないようにする */
+                    /* グラフ全体を包む枠。下部に十分な余白を取り、ツールチップが隠れないようにする */
                     .agg-wrapper { 
                         max-height: 70vh; 
                         height: VAR_SCROLL_H; 
@@ -2527,10 +2497,9 @@ def main():
                     
                     .agg-day-col { box-sizing: border-box; }
                     
-                    /* マス目の設定（overflow: visible にしてツールチップが枠外に出れるようにする） */
                     .agg-cell { border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible !important; }
                     
-                    /* 💡 ツールチップの本体設定。z-indexを極端に高くする */
+                    /* ツールチップの本体設定。z-indexを極端に高くする */
                     .agg-cell .tooltip { 
                         visibility: hidden; 
                         width: 200px; 
@@ -2558,24 +2527,19 @@ def main():
                         -webkit-overflow-scrolling: touch; 
                     }
                     
-                    /* ツールチップ内のスクロールバーを少し太く・見やすく */
                     .agg-cell .tooltip::-webkit-scrollbar { width: 8px; }
                     .agg-cell .tooltip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.5); border-radius: 4px; }
                     
-                    /* ツールチップの吹き出しの三角形（上部用） */
                     .agg-cell .tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -8px; border-width: 8px; border-style: solid; border-color: rgba(30,30,30,0.95) transparent transparent transparent; }
                     
-                    /* 下向きに表示させるツールチップ（画面上部のマス用） */
                     .agg-cell .tooltip-bottom { top: 100%; bottom: auto; margin-top: 8px; margin-bottom: 0; }
                     .agg-cell .tooltip-bottom::after { bottom: 100%; top: auto; margin-top: -8px; border-color: transparent transparent rgba(30,30,30,0.95) transparent; }
                     
-                    /* ホバー時の表示 */
                     .agg-cell:hover .tooltip { visibility: visible; opacity: 1; }
-                    
                     .agg-time-cell { background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }
                     </style>
                     """
-
+                    
                     agg_css = agg_css_template.replace("VAR_SCROLL_H", agg_scroll_h).replace("VAR_COLS", str(len(disp_date_strs)))
 
                     st.markdown(f"""

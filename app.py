@@ -378,10 +378,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 v9へアップデート（詳細ボタン追加・長押し廃止・キャッシュクリア用）
-if not os.path.exists("custom_editor_v9"):
-    os.makedirs("custom_editor_v9", exist_ok=True)
-    with open("custom_editor_v9/index.html", "w", encoding="utf-8") as f:
+# 🚀 v10へアップデート（長押し廃止・キャッシュクリア用）
+if not os.path.exists("custom_editor_v10"):
+    os.makedirs("custom_editor_v10", exist_ok=True)
+    with open("custom_editor_v10/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -393,11 +393,11 @@ if not os.path.exists("custom_editor_v9"):
         .modal-content{background:#fff;width:320px;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);position:relative;}
         .modal-title{font-size:16px;font-weight:bold;color:#333;margin-bottom:10px;border-bottom:2px solid #4CAF50;padding-bottom:5px;}
         .modal-label{font-size:12px;font-weight:bold;color:#666;margin-top:15px;display:block;}
-        .modal-input{width:100%;padding:8px;margin-top:5px;border:1px solid #ccc;border-radius:6px;font-size:14px;}
+        .modal-select, .modal-input{width:100%;padding:8px;margin-top:5px;border:1px solid #ccc;border-radius:6px;font-size:14px;}
         .status-switch{display:flex;gap:8px;margin-top:5px;}
         .sw-btn{flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;background:#f9f9f9;color:#555;transition:0.2s;}
         .sw-btn.active[data-v="1"]{background:#4CAF50;color:white;border-color:#4CAF50;}
-        .sw-btn.active[data-v="2"]{background:#FFEB3B;color:#333;border-color:#FBC02D;}
+        .sw-btn.active[data-v="2"]{background:#81C784;color:#fff;border-color:#81C784;opacity:0.8;}
         .sw-btn.active[data-v="0"]{background:#fff;color:#333;border-color:#999;}
         .modal-btns{display:flex;gap:10px;margin-top:20px;}
         .modal-btn-save{flex:1;background:#4CAF50;color:white;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;}
@@ -408,7 +408,7 @@ if not os.path.exists("custom_editor_v9"):
         <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.95); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.2); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
             <div style="font-size:12px; font-weight:bold; color:#666; text-align:center; pointer-events:none; user-select:none; margin-bottom:-4px;">🖊️ ペン</div>
             <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
-            <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
+            <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#81C784; color:#fff;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
             <hr style="margin:0; border-top:1px solid #ddd;">
             <button class="pen-btn" onclick="window.setPen(-2)" id="pen--2" style="background:#2196F3; color:#fff; border:2px solid #1976D2; font-size:11px;">ℹ️<br>詳細</button>
@@ -424,6 +424,16 @@ if not os.path.exists("custom_editor_v9"):
                     <button class="sw-btn" data-v="2" onclick="setModalStatus(2)">△ 未定</button>
                     <button class="sw-btn" data-v="0" onclick="setModalStatus(0)">× 不可</button>
                 </div>
+                <label class="modal-label">🏫 キャンパスの指定</label>
+                <select id="modal-campus" class="modal-select">
+                    <option value="">指定なし</option>
+                    <option value="なかもず">なかもず</option>
+                    <option value="すぎもと">すぎもと</option>
+                    <option value="あべの">あべの</option>
+                    <option value="りんくう">りんくう</option>
+                    <option value="もりのみや">もりのみや</option>
+                    <option value="その他/移動中">その他 / 移動中</option>
+                </select>
                 <label class="modal-label">📝 補足コメント (任意)</label>
                 <input type="text" id="modal-note" class="modal-input" placeholder="例: 13:30に移動開始, 20分遅延">
                 <div class="modal-btns">
@@ -439,10 +449,8 @@ if not os.path.exists("custom_editor_v9"):
         function setComponentValue(value) { sendMessageToStreamlitClient("streamlit:setComponentValue", {value: value, dataType: "json"}); }
         
         let currentWeek = 0; let totalDays = 0; let numRows = 0; let unavailColRows = {};
-        window.cellDetails = {};
-        let modalStatus = 1;
-        let selectedMode = 1;
-        let editingCell = null;
+        window.cellDetails = {}; let defaultCampus = "";
+        let modalStatus = 1; let selectedMode = 1; let editingCell = null;
 
         const modalBg = document.getElementById('detail-modal');
         modalBg.addEventListener('mousedown', function(e) { if(e.target === this) closeModal(); });
@@ -450,16 +458,17 @@ if not os.path.exists("custom_editor_v9"):
 
         window.setModalStatus = function(v) {
             modalStatus = v;
-            document.querySelectorAll('.sw-btn').forEach(b => {
-                b.classList.toggle('active', parseInt(b.dataset.v) === v);
-            });
+            document.querySelectorAll('.sw-btn').forEach(b => { b.classList.toggle('active', parseInt(b.dataset.v) === v); });
         };
 
         window.openModal = function(cell) {
-            editingCell = cell;
-            const r = cell.dataset.r; const c = cell.dataset.c; const key = `${r}_${c}`;
-            const detail = window.cellDetails[key] || {note: ""};
+            editingCell = cell; const r = cell.dataset.r; const c = cell.dataset.c; const key = `${r}_${c}`;
+            const campusSelect = document.getElementById('ui-default-campus');
+            const currentDef = campusSelect ? campusSelect.value : defaultCampus;
+            
+            const detail = window.cellDetails[key] || {campus: currentDef, note: ""};
             setModalStatus(parseInt(cell.dataset.v) || 1);
+            document.getElementById('modal-campus').value = detail.campus || "";
             document.getElementById('modal-note').value = detail.note || "";
             document.getElementById('detail-modal').style.display = 'flex';
         };
@@ -472,45 +481,68 @@ if not os.path.exists("custom_editor_v9"):
         window.saveModal = function() {
             if(!editingCell) return;
             const r = editingCell.dataset.r; const c = editingCell.dataset.c; const key = `${r}_${c}`;
-            const note = document.getElementById('modal-note').value.trim();
-            if(note || modalStatus === 0) {
-                window.cellDetails[key] = {note: note};
-                window.upd(editingCell, modalStatus);
-            } else {
-                delete window.cellDetails[key];
-                window.upd(editingCell, modalStatus);
-            }
+            const campus = document.getElementById('modal-campus').value; const note = document.getElementById('modal-note').value.trim();
+            if(campus || note || modalStatus === 0) { window.cellDetails[key] = {campus: campus, note: note}; window.upd(editingCell, modalStatus); }
+            else { delete window.cellDetails[key]; window.upd(editingCell, modalStatus); }
             closeModal();
         };
 
-        window.upd = function(el, v) { 
-            el.dataset.v = v; 
-            const key = `${el.dataset.r}_${el.dataset.c}`;
-            let detail = window.cellDetails[key];
+        window.paintCell = function(cell, mode) {
+            if(!cell) return;
+            const key = `${cell.dataset.r}_${cell.dataset.c}`;
+            const campusSelect = document.getElementById('ui-default-campus');
+            const currentDefCampus = campusSelect ? campusSelect.value : defaultCampus;
             
-            if (v == 0) {
+            if (mode == 1 || mode == 2) {
+                let existingNote = window.cellDetails[key] ? window.cellDetails[key].note : "";
+                window.cellDetails[key] = {campus: currentDefCampus, note: existingNote};
+            } else if (mode == 0) {
+                let detail = window.cellDetails[key];
                 if (detail && (detail.note === "バイト/サークル等" || detail.note === "バイト/私用")) { }
-                else { delete window.cellDetails[key]; detail = null; }
+                else { delete window.cellDetails[key]; }
             }
+            window.upd(cell, mode);
+        };
 
-            let note = detail ? detail.note : "";
-
-            if (v == 1) { el.style.background = '#4CAF50'; el.style.backgroundImage = 'none'; }
-            else if (v == 2) { el.style.background = '#FFEB3B'; el.style.backgroundImage = 'none'; }
-            else if (v == 3) { el.style.background = '#e0e0e0'; el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,.7) 5px, rgba(255,255,255,.7) 10px)'; }
-            else { el.style.background = '#fff'; el.style.backgroundImage = 'none'; }
+        window.upd = function(el, v) { 
+            el.dataset.v = v; const key = `${el.dataset.r}_${el.dataset.c}`; let detail = window.cellDetails[key];
             
-            if (v == 0 && (note === "バイト/サークル等" || note === "バイト/私用")) {
-                el.style.backgroundImage = `repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px)`;
-            }
+            let campus = detail ? detail.campus : "";
+            let note = detail ? detail.note : "";
+            
+            let bgColor = '#fff'; let txt = ''; let txtColor = '#fff'; let opacity = 1.0;
 
-            const existingIcon = el.querySelector('.memo-icon');
-            const hasManualSetting = detail && detail.note !== "";
-            if (hasManualSetting) {
-                if (!existingIcon) el.insertAdjacentHTML('beforeend', '<div class="memo-icon">💬</div>');
-            } else {
-                if (existingIcon) existingIcon.remove();
+            if (v == 1 || v == 2) {
+                let info = { color: "#4CAF50", text: "◯" }; 
+                if (campus === "なかもず") info = { color: "#FFA726", text: "な" };
+                else if (campus === "すぎもと" || campus === "杉本") info = { color: "#42A5F5", text: "す" };
+                else if (campus === "もりのみや") info = { color: "#66BB6A", text: "も" };
+                else if (campus === "あべの" || campus === "阿倍野") info = { color: "#EC407A", text: "あ" };
+                else if (campus === "りんくう") info = { color: "#AB47BC", text: "り" };
+                else if (campus === "その他/移動中") info = { color: "#9E9E9E", text: "他" };
+                
+                bgColor = info.color;
+                txt = info.text;
+                if (v == 2) opacity = 0.4; 
+            } else if (v == 3) {
+                bgColor = '#E0E0E0'; txt = '授'; txtColor = '#555';
+            } else if (v == 0 && (note === "バイト/サークル等" || note === "バイト/私用")) {
+                bgColor = '#f5f5f5'; txt = '休'; txtColor = '#aaa';
             }
+            
+            el.style.backgroundColor = bgColor;
+            el.style.opacity = opacity;
+            el.style.backgroundImage = 'none';
+            el.style.color = txtColor;
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+
+            const showMemo = detail && detail.note !== "";
+            let innerHtml = '<span style="font-size:14px; font-weight:bold; pointer-events:none;">' + txt + '</span>';
+            if (showMemo) { innerHtml += '<div class="memo-icon">💬</div>'; }
+            
+            el.innerHTML = innerHtml;
         };
         
         window.renderWeek = function() {
@@ -520,7 +552,6 @@ if not os.path.exists("custom_editor_v9"):
             });
             const btnPrev = document.getElementById('btn-prev'); const btnNext = document.getElementById('btn-next');
             if(btnPrev) btnPrev.disabled = (currentWeek === 0); if(btnNext) btnNext.disabled = (end >= totalDays);
-            
             setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50}), 150);
         };
         window.changeWeek = function(dir) { currentWeek += dir; window.renderWeek(); };
@@ -529,14 +560,14 @@ if not os.path.exists("custom_editor_v9"):
             const val = document.getElementById('b-val').value;
             const sIdx = parseInt(document.getElementById('b-start').value); const eIdx = parseInt(document.getElementById('b-end').value);
             if(sIdx > eIdx) { alert('エラー：開始時刻は終了時刻より前に設定してください。'); return; }
-            document.querySelectorAll('.b-day-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); for(let r = sIdx; r <= eIdx; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.upd(cell, val); } } });
+            document.querySelectorAll('.b-day-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); for(let r = sIdx; r <= eIdx; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.paintCell(cell, val); } } });
             const origText = btnEl.innerText; btnEl.innerText = "✅ 完了"; setTimeout(() => btnEl.innerText = origText, 1500);
         };
         window.doCopy = function(btnEl) {
             const srcIdx = parseInt(document.getElementById('c-src').value);
             let srcData = []; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${srcIdx}"]`); srcData.push(cell ? cell.dataset.v : 0); }
             let copied = false;
-            document.querySelectorAll('.c-tgt-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); if(cIdx !== srcIdx) { copied = true; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.upd(cell, srcData[r]); } } } });
+            document.querySelectorAll('.c-tgt-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); if(cIdx !== srcIdx) { copied = true; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.paintCell(cell, srcData[r]); } } } });
             if(!copied) { alert('コピー先を選択してください。'); return; }
             const origText = btnEl.innerText; btnEl.innerText = "✅ 完了"; setTimeout(() => btnEl.innerText = origText, 1500);
         };
@@ -546,7 +577,15 @@ if not os.path.exists("custom_editor_v9"):
             for(let c = 0; c < totalDays; c++) {
                 let key = String(c);
                 if (unavailColRows[key]) {
-                    unavailColRows[key].forEach(r => { const cell = document.querySelector(`[data-r="${r}"][data-c="${c}"]`); if(cell) window.upd(cell, 3); });
+                    unavailColRows[key].forEach(item => {
+                        const r = (typeof item === 'object') ? item.row : item; const campus = (typeof item === 'object') ? item.campus : ""; const cell = document.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+                        if(cell) {
+                            const cellKey = `${r}_${c}`;
+                            if (campus === "💼 バイト/サークル等" || campus === "💼 バイト/私用") { window.cellDetails[cellKey] = {campus: "", note: "バイト/サークル等"}; window.paintCell(cell, 0); }
+                            else if (campus) { window.cellDetails[cellKey] = {campus: campus, note: "定期授業"}; window.paintCell(cell, 3); }
+                            else { window.paintCell(cell, 3); }
+                        }
+                    });
                 }
             }
             const origText = btnEl.innerHTML; btnEl.innerHTML = "✅ 反映完了！"; setTimeout(() => btnEl.innerHTML = origText, 2000);
@@ -569,6 +608,27 @@ if not os.path.exists("custom_editor_v9"):
                 if (mode === -1) { g.style.touchAction = 'pan-x pan-y'; }
                 else { g.style.touchAction = 'none'; }
             }
+        };
+
+        window.updatePaletteCampus = function() {
+            const camp = document.getElementById('ui-default-campus').value;
+            
+            let p1Info = {color:"#4CAF50", txt:"可"};
+            if (camp === "なかもず") p1Info = {color:"#FFA726", txt:"な"};
+            else if (camp === "すぎもと" || camp === "杉本") p1Info = {color:"#42A5F5", txt:"す"};
+            else if (camp === "もりのみや") p1Info = {color:"#66BB6A", txt:"も"};
+            else if (camp === "あべの" || camp === "阿倍野") p1Info = {color:"#EC407A", txt:"あ"};
+            else if (camp === "りんくう") p1Info = {color:"#AB47BC", txt:"り"};
+            else if (camp === "その他/移動中") p1Info = {color:"#9E9E9E", txt:"他"};
+
+            document.getElementById('pen-1').innerHTML = camp ? `${p1Info.txt}<br><span style='font-size:9px;'>(${camp})</span>` : "可";
+            document.getElementById('pen-1').style.background = p1Info.color;
+            document.getElementById('pen-2').innerHTML = camp ? `未定<br><span style='font-size:9px;'>(${camp})</span>` : "未定";
+            document.getElementById('pen-2').style.background = p1Info.color;
+            document.getElementById('pen-2').style.opacity = 0.6;
+            document.getElementById('pen-2').style.color = "#fff";
+            
+            window.setPen(1);
         };
 
         const palette = document.getElementById('palette');
@@ -609,11 +669,31 @@ if not os.path.exists("custom_editor_v9"):
         window.addEventListener("message", function(event) {
             if (event.data.type === "streamlit:render") {
                 const args = event.data.args; 
+                
+                if(window.lastEventId === args.eventId && window.lastSaveTs === args.saveTs) {
+                    return;
+                }
+                if(window.lastEventId !== args.eventId) { currentWeek = 0; }
+                window.lastEventId = args.eventId;
+                window.lastSaveTs = args.saveTs;
+                
                 document.getElementById("content").innerHTML = args.html_code;
                 totalDays = args.cols; numRows = args.rows; unavailColRows = args.unavailColRows || {};
-                window.cellDetails = args.cellDetails || {};
+                window.cellDetails = args.cellDetails || {}; 
+                defaultCampus = args.defaultCampus || "";
                 
-                if(window.lastEventId !== args.eventId) { currentWeek = 0; window.lastEventId = args.eventId; }
+                if(document.getElementById('ui-default-campus')) {
+                    document.getElementById('ui-default-campus').value = defaultCampus;
+                    window.updatePaletteCampus();
+                }
+                
+                const detailsEl = document.querySelector('details');
+                if (detailsEl) {
+                    detailsEl.addEventListener('toggle', () => {
+                        setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50}), 150);
+                    });
+                }
+                
                 window.renderWeek();
                 
                 if(args.isClosed) { palette.style.display = 'none'; return; } 
@@ -623,34 +703,36 @@ if not os.path.exists("custom_editor_v9"):
                 
                 const g = document.getElementById('g'); if(!g) return;
                 let down = false;
-
+                
+                // 💡💡💡 ここで「長押し処理」を完全に廃止しました 💡💡💡
                 const handleStart = (e, x, y) => {
-                    if (selectedMode === -1) return;
-                    const cell = e.target.closest('.c');
-                    if(!cell) return;
+                    if (selectedMode === -1) return; // scroll mode
+                    const cell = e.target.closest('.c'); if(!cell) return;
                     
                     if (selectedMode === -2) {
                         openModal(cell);
-                        return;
+                        return; 
                     }
-                    
-                    down = true;
-                    window.upd(cell, selectedMode);
+
+                    down = true; 
+                    window.paintCell(cell, selectedMode);
                 };
 
                 const handleMove = (e, x, y) => {
                     if (selectedMode === -1 || selectedMode === -2 || !down) return;
                     if (e.cancelable) e.preventDefault(); 
+                    
                     const cell = document.elementFromPoint(x, y)?.closest('.c');
-                    if(cell) window.upd(cell, selectedMode);
+                    if(cell) window.paintCell(cell, selectedMode);
                 };
 
-                const handleEnd = () => { down = false; };
+                const handleEnd = () => {
+                    down = false;
+                };
 
                 g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); };
                 g.onmousemove = e => { handleMove(e, e.clientX, e.clientY); }
-                window.onmouseup = handleEnd;
-                window.onmouseleave = handleEnd; 
+                window.onmouseup = handleEnd; window.onmouseleave = handleEnd; 
 
                 g.addEventListener('touchstart', e => { 
                     if (e.touches.length > 1) return;
@@ -671,19 +753,23 @@ if not os.path.exists("custom_editor_v9"):
                 
                 const btn = document.getElementById("submit-btn");
                 if(btn) { btn.onclick = () => { 
-                    const res = Array.from({length: numRows}, (_, r) => Array.from({length: totalDays}, (_, c) => parseInt(document.querySelector(`[data-r="${r}"][data-c="${c}"]`).dataset.v))); 
-                    const commentText = document.getElementById("comment-box").value; 
-                    setComponentValue({ data: res, comment: commentText, cell_details: window.cellDetails, trigger_save: true, ts: Date.now() }); 
+                    const res = Array.from({length: numRows}, (_, r) => Array.from({length: totalDays}, (_, c) => {
+                        const cellNode = document.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+                        const val = cellNode && cellNode.dataset.v ? parseInt(cellNode.dataset.v) : 0;
+                        return isNaN(val) ? 0 : val;
+                    })); 
+                    const commentBox = document.getElementById("comment-box");
+                    const commentText = commentBox ? commentBox.value : ""; 
+                    
+                    setComponentValue({ data: res, comment: commentText, cell_details: window.cellDetails || {}, trigger_save: true, ts: Date.now() }); 
                     btn.innerText = "⏳ 保存処理中..."; btn.style.backgroundColor = "#ff7b7b"; btn.style.pointerEvents = "none"; palette.style.display = 'none'; 
                 }; }
-
-                document.querySelectorAll('.c').forEach(cell => {
-                    window.upd(cell, cell.dataset.v);
-                });
+                document.querySelectorAll('.c').forEach(cell => { window.upd(cell, cell.dataset.v); });
             }
         }); init(); </script></body></html>
         """)
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v9")
+
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v10")
 
 
 # ==========================================
@@ -1838,8 +1924,8 @@ def main():
         st.markdown(f"<div style='color: #E91E63; font-weight: bold; margin-bottom: 10px;'>⏳ 回答期限: {format_deadline_jp(ev_close_time)}</div>", unsafe_allow_html=True)
 
     if event.get('description'): 
-        with st.expander("📝 イベントの説明・管理者からのメッセージ", expanded=False):
-            st.markdown(f"<div style='font-size:14px; line-height:1.6;'>{event['description'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+        # 💡 st.expander をやめて、直接 st.markdown で表示（折りたたまない）
+        st.markdown(f"<div style='font-size:14px; line-height:1.6; background:#f8f9fa; padding:15px; border-radius:8px; border-left:4px solid #4CAF50; margin-bottom:20px;'>{event['description'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
         
     if is_private_event:
         st.info("🤫 **このイベントはプライベート設定されています。** 管理者以外には、誰が回答したかの名前やコメントは表示されず、全体の人数のみが表示されます。")
@@ -1964,16 +2050,24 @@ def main():
             with col_z2: st.markdown("<div style='font-size:11px; color:#888; margin-top:8px;'>※変更すると未保存の入力はリセットされます。</div>", unsafe_allow_html=True)
             if zoom_mode.startswith("小"): cell_h = "20px"
             elif zoom_mode.startswith("大"): cell_h = "50px"
-            else: cell_h = "36px"
+            if event_type == 'time': cell_h = "36px"
 
         with tab_in:
+            user_campuses = [x.strip() for x in str(user.get('group_1', '')).split(',') if x.strip()]
+            default_campus_initial = user_campuses[0] if user_campuses else "なかもず"
+            
+            with st.expander("🎨 色の意味 / 💡 基本的な使い方", expanded=False):
+                st.markdown(campus_legend_html, unsafe_allow_html=True)
+                st.markdown("<p style='font-size:14px; font-weight:bold; color:#2196F3;'>※詳しい操作のコツや便利ツールの使い方は、左側メニューの「📖 使い方ガイド」をご覧ください。</p>", unsafe_allow_html=True)
+
+            # 💡 カレンダー連携を expander の中に入れる
             if event_type == 'time':
-                st.markdown("##### 📅 カレンダー連携")
-                c_import1, c_import2 = st.columns([3, 1])
-                with c_import1:
-                    st.write("プロフィールに設定したカレンダーの予定を読み込んで、自動で「授業等(グレー)」として反映します。")
-                with c_import2:
-                    if st.button("🔄 カレンダーから取得", use_container_width=True):
+                with st.expander("📅 Googleカレンダー連携（自動反映）", expanded=False):
+                    c_import1, c_import2 = st.columns([3, 1])
+                    with c_import1:
+                        st.write("プロフィールに設定したカレンダーの予定を読み込んで、自動で「授業等(グレー)」として反映します。")
+                    with c_import2:
+                        if st.button("🔄 カレンダーから取得", use_container_width=True):
                         user_cal_url = user.get('calendar_url', '')
                         if not user_cal_url or "http" not in user_cal_url:
                             st.warning("プロフィール画面でカレンダーの非公開URLを設定してください。")
@@ -2150,8 +2244,9 @@ def main():
                 unavailColRows=unavail_col_rows, 
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
+                defaultCampus=default_campus_initial,
                 default=None, 
-                key=f"editor_v9_{event.get('event_id')}"
+                key=f"editor_v10_{event.get('event_id')}"  # 💡 キーを v10 に変更！
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:
@@ -2377,13 +2472,26 @@ def main():
 
                     agg_css = f"""
                     <style>
-                    /* 💡 Streamlitのタブコンテナによる切り取りを強制解除 */
-                    .stTabs [data-baseweb="tab-panel"] {{ overflow: visible !important; }}
+                    /* 💡 Streamlit特有のコンテナの切り取り(overflow:hidden)を強制的に解除 */
+                    .stTabs [data-baseweb="tab-panel"] {{ overflow: visible !important; padding-bottom: 200px; }}
                     div[data-testid="stVerticalBlock"] {{ overflow: visible !important; }}
                     div[data-testid="stVerticalBlockBorderWrapper"] {{ overflow: visible !important; }}
                     
-                    /* 💡 ツールチップが確実に収まるように上下に十分な padding を設定 */
-                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: visible !important; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; padding-top: 100px; padding-bottom: 180px; }}
+                    /* 💡 グラフ全体を包む枠。下部に十分な余白(padding-bottom)を取り、ツールチップが隠れないようにする */
+                    .agg-wrapper {{ 
+                        max-height: 70vh; 
+                        height: {agg_scroll_h}; 
+                        overflow-x: auto; 
+                        overflow-y: visible !important; 
+                        -webkit-overflow-scrolling: touch; 
+                        border: 1px solid #ccc; 
+                        border-radius: 6px; 
+                        position: relative; 
+                        background: #fff; 
+                        width: 100%; 
+                        padding-bottom: 200px; 
+                        margin-bottom: 50px;
+                    }}
                     
                     .agg-inner-container {{ 
                         display: grid; 
@@ -2399,18 +2507,51 @@ def main():
                     
                     .agg-day-col {{ box-sizing: border-box; }}
                     
+                    /* マス目の設定（overflow: visible にしてツールチップが枠外に出れるようにする） */
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible !important; }}
                     
-                    /* 💡 ツールチップの z-index を最大にして最前面に */
-                    .agg-cell .tooltip {{ visibility: hidden; width: 180px; max-height: 250px; overflow-y: auto; background-color: rgba(30,30,30,0.95); color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 999999 !important; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11.5px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
-                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 6px; }}
-                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 3px; }}
-                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: rgba(30,30,30,0.95) transparent transparent transparent; }}
+                    /* 💡 ツールチップの本体設定。z-indexを極端に高くする */
+                    .agg-cell .tooltip {{ 
+                        visibility: hidden; 
+                        width: 200px; 
+                        max-height: 300px; 
+                        overflow-y: auto; 
+                        background-color: rgba(30, 30, 30, 0.95); 
+                        color: #fff; 
+                        text-align: left; 
+                        border-radius: 8px; 
+                        padding: 12px; 
+                        position: absolute; 
+                        z-index: 9999999 !important; 
+                        bottom: 100%; 
+                        left: 50%; 
+                        transform: translateX(-50%); 
+                        opacity: 0; 
+                        transition: opacity 0.2s; 
+                        font-size: 12px; 
+                        font-weight: normal; 
+                        line-height: 1.5; 
+                        pointer-events: auto; 
+                        white-space: pre-wrap; 
+                        margin-bottom: 8px; 
+                        box-shadow: 0 8px 24px rgba(0,0,0,0.4); 
+                        -webkit-overflow-scrolling: touch; 
+                    }}
                     
-                    .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
-                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -6px; border-color: transparent transparent rgba(30,30,30,0.95) transparent; }}
+                    /* ツールチップ内のスクロールバーを少し太く・見やすく */
+                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 8px; }}
+                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.5); border-radius: 4px; }}
                     
+                    /* ツールチップの吹き出しの三角形（上部用） */
+                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -8px; border-width: 8px; border-style: solid; border-color: rgba(30,30,30,0.95) transparent transparent transparent; }}
+                    
+                    /* 下向きに表示させるツールチップ（画面上部のマス用） */
+                    .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 8px; margin-bottom: 0; }}
+                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -8px; border-color: transparent transparent rgba(30,30,30,0.95) transparent; }}
+                    
+                    /* ホバー時の表示 */
                     .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
+                    
                     .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
                     </style>
                     """

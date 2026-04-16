@@ -1805,6 +1805,9 @@ def main():
             unanswered_events.append(ev)
             seen_ids.add(eid)
 
+    # 💡以下の1行を追加してください（回答済みイベントのリストを作成）
+    answered_events = [ev for ev in events if ev.get('is_answered')]
+
     # サイドバーの未回答通知
     if unanswered_events:
         st.sidebar.markdown("---")

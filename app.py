@@ -21,7 +21,6 @@ def hash_pin(pin_str):
 
 st.set_page_config(page_title="SSScheduler", layout="wide")
 
-# 💡 ご自身のStreamlitアプリのURLに変更してください
 APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 
 # ==========================================
@@ -29,7 +28,6 @@ APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 # ==========================================
 st.markdown("""
     <style>
-        /* スマホ時に画面を広く使えるよう余白を最適化 */
         @media (max-width: 650px) {
             .main .block-container,
             div[data-testid="stAppViewBlockContainer"] {
@@ -271,7 +269,6 @@ if not os.path.exists("rt_editor"):
                 const url = prompt('リンク先のURLを入力', 'https://');
                 if (url) { const text = prompt('表示するテキストを入力', 'こちらをクリック'); if (text) { const linkTag = `<a href='${url}' target='_blank'>${text}</a>`; const start = editor.selectionStart; const val = editor.value; editor.value = val.substring(0, start) + linkTag + val.substring(editor.selectionEnd); sendValue(); } }
             }
-            // 💡 文字入力中の自動送信を削除し、フォーカスが外れた時だけ送信するように変更
             editor.addEventListener('blur', sendValue);
             window.addEventListener("message", function(event) { if (event.data.type === "streamlit:render") { sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 15}); } });
             init();
@@ -381,11 +378,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 v7へアップデート（キャッシュ完全クリア用）
-# 🚀 v8へアップデート（キャッシュ完全クリア用）
-if not os.path.exists("custom_editor_v8"):
-    os.makedirs("custom_editor_v8", exist_ok=True)
-    with open("custom_editor_v8/index.html", "w", encoding="utf-8") as f:
+# 🚀 v9へアップデート（詳細ボタン追加・長押し廃止・キャッシュクリア用）
+if not os.path.exists("custom_editor_v9"):
+    os.makedirs("custom_editor_v9", exist_ok=True)
+    with open("custom_editor_v9/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -407,8 +403,6 @@ if not os.path.exists("custom_editor_v8"):
         .modal-btn-save{flex:1;background:#4CAF50;color:white;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;}
         .memo-icon{position:absolute;top:1px;right:2px;font-size:10px;line-height:1;filter:drop-shadow(1px 1px 1px rgba(255,255,255,0.8));pointer-events:none;}
         .c{position:relative;transition:filter 0.1s;}
-        @keyframes pressAnim{0%{transform:scale(1);filter:brightness(1);} 100%{transform:scale(0.92);filter:brightness(0.8);box-shadow:inset 0 4px 8px rgba(0,0,0,0.3);}}
-        .pressing{animation:pressAnim 0.4s forwards;z-index:100;}
         </style></head><body>
         
         <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.95); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.2); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
@@ -472,7 +466,7 @@ if not os.path.exists("custom_editor_v8"):
 
         window.closeModal = function() {
             document.getElementById('detail-modal').style.display = 'none';
-            if (editingCell) { editingCell.classList.remove('pressing'); editingCell = null; }
+            if (editingCell) { editingCell = null; }
         };
 
         window.saveModal = function() {
@@ -629,10 +623,6 @@ if not os.path.exists("custom_editor_v8"):
                 
                 const g = document.getElementById('g'); if(!g) return;
                 let down = false;
-                let pressTimer = null;
-                let isLongPress = false;
-                let startX = 0, startY = 0;
-                let touchMode = null;
 
                 const handleStart = (e, x, y) => {
                     if (selectedMode === -1) return;
@@ -645,45 +635,20 @@ if not os.path.exists("custom_editor_v8"):
                     }
                     
                     down = true;
-                    isLongPress = false;
-                    touchMode = null;
-                    startX = x; startY = y;
-                    
-                    pressTimer = setTimeout(() => {
-                        if (touchMode !== 'scroll' && down) {
-                            isLongPress = true;
-                            down = false;
-                            document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                            openModal(cell);
-                        }
-                    }, 400);
+                    window.upd(cell, selectedMode);
                 };
 
                 const handleMove = (e, x, y) => {
-                    if (selectedMode === -1 || !down) return;
+                    if (selectedMode === -1 || selectedMode === -2 || !down) return;
                     if (e.cancelable) e.preventDefault(); 
                     const cell = document.elementFromPoint(x, y)?.closest('.c');
                     if(cell) window.upd(cell, selectedMode);
                 };
 
-                const handleEnd = () => {
-                    if (pressTimer) clearTimeout(pressTimer);
-                    document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                    
-                    if (down && touchMode === null && !isLongPress && selectedMode !== -1) {
-                        const cell = document.elementFromPoint(startX, startY)?.closest('.c');
-                        if(cell) window.upd(cell, selectedMode);
-                    }
-                    down = false;
-                    touchMode = null;
-                };
+                const handleEnd = () => { down = false; };
 
-                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1 && selectedMode !== -2) window.upd(e.target.closest('.c'), selectedMode); };
-                g.onmousemove = e => {
-                    if (selectedMode === -1 || !down) return;
-                    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.c');
-                    if(cell) window.upd(cell, selectedMode);
-                }
+                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); };
+                g.onmousemove = e => { handleMove(e, e.clientX, e.clientY); }
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
 
@@ -693,7 +658,7 @@ if not os.path.exists("custom_editor_v8"):
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1) return; 
+                    if (selectedMode === -1 || selectedMode === -2) return; 
                     if (e.touches.length >= 2) return; 
                     if(down) { 
                         if (e.cancelable) e.preventDefault(); 
@@ -718,7 +683,7 @@ if not os.path.exists("custom_editor_v8"):
             }
         }); init(); </script></body></html>
         """)
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v7")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v9")
 
 
 # ==========================================
@@ -915,7 +880,6 @@ def main():
                     with st.form("recovery_auth_form"):
                         st.markdown("<small>登録時に設定した合言葉がわかる方はこちら</small>", unsafe_allow_html=True)
                         rec_n = st.text_input("氏名", autocomplete="username")
-                        # 👇 修正：type="password" を削除して日本語入力を可能にする
                         rec_s = st.text_input("秘密の合言葉")
                         new_p = st.text_input("設定したい新しいPIN", type="password", autocomplete="new-password")
                         if st.form_submit_button("新しいPINで更新する", use_container_width=True, type="primary"):
@@ -970,7 +934,7 @@ def main():
         default_menu_index = 0
         del st.session_state.jump_to_event
     
-    menu_opts = ["📅 日程調整 回答", "👤 プロフィール設定", "⏰ 時間割設定", "📖 使い方ガイド"] # 💡 追加
+    menu_opts = ["📅 日程調整 回答", "👤 プロフィール設定", "⏰ 時間割設定", "📖 使い方ガイド"]
     if user.get("role") in ["user", "admin", "top_admin"]: menu_opts.append("➕ イベント新規作成")
     if user.get("role") in ["admin", "top_admin"]: menu_opts.append("⚙️ 管理者専用")
     
@@ -1060,7 +1024,6 @@ def main():
                 except Exception as e: 
                     st.error(f"更新に失敗しました: {e}")
                     
-        # ---------- ここから追加 ----------
         st.markdown("---")
         st.markdown("##### 🔐 セキュリティ設定 (PIN・合言葉の変更)")
         with st.expander("PINや合言葉を変更する"):
@@ -1074,7 +1037,6 @@ def main():
                 if st.form_submit_button("更新する", use_container_width=True, type="primary"):
                     if not current_p:
                         st.error("エラー: 現在のPINを入力してください。")
-                    # 現在のPINがハッシュ値または平文（過去互換）と一致するか確認
                     elif hash_pin(current_p) != user.get("pin") and current_p != user.get("pin"):
                         st.error("エラー: 現在のPINが間違っています。")
                     elif not new_p and not new_s:
@@ -1101,7 +1063,6 @@ def main():
                             st.rerun()
                         except Exception as e:
                             st.error(f"更新に失敗しました: {e}")
-        # ---------- ここまで追加 ----------
 
         st.markdown("---")
         st.markdown("##### ⚠️ アカウントの削除（退会）")
@@ -1109,9 +1070,7 @@ def main():
             st.warning("退会すると、これまでの回答データや時間割がすべて削除され、元に戻すことはできません。")
             if st.button("💥 本当に退会する", type="primary"):
                 uid = str(user["user_id"])
-                # 1. ユーザー削除
                 db.collection("users").document(uid).delete()
-                # 2. 回答データの削除
                 res_docs = db.collection("responses").where("user_id", "==", uid).stream()
                 for d in res_docs:
                     db.collection("responses").document(d.id).delete()
@@ -1154,12 +1113,6 @@ def main():
         for i, d in enumerate(days_jp): cols[i+1].markdown(f"<div class='tt-day-header'>{d}</div>", unsafe_allow_html=True)
         st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
 
-        periods = [
-            ("1限", "09:00〜", 36, 42, "p1"), ("2限", "10:45〜", 43, 49, "p2"),
-            ("3限", "13:15〜", 53, 59, "p3"), ("4限", "15:00〜", 60, 66, "p4"), ("5限", "16:45〜", 67, 73, "p5")
-        ]
-        
-        # 💡 periods = [...] を削除して PERIODS_MASTER を使う
         for p_name, p_time, s_idx, e_idx, p_key in PERIODS_MASTER:
             cols = st.columns(col_ratios)
             cols[0].markdown(f"<div class='tt-time-cell'>{p_name}<br><span class='tt-time-sub'>{p_time}</span></div>", unsafe_allow_html=True)
@@ -1203,7 +1156,6 @@ def main():
             new_fixed_sched = {}
             for i in range(5):
                 wd_str = str(i); new_bin = ["0"] * 96
-                # 💡 マスターを使って動的に保存
                 for p_name, _, p_start, p_end, p_key in PERIODS_MASTER:
                     if ui_state[wd_str][p_key]:
                         new_bin[p_start:p_end] = ["1"] * (p_end - p_start)
@@ -1234,7 +1186,7 @@ def main():
         st.markdown("* **◯ 可 (緑) / △ 未定 (黄):** 参加できる時間帯をなぞって塗ります。\n* **🧽 消す:** 間違えた場合は「消す」ペンでなぞると白紙に戻ります。")
         
         st.markdown("### 2. 📝 メモを残す (詳細モード)")
-        st.markdown("パレットから **「ℹ️ 詳細」** を選び、カレンダーの枠をタップする（または枠を長押しする）と、「18:30到着」などのメモを残せます。")
+        st.markdown("パレットから **「ℹ️ 詳細」** を選び、カレンダーの枠をタップすると、「18:30到着」などのメモを残せます。")
         
         st.markdown("### 3. 📱 スマホでの操作")
         st.markdown("パレットから **「📜 スクロール」** を選ぶと、色を塗らずに画面を動かせます。パレットが邪魔な時は、上部の「🖊️ペン」の文字をドラッグして移動できます。")
@@ -1394,7 +1346,6 @@ def main():
         
         if st.button("🚀 イベントを作成", use_container_width=True, type="primary"):
             if not ev_title: st.warning("イベント名を入力してください。")
-            # 💡 日付が未入力(None)のまま送信された際のエラーを防ぐチェックを追加
             elif ev_type == "time" and (not ev_start or not ev_end): st.error("開始日と終了日を正しく入力してください。")
             elif ev_type == "time" and ev_start > ev_end: st.error("終了日は開始日以降に設定してください。")
             elif ev_type == "time" and time_master.index(t_start) >= time_master.index(t_end): st.error("終了時刻は開始時刻より後に設定してください。")
@@ -1404,7 +1355,6 @@ def main():
                 mention_text = " ".join(preview_mentions).replace("@channel", " < !channel > ").replace(" ", "")
                 deadline_str = f"{deadline_date.strftime('%Y-%m-%d')} {deadline_time.strftime('%H:%M')}"
                 
-                import random
                 now_str = datetime.now().strftime("%m%d-%H%M%S")
                 rand_num = random.randint(1000, 9999)
                 created_event_id = f"EV-{now_str}-{rand_num}"
@@ -1413,8 +1363,8 @@ def main():
                     "event_id": created_event_id,  
                     "title": ev_title, 
                     "description": ev_desc, 
-                    "start_date": ev_start.strftime("%Y-%m-%d") if ev_type == "time" else "", 
-                    "end_date": ev_end.strftime("%Y-%m-%d") if ev_type == "time" else "", 
+                    "start_date": ev_start.strftime("%Y-%m-%d") if ev_type in ["time", "date_timetable"] else "", 
+                    "end_date": ev_end.strftime("%Y-%m-%d") if ev_type in ["time", "date_timetable"] else "", 
                     "start_idx": time_master.index(t_start) if ev_type == "time" else 0, 
                     "end_idx": time_master.index(t_end) if ev_type == "time" else 0, 
                     "status": "open",
@@ -1488,12 +1438,10 @@ def main():
                 st.markdown("---")
                 st.subheader("⚙️ イベントの編集・ステータス管理・削除")
                 if all_events:
-                    # active_eventsだけでなく、全イベントを対象に選択できるように変更
                     target_ev = st.selectbox("管理するイベントを選択", all_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})", key="manage_target_ev")
                     
                     tab_edit, tab_status, tab_delete = st.tabs(["✏️ 情報編集", "⚙️ ステータス変更", "🗑️ 削除"])
                     
-                    # 1. 編集機能のタブ（タイトル・説明文・期限のみ変更可）
                     with tab_edit:
                         with st.form("edit_event_form"):
                             st.info("💡 日程の枠組みは変更できません。タイトル、説明文、回答期限のみ編集可能です。")
@@ -1529,7 +1477,6 @@ def main():
                                     time.sleep(1)
                                     st.rerun()
 
-                    # 2. ステータス変更のタブ（元の機能）
                     with tab_status:
                         with st.form("update_status_form"):
                             current_status = target_ev.get('status', 'open')
@@ -1543,11 +1490,9 @@ def main():
                                 time.sleep(1)
                                 st.rerun()
 
-                    # 3. 削除機能のタブ（安全対策あり）
                     with tab_delete:
                         st.warning("⚠️ **イベントの削除**\n\n削除すると元に戻せません。回答データもすべて削除されます。")
                         
-                        # Firestoreから回答数を取得して警告表示
                         ans_docs = list(db.collection("responses").where("event_id", "==", target_ev['event_id']).stream())
                         ans_count = len(ans_docs)
                         
@@ -1777,26 +1722,9 @@ def main():
         return
 
     # ----------------------------------------------------
-    # 📅 一般ユーザー画面 (回答・集計)
+    # 💡 1. ダッシュボード画面（カード形式）
     # ----------------------------------------------------
-    active_groups = [str(user.get(f"group_{i}", "")).strip() for i in range(1, 5)]
-    active_groups = [g for g in active_groups if g]
-    group_str = f"<span style='color: #666; font-size: 0.9em; margin-left: 10px;'>({' / '.join(active_groups)})</span>" if active_groups else "<span style='color: #aaa; font-size: 0.9em; margin-left: 10px;'>(未所属)</span>"
-    role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(user.get("role"), "👤")
-    st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user.get("name", "")}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user.get("user_id", "")}</div></div>', unsafe_allow_html=True)
-
-    current_ev_id = st.session_state.get("target_ev_id", "")
-    
-    # 🚀 [爆速化] Firestoreからデータを取得
-    all_users_fs, events, user_map_fs = get_app_data_from_firestore(user)
-    st.session_state.event_responses = fetch_responses_for_event(current_ev_id, user_map_fs) if current_ev_id else []
-
-    if not events: 
-        st.info("現在表示できるイベントはありません。")
-        return
-
     now_dt = datetime.now()
-
     unanswered_events = []
     seen_ids = set()
     for ev in events:
@@ -1805,10 +1733,8 @@ def main():
             unanswered_events.append(ev)
             seen_ids.add(eid)
 
-    # 💡以下の1行を追加してください（回答済みイベントのリストを作成）
     answered_events = [ev for ev in events if ev.get('is_answered')]
 
-    # サイドバーの未回答通知
     if unanswered_events:
         st.sidebar.markdown("---")
         st.sidebar.markdown(f"<div style='color:#FF4B4B; font-weight:bold; padding-bottom: 5px;'>📢 未回答の予定 ({len(unanswered_events)}件)</div>", unsafe_allow_html=True)
@@ -1818,9 +1744,6 @@ def main():
                 st.session_state.target_ev_id = u_ev.get('event_id')
                 st.rerun()
 
-    # ----------------------------------------------------
-    # 💡 1. ダッシュボード画面（カード形式）
-    # ----------------------------------------------------
     if not current_ev_id:
         if unanswered_events:
             st.warning(f"⚠️ **未回答のイベントが {len(unanswered_events)} 件あります！** 早めの回答をお願いします。")
@@ -1834,7 +1757,6 @@ def main():
             if unanswered_events:
                 for ev in unanswered_events:
                     dl_text = format_deadline_jp(ev.get('deadline') or ev.get('close_time', ''))
-                    # ✨ カード形式のUI
                     with st.container(border=True):
                         st.markdown(f"**{ev['title']}**")
                         st.markdown(f"<span style='color:#E91E63; font-size:12px;'>⏳ 締切: {dl_text}</span>", unsafe_allow_html=True)
@@ -1857,7 +1779,7 @@ def main():
                             st.rerun()
             else:
                 st.info("回答済みのイベントはありません。")
-        return  # 💡 ダッシュボード表示時はここで処理を止め、下の個別イベント処理には進まない
+        return
 
     # ----------------------------------------------------
     # 🎯 2. 個別イベント 回答・集計画面
@@ -1872,7 +1794,6 @@ def main():
 
     st.session_state.event_responses = fetch_responses_for_event(current_ev_id, user_map_fs)
     
-    # 💡 戻るボタン（ダッシュボードへ）
     if st.button("🔙 ダッシュボードへ戻る", type="primary"):
         st.session_state.target_ev_id = ""
         st.rerun()
@@ -1904,7 +1825,11 @@ def main():
 
     event_type = event.get('type') or event.get('event_type', 'time')
 
-    # ＝＝＝＝＝ 🕒 時間帯 / 🏫 時間割 モード ＝＝＝＝＝
+    if "active_tab" not in st.session_state:
+        st.session_state.active_tab = "📅 入力"
+        
+    tab_in, tab_graph = st.tabs(["📅 入力", "📊 みんなの集計"])
+
     if event_type in ['time', 'timetable', 'date_timetable']:
         if event_type == 'time':
             s_idx = int(event.get('start_time_idx') or event.get('start_idx', 0))
@@ -1941,7 +1866,7 @@ def main():
                         if s_idx <= gi <= e_idx: unavail_rows.append(gi - s_idx)
                     if unavail_rows: unavail_col_rows[str(c)] = unavail_rows
                     
-        elif event_type == 'timetable': # 🏫 timetable モード  <--- 💡 `else:` を `elif ...:` に変更
+        elif event_type == 'timetable':
             s_idx, e_idx = 0, 5
             date_strs = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
             clean_date_labels = ["月曜", "火曜", "水曜", "木曜", "金曜"]
@@ -2020,7 +1945,6 @@ def main():
             elif zoom_mode.startswith("大"): cell_h = "50px"
             else: cell_h = "36px"
 
-        tab_in, tab_graph = st.tabs(["📅 入力", "📊 集計"])
         with tab_in:
             if event_type == 'time':
                 st.markdown("##### 📅 カレンダー連携")
@@ -2206,7 +2130,7 @@ def main():
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
                 default=None, 
-                key=f"editor_v7_{event.get('event_id')}"  # 💡 ここを v8 に変更！
+                key=f"editor_v9_{event.get('event_id')}"
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:
@@ -2226,7 +2150,6 @@ def main():
                             val = int(st.session_state.df_input.loc[time_labels[t_idx], d_id])
                             if val > 0: has_data = True
                             if event_type == 'time': bits[s_idx + t_idx] = str(val)
-                            # 💡 追加: 昼休みのインデックス対応
                             elif event_type == 'date_timetable':
                                 if t_idx < len(PERIODS_MASTER):
                                     bits[PERIODS_MASTER[t_idx][2]] = str(val)
@@ -2436,6 +2359,7 @@ def main():
                     /* 💡 Streamlitのタブコンテナによる切り取りを強制解除 */
                     .stTabs [data-baseweb="tab-panel"] {{ overflow: visible !important; }}
                     div[data-testid="stVerticalBlock"] {{ overflow: visible !important; }}
+                    div[data-testid="stVerticalBlockBorderWrapper"] {{ overflow: visible !important; }}
                     
                     /* 💡 ツールチップが確実に収まるように上下に十分な padding を設定 */
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: visible !important; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; padding-top: 100px; padding-bottom: 180px; }}
@@ -2457,7 +2381,7 @@ def main():
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible !important; }}
                     
                     /* 💡 ツールチップの z-index を最大にして最前面に */
-                    .agg-cell .tooltip {{ visibility: hidden; width: 180px; max-height: 250px; overflow-y: auto; background-color: rgba(30,30,30,0.95); color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 999999 !important; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11.5px; font-weight: normal; line-height: 1.4; pointer-events: none; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; pointer-events: auto; }}
+                    .agg-cell .tooltip {{ visibility: hidden; width: 180px; max-height: 250px; overflow-y: auto; background-color: rgba(30,30,30,0.95); color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 999999 !important; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11.5px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
                     .agg-cell .tooltip::-webkit-scrollbar {{ width: 6px; }}
                     .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 3px; }}
                     .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: rgba(30,30,30,0.95) transparent transparent transparent; }}

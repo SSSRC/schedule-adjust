@@ -381,10 +381,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 キャッシュを完全に破壊するための v4
-if not os.path.exists("custom_editor_v4"):
-    os.makedirs("custom_editor_v4", exist_ok=True)
-    with open("custom_editor_v4/index.html", "w", encoding="utf-8") as f:
+# 🚀 v5: 詳細モード（コメント機能）を追加
+if not os.path.exists("custom_editor_v5"):
+    os.makedirs("custom_editor_v5", exist_ok=True)
+    with open("custom_editor_v5/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -406,8 +406,6 @@ if not os.path.exists("custom_editor_v4"):
         .modal-btn-save{flex:1;background:#4CAF50;color:white;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;}
         .memo-icon{position:absolute;top:1px;right:2px;font-size:10px;line-height:1;filter:drop-shadow(1px 1px 1px rgba(255,255,255,0.8));pointer-events:none;}
         .c{position:relative;transition:filter 0.1s;}
-        @keyframes pressAnim{0%{transform:scale(1);filter:brightness(1);} 100%{transform:scale(0.92);filter:brightness(0.8);box-shadow:inset 0 4px 8px rgba(0,0,0,0.3);}}
-        .pressing{animation:pressAnim 0.4s forwards;z-index:100;}
         </style></head><body>
         
         <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.95); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.2); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
@@ -432,7 +430,7 @@ if not os.path.exists("custom_editor_v4"):
                 <label class="modal-label">📝 補足コメント (任意)</label>
                 <input type="text" id="modal-note" class="modal-input" placeholder="例: 13:30に移動開始, 20分遅延">
                 <div class="modal-btns">
-                    <button class="modal-btn-save" onclick="saveModal()">💾 保存して闭じる</button>
+                    <button class="modal-btn-save" onclick="saveModal()">💾 保存して閉じる</button>
                 </div>
                 <div style="text-align:center; font-size:10px; color:#999; margin-top:10px;">※枠外をタップでキャンセル</div>
             </div>
@@ -446,6 +444,7 @@ if not os.path.exists("custom_editor_v4"):
         let currentWeek = 0; let totalDays = 0; let numRows = 0; let unavailColRows = {};
         window.cellDetails = {};
         let modalStatus = 1;
+        let selectedMode = 1;
         let editingCell = null;
 
         const modalBg = document.getElementById('detail-modal');
@@ -470,7 +469,7 @@ if not os.path.exists("custom_editor_v4"):
 
         window.closeModal = function() {
             document.getElementById('detail-modal').style.display = 'none';
-            if (editingCell) { editingCell.classList.remove('pressing'); editingCell = null; }
+            if (editingCell) { editingCell = null; }
         };
 
         window.saveModal = function() {
@@ -559,25 +558,19 @@ if not os.path.exists("custom_editor_v4"):
         window.toggleList = function(id) { const el = document.getElementById(id); el.style.display = el.style.display === 'none' ? 'block' : 'none'; };
         document.addEventListener('click', function(e) { if(!e.target.closest('.ms-container')) { document.querySelectorAll('.ms-options').forEach(el => el.style.display = 'none'); } });
 
-        let selectedMode = 1;
         window.setPen = function(mode) {
             selectedMode = mode;
-            [-2, -1, 0, 1, 2].forEach(m => { // 💡 -2 を配列に追加
+            [-2, -1, 0, 1, 2].forEach(m => {
                 const b = document.getElementById('pen-' + m);
                 if(b) b.classList.remove('active');
             });
             const activeBtn = document.getElementById('pen-' + mode);
             if (activeBtn) activeBtn.classList.add('active');
-            });
-            document.getElementById('pen-' + mode).classList.add('active');
             
             const g = document.getElementById('g');
             if (g) {
-                if (mode === -1) {
-                    g.style.touchAction = 'pan-x pan-y';
-                } else {
-                    g.style.touchAction = 'none';
-                }
+                if (mode === -1) { g.style.touchAction = 'pan-x pan-y'; }
+                else { g.style.touchAction = 'none'; }
             }
         };
 
@@ -633,63 +626,32 @@ if not os.path.exists("custom_editor_v4"):
                 
                 const g = document.getElementById('g'); if(!g) return;
                 let down = false;
-                let pressTimer = null;
-                let isLongPress = false;
-                let startX = 0, startY = 0;
-                let touchMode = null;
 
                 const handleStart = (e, x, y) => {
                     if (selectedMode === -1) return;
                     const cell = e.target.closest('.c');
                     if(!cell) return;
                     
-                    // 💡 詳細モード(-2)が選ばれている場合はモーダルを開いて終了
                     if (selectedMode === -2) {
                         openModal(cell);
                         return;
                     }
                     
                     down = true;
-                    isLongPress = false;
-                    touchMode = null;
-                    startX = x; startY = y;
-                    
-                    // 💡 長押しのタイマーは残したままでも詳細ボタンと共存可能です
-                    pressTimer = setTimeout(() => {
-                        if (touchMode !== 'scroll' && down) {
-                            isLongPress = true;
-                            down = false;
-                            document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                            openModal(cell);
-                        }
-                    }, 400);
+                    window.upd(cell, selectedMode);
                 };
 
                 const handleMove = (e, x, y) => {
-                    if (selectedMode === -1 || !down) return;
+                    if (selectedMode === -1 || selectedMode === -2 || !down) return;
                     if (e.cancelable) e.preventDefault(); 
                     const cell = document.elementFromPoint(x, y)?.closest('.c');
                     if(cell) window.upd(cell, selectedMode);
                 };
 
-                const handleEnd = () => {
-                    if (pressTimer) clearTimeout(pressTimer);
-                    document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
-                    
-                    if (down && touchMode === null && !isLongPress && selectedMode !== -1) {
-                        const cell = document.elementFromPoint(startX, startY)?.closest('.c');
-                        if(cell) window.upd(cell, selectedMode);
-                    }
-                    down = false;
-                    touchMode = null;
-                };
+                const handleEnd = () => { down = false; };
 
-                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1) window.upd(e.target.closest('.c'), selectedMode); };
-                g.onmousemove = e => {
-                    if (selectedMode === -1 || !down) return;
-                    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.c');
-                    if(cell) window.upd(cell, selectedMode);
-                }
+                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); };
+                g.onmousemove = e => { handleMove(e, e.clientX, e.clientY); }
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
 
@@ -699,7 +661,7 @@ if not os.path.exists("custom_editor_v4"):
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1) return; 
+                    if (selectedMode === -1 || selectedMode === -2) return; 
                     if (e.touches.length >= 2) return; 
                     if(down) { 
                         if (e.cancelable) e.preventDefault(); 
@@ -724,7 +686,7 @@ if not os.path.exists("custom_editor_v4"):
             }
         }); init(); </script></body></html>
         """)
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v4")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v5")
 
 
 # ==========================================
@@ -2195,7 +2157,7 @@ def main():
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
                 default=None, 
-                key=f"editor_{event.get('event_id')}"
+                key=f"editor_v5_{event.get('event_id')}"  # 💡 キーを変えてキャッシュをクリア
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:
@@ -2422,7 +2384,8 @@ def main():
 
                     agg_css = f"""
                     <style>
-                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; }}
+                    /* 💡 ツールチップが隠れないように overflow と padding を調整 */
+                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; padding-bottom: 120px; }}
                     
                     .agg-inner-container {{ 
                         display: grid; 
@@ -2440,15 +2403,16 @@ def main():
                     
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
-                    .agg-cell .tooltip {{ visibility: hidden; width: 160px; max-height: 250px; overflow-y: auto; background-color: rgba(0,0,0,0.85); color: #fff; text-align: left; border-radius: 6px; padding: 8px; position: absolute; z-index: 30; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
-                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 4px; }}
-                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 2px; }}
-                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: rgba(0,0,0,0.85) transparent transparent transparent; }}
+                    /* 💡 z-index を 99999 に上げて最前面に表示 */
+                    .agg-cell .tooltip {{ visibility: hidden; width: 180px; max-height: 250px; overflow-y: auto; background-color: rgba(30,30,30,0.95); color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 99999; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11.5px; font-weight: normal; line-height: 1.4; pointer-events: none; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; pointer-events: auto; }}
+                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 6px; }}
+                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 3px; }}
+                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: rgba(30,30,30,0.95) transparent transparent transparent; }}
                     
                     .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 5px; margin-bottom: 0; }}
-                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -5px; border-color: transparent transparent rgba(0,0,0,0.85) transparent; }}
+                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -6px; border-color: transparent transparent rgba(30,30,30,0.95) transparent; }}
                     
-                    .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
+                    .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; z-index: 999999; }}
                     .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
                     </style>
                     """

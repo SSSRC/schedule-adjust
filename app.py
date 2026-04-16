@@ -1721,6 +1721,27 @@ def main():
                             st.rerun()
         return
 
+    # 💡💡💡 ここから下のブロックを丸ごと追加してください 💡💡💡
+    # ----------------------------------------------------
+    # 📅 一般ユーザー画面 (ユーザー情報の表示とデータ取得)
+    # ----------------------------------------------------
+    active_groups = [str(user.get(f"group_{i}", "")).strip() for i in range(1, 5)]
+    active_groups = [g for g in active_groups if g]
+    group_str = f"<span style='color: #666; font-size: 0.9em; margin-left: 10px;'>({' / '.join(active_groups)})</span>" if active_groups else "<span style='color: #aaa; font-size: 0.9em; margin-left: 10px;'>(未所属)</span>"
+    role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(user.get("role"), "👤")
+    st.markdown(f'<div class="user-header"><div style="font-size: 1.1em;"><b>{role_emoji} {user.get("name", "")}</b> さん {group_str}</div><div style="font-size: 0.8em; background: #e0e0e0; padding: 3px 8px; border-radius: 12px;">ID: {user.get("user_id", "")}</div></div>', unsafe_allow_html=True)
+
+    current_ev_id = st.session_state.get("target_ev_id", "")
+    
+    # 🚀 ここで Firestore からデータを取得し、events 変数を定義します
+    all_users_fs, events, user_map_fs = get_app_data_from_firestore(user)
+
+    if not events: 
+        st.info("現在表示できるイベントはありません。")
+        return
+    # 💡💡💡 追加部分はここまで 💡💡💡
+
+
     # ----------------------------------------------------
     # 💡 1. ダッシュボード画面（カード形式）
     # ----------------------------------------------------

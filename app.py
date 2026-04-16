@@ -381,7 +381,7 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 v5: 詳細モード（コメント機能）を追加
+# 🚀 v5: 詳細モード（コメント機能）と長押しの修正
 if not os.path.exists("custom_editor_v5"):
     os.makedirs("custom_editor_v5", exist_ok=True)
     with open("custom_editor_v5/index.html", "w", encoding="utf-8") as f:
@@ -406,6 +406,8 @@ if not os.path.exists("custom_editor_v5"):
         .modal-btn-save{flex:1;background:#4CAF50;color:white;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;}
         .memo-icon{position:absolute;top:1px;right:2px;font-size:10px;line-height:1;filter:drop-shadow(1px 1px 1px rgba(255,255,255,0.8));pointer-events:none;}
         .c{position:relative;transition:filter 0.1s;}
+        @keyframes pressAnim{0%{transform:scale(1);filter:brightness(1);} 100%{transform:scale(0.92);filter:brightness(0.8);box-shadow:inset 0 4px 8px rgba(0,0,0,0.3);}}
+        .pressing{animation:pressAnim 0.4s forwards;z-index:100;}
         </style></head><body>
         
         <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.95); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.2); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
@@ -469,7 +471,7 @@ if not os.path.exists("custom_editor_v5"):
 
         window.closeModal = function() {
             document.getElementById('detail-modal').style.display = 'none';
-            if (editingCell) { editingCell = null; }
+            if (editingCell) { editingCell.classList.remove('pressing'); editingCell = null; }
         };
 
         window.saveModal = function() {
@@ -626,6 +628,10 @@ if not os.path.exists("custom_editor_v5"):
                 
                 const g = document.getElementById('g'); if(!g) return;
                 let down = false;
+                let pressTimer = null;
+                let isLongPress = false;
+                let startX = 0, startY = 0;
+                let touchMode = null;
 
                 const handleStart = (e, x, y) => {
                     if (selectedMode === -1) return;
@@ -638,20 +644,45 @@ if not os.path.exists("custom_editor_v5"):
                     }
                     
                     down = true;
-                    window.upd(cell, selectedMode);
+                    isLongPress = false;
+                    touchMode = null;
+                    startX = x; startY = y;
+                    
+                    pressTimer = setTimeout(() => {
+                        if (touchMode !== 'scroll' && down) {
+                            isLongPress = true;
+                            down = false;
+                            document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                            openModal(cell);
+                        }
+                    }, 400);
                 };
 
                 const handleMove = (e, x, y) => {
-                    if (selectedMode === -1 || selectedMode === -2 || !down) return;
+                    if (selectedMode === -1 || !down) return;
                     if (e.cancelable) e.preventDefault(); 
                     const cell = document.elementFromPoint(x, y)?.closest('.c');
                     if(cell) window.upd(cell, selectedMode);
                 };
 
-                const handleEnd = () => { down = false; };
+                const handleEnd = () => {
+                    if (pressTimer) clearTimeout(pressTimer);
+                    document.querySelectorAll('.pressing').forEach(el => el.classList.remove('pressing'));
+                    
+                    if (down && touchMode === null && !isLongPress && selectedMode !== -1) {
+                        const cell = document.elementFromPoint(startX, startY)?.closest('.c');
+                        if(cell) window.upd(cell, selectedMode);
+                    }
+                    down = false;
+                    touchMode = null;
+                };
 
-                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); };
-                g.onmousemove = e => { handleMove(e, e.clientX, e.clientY); }
+                g.onmousedown = e => { handleStart(e, e.clientX, e.clientY); if(selectedMode !== -1 && selectedMode !== -2) window.upd(e.target.closest('.c'), selectedMode); };
+                g.onmousemove = e => {
+                    if (selectedMode === -1 || !down) return;
+                    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.c');
+                    if(cell) window.upd(cell, selectedMode);
+                }
                 window.onmouseup = handleEnd;
                 window.onmouseleave = handleEnd; 
 
@@ -661,7 +692,7 @@ if not os.path.exists("custom_editor_v5"):
                 }, {passive: true});
                 
                 g.addEventListener('touchmove', e => { 
-                    if (selectedMode === -1 || selectedMode === -2) return; 
+                    if (selectedMode === -1) return; 
                     if (e.touches.length >= 2) return; 
                     if(down) { 
                         if (e.cancelable) e.preventDefault(); 
@@ -686,6 +717,7 @@ if not os.path.exists("custom_editor_v5"):
             }
         }); init(); </script></body></html>
         """)
+# 💡 ここを v5 に変更します
 grid_editor = components.declare_component("grid_editor", path="custom_editor_v5")
 
 
@@ -1855,9 +1887,6 @@ def main():
     if is_private_event:
         st.info("🤫 **このイベントはプライベート設定されています。** 管理者以外には、誰が回答したかの名前やコメントは表示されず、全体の人数のみが表示されます。")
 
-    st.markdown("##### 🔗 このイベントの招待URL")
-    st.code(f"{APP_BASE_URL}?event={event.get('event_id')}", language="text")
-
     event_type = event.get('type') or event.get('event_type', 'time')
 
     # ＝＝＝＝＝ 🕒 時間帯 / 🏫 時間割 モード ＝＝＝＝＝
@@ -2120,7 +2149,12 @@ def main():
                 .day-col {{ box-sizing: border-box; }}
             </style>
             
-            {tools_html}
+            <details style="background: #fdfdfd; padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                <summary style="font-weight: bold; cursor: pointer; font-size: 15px; color: #333; outline: none;">🛠️ 便利ツールを開く (一括指定・コピー・時間割反映)</summary>
+                <div style="margin-top: 15px;">
+                    {tools_html}
+                </div>
+            </details>
             <div style='display:flex; justify-content:flex-end; align-items:flex-end; margin-bottom:10px;'>
                 <div style="display:{week_nav_display}; align-items:center; gap: 20px;">
                     <button id="btn-prev" class="page-btn" onclick="window.changeWeek(-1)">◀ 前の週</button>
@@ -2157,7 +2191,7 @@ def main():
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
                 default=None, 
-                key=f"editor_v5_{event.get('event_id')}"  # 💡 キーを変えてキャッシュをクリア
+                key=f"editor_v5_{event.get('event_id')}" # 💡 キーを変えて確実に再読み込みさせる
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:
@@ -2384,23 +2418,14 @@ def main():
 
                     agg_css = f"""
                     <style>
-                    /* 💡 ツールチップが隠れないように overflow と padding を調整 */
+                    /* 💡 ツールチップが隠れないように overflow-y を visible にし、下部に余白を追加 */
                     .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; padding-bottom: 120px; }}
                     
-                    .agg-inner-container {{ 
-                        display: grid; 
-                        grid-template-columns: 65px repeat({len(disp_date_strs)}, minmax(85px, 1fr)); 
-                        width: 100%; 
-                        min-width: max-content; 
-                        background: #fdfdfd; 
-                    }}
-                    
+                    .agg-inner-container {{ display: grid; grid-template-columns: 65px repeat({len(disp_date_strs)}, minmax(85px, 1fr)); width: 100%; min-width: max-content; background: #fdfdfd; }}
                     .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }}
                     .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
                     .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
-                    
                     .agg-day-col {{ box-sizing: border-box; }}
-                    
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
                     /* 💡 z-index を 99999 に上げて最前面に表示 */

@@ -381,11 +381,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 v5: 詳細モード（コメント機能）と長押しの修正
-# 🚀 v6へアップデート（キャッシュクリア用）
-if not os.path.exists("custom_editor_v6"):
-    os.makedirs("custom_editor_v6", exist_ok=True)
-    with open("custom_editor_v6/index.html", "w", encoding="utf-8") as f:
+# 🚀 v7へアップデート（キャッシュ完全クリア用）
+if not os.path.exists("custom_editor_v7"):
+    os.makedirs("custom_editor_v7", exist_ok=True)
+    with open("custom_editor_v7/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -718,8 +717,7 @@ if not os.path.exists("custom_editor_v6"):
             }
         }); init(); </script></body></html>
         """)
-# 💡 ここを v5 に変更します
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v6")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v7")
 
 
 # ==========================================
@@ -1827,61 +1825,72 @@ def main():
                 st.session_state.target_ev_id = u_ev.get('event_id')
                 st.rerun()
 
-    if unanswered_events:
-        st.warning(f"⚠️ **未回答のイベントが {len(unanswered_events)} 件あります！** サイドバーのリストから選択して早めの回答をお願いします。")
+    # ----------------------------------------------------
+    # 💡 ダッシュボード画面（イベント選択）
+    # ----------------------------------------------------
+    if not current_ev_id:
+        if unanswered_events:
+            st.warning(f"⚠️ **未回答のイベントが {len(unanswered_events)} 件あります！** 早めの回答をお願いします。")
+            
+        st.subheader("📋 イベント ダッシュボード")
+        st.markdown("<p style='font-size:14px; color:#555; margin-bottom:20px;'>回答したいイベントを選んでください。</p>", unsafe_allow_html=True)
+        
+        c_left, c_right = st.columns(2)
+        with c_left:
+            st.markdown("#### 🔴 未回答のイベント")
+            if unanswered_events:
+                for ev in unanswered_events:
+                    dl_text = format_deadline_jp(ev.get('deadline') or ev.get('close_time', ''))
+                    with st.container(border=True):
+                        st.markdown(f"**{ev['title']}**")
+                        st.markdown(f"<span style='color:#E91E63; font-size:12px;'>⏳ 締切: {dl_text}</span>", unsafe_allow_html=True)
+                        if st.button("📝 このイベントに回答する", key=f"btn_u_{ev['event_id']}", use_container_width=True):
+                            st.session_state.target_ev_id = ev['event_id']
+                            st.rerun()
+            else:
+                st.info("未回答のイベントはありません！🎉")
 
-    # 💡 ダッシュボードに戻るボタンをサイドバーに追加
-    if st.sidebar.button("🏠 ダッシュボードに戻る", use_container_width=True):
-        st.session_state.target_ev_id = ""
-        st.rerun()
+        with c_right:
+            st.markdown("#### ✅ 回答済みのイベント")
+            if answered_events:
+                for ev in answered_events:
+                    dl_text = format_deadline_jp(ev.get('deadline') or ev.get('close_time', ''))
+                    with st.container(border=True):
+                        st.markdown(f"**{ev['title']}**")
+                        st.markdown(f"<span style='color:#666; font-size:12px;'>締切: {dl_text}</span>", unsafe_allow_html=True)
+                        if st.button("✅ 提出済みの回答を見る", key=f"btn_a_{ev['event_id']}", use_container_width=True):
+                            st.session_state.target_ev_id = ev['event_id']
+                            st.rerun()
+            else:
+                st.info("回答済みのイベントはありません。")
+        return # ダッシュボード表示時はここで処理を止める
 
-    # 💡 選択肢の先頭にダッシュボードを追加
-    event_options = [{"event_id": "", "title": "🏠 ダッシュボード (イベント選択解除)"}] + events
-    
-    target_id = st.session_state.get("target_ev_id", "")
-    default_idx = 0
-    for i, ev in enumerate(event_options):
-        if ev.get('event_id') == target_id:
-            default_idx = i
-            break
-
-    def format_ev_name(x):
-        if x.get('event_id') == "": return x.get('title')
-        ev_close_time = x.get('deadline') or x.get('close_time', '')
-        dl_str = format_deadline_jp(ev_close_time)
-        if x.get('status') == 'closed': icon = "🔒"
-        elif x.get('is_answered'): icon = "✅"
-        else:
-            is_urgent = False
-            try:
-                if ev_close_time:
-                    dl_dt = pd.to_datetime(ev_close_time)
-                    if dl_dt.tzinfo is not None: dl_dt = dl_dt.tz_convert(None)
-                    if 0 <= (dl_dt - now_dt).total_seconds() <= 3 * 24 * 3600:
-                        is_urgent = True
-            except: pass
-            icon = "🔥" if is_urgent else "🔴"
-        return f"{icon} {x.get('title', '')} [締切: {dl_str}]"
-
-    event = st.selectbox("🎯 対象イベント選択", event_options, index=default_idx, format_func=format_ev_name)
-    
-    if st.session_state.get("target_ev_id") != event.get('event_id'):
-        st.session_state.target_ev_id = event.get('event_id')
-        st.rerun()
-
-    # 💡 ダッシュボードが選ばれている場合はここで処理を止めてダッシュボードを表示
-    if not event.get('event_id'):
+    # ----------------------------------------------------
+    # 個別イベント画面
+    # ----------------------------------------------------
+    event = next((ev for ev in events if ev['event_id'] == current_ev_id), None)
+    if not event:
+        st.error("指定されたイベントが見つかりません。")
+        if st.button("ダッシュボードに戻る"):
+            st.session_state.target_ev_id = ""
+            st.rerun()
         return
+
+    # イベントヘッダーと戻るボタン
+    c_back, c_title = st.columns([1, 4])
+    with c_back:
+        if st.button("🔙 ダッシュボードへ", use_container_width=True):
+            st.session_state.target_ev_id = ""
+            st.rerun()
+            
+    st.markdown(f"<h2 style='margin-top:0; padding-top:0;'>{event.get('title', '')}</h2>", unsafe_allow_html=True)
 
     is_closed = event.get('status') == 'closed'
     is_private_event = event.get('is_private', False)
     
     can_view_details = True
-    if is_private_event:
-        if user.get("role") not in ["admin", "top_admin"]:
-            can_view_details = False
-
-    st.markdown(f"<h2>{event.get('title', '')}</h2>", unsafe_allow_html=True)
+    if is_private_event and user.get("role") not in ["admin", "top_admin"]:
+        can_view_details = False
 
     if event.get('is_answered'):
         st.success("✅ **あなたは回答済みです（修正して再提出も可能です）**")
@@ -1898,8 +1907,6 @@ def main():
         
     if is_private_event:
         st.info("🤫 **このイベントはプライベート設定されています。** 管理者以外には、誰が回答したかの名前やコメントは表示されず、全体の人数のみが表示されます。")
-
-    # 💡 （以前ここにあった「招待URLの表示 (st.markdown / st.code)」は削除しました）
 
     event_type = event.get('type') or event.get('event_type', 'time')
 
@@ -2205,7 +2212,7 @@ def main():
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
                 default=None, 
-                key=f"editor_v6_{event.get('event_id')}" # 💡 ここを v6 に！
+                key=f"editor_v7_{event.get('event_id')}"  # 💡 ここを v7 に変更！
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:
@@ -2432,12 +2439,12 @@ def main():
 
                     agg_css = f"""
                     <style>
-                    /* 💡 Streamlitのコンテナによる切り取りを強制解除 */
+                    /* Streamlitのタブコンテナによる切り取りを防止 */
                     .stTabs [data-baseweb="tab-panel"] {{ overflow: visible !important; }}
                     div[data-testid="stVerticalBlock"] {{ overflow: visible !important; }}
-                    div[data-testid="stVerticalBlockBorderWrapper"] {{ overflow: visible !important; }}
                     
-                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; padding-bottom: 120px; }}
+                    /* 💡 ツールチップが確実に収まるように上下に十分な padding を設定 */
+                    .agg-wrapper {{ max-height: 75vh; height: {agg_scroll_h}; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #ccc; border-radius: 6px; position: relative; background: #fff; width: 100%; padding-top: 100px; padding-bottom: 150px; }}
                     
                     .agg-inner-container {{ 
                         display: grid; 
@@ -2455,7 +2462,7 @@ def main():
                     
                     .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible; }}
                     
-                    /* 💡 ツールチップの z-index を最大にして最前面に */
+                    /* 💡 ツールチップのデザインと z-index 設定 */
                     .agg-cell .tooltip {{ visibility: hidden; width: 180px; max-height: 250px; overflow-y: auto; background-color: rgba(30,30,30,0.95); color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 999999 !important; bottom: 100%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; font-size: 11.5px; font-weight: normal; line-height: 1.4; pointer-events: auto; white-space: pre-wrap; margin-bottom: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); -webkit-overflow-scrolling: touch; }}
                     .agg-cell .tooltip::-webkit-scrollbar {{ width: 6px; }}
                     .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.4); border-radius: 3px; }}

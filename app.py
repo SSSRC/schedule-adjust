@@ -820,6 +820,22 @@ def format_deadline_jp(date_str):
     except:
         return str(date_str)
 
+campus_legend_html = """
+<div style="margin: 10px 0 20px 0; padding: 12px; background: #fdfdfd; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 13px; line-height: 1.8; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <strong style="color:#2e7d32; display:block; margin-bottom:8px; font-size: 14px;">🎨 キャンパスの色と文字</strong>
+    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#FFA726; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">な</span> なかもず</span>
+    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#42A5F5; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">す</span> 杉本</span>
+    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#66BB6A; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">も</span> もりのみや</span>
+    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#EC407A; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">あ</span> あべの</span>
+    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#AB47BC; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">り</span> りんくう</span>
+    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#9E9E9E; color:#fff; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">他</span> 移動/その他</span>
+    <span style="display:inline-block; margin-right:12px; margin-bottom:4px;"><span style="background:#E0E0E0; color:#555; padding:2px 8px; border-radius:4px; font-weight:bold; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);">授</span> 授業等</span>
+    <div style="color:#d32f2f; font-weight:bold; font-size:12px; margin-top:8px; border-top:1px dashed #ddd; padding-top:6px;">
+        ※「未定(△)」を選ぶと、同じ色が薄く（半透明に）表示されます。
+    </div>
+</div>
+"""
+
 # ==========================================
 # 時間割マスターの定義（昼休みを追加）
 # ==========================================

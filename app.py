@@ -1935,8 +1935,8 @@ def main():
                         if s_idx <= gi <= e_idx: unavail_rows.append(gi - s_idx)
                     if unavail_rows: unavail_col_rows[str(c)] = unavail_rows
                     
-        else: # 🏫 timetable モード
-            s_idx, e_idx = 0, 5 
+        elif event_type == 'timetable': # 🏫 timetable モード  <--- 💡 `else:` を `elif ...:` に変更
+            s_idx, e_idx = 0, 5
             date_strs = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
             clean_date_labels = ["月曜", "火曜", "水曜", "木曜", "金曜"]
             time_labels = ["1限", "2限", "3限", "4限", "5限", "放課後"]

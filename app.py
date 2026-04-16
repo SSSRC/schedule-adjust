@@ -416,6 +416,7 @@ if not os.path.exists("custom_editor_v4"):
             <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
             <hr style="margin:0; border-top:1px solid #ddd;">
+            <button class="pen-btn" onclick="window.setPen(-2)" id="pen--2" style="background:#2196F3; color:#fff; border:2px solid #1976D2; font-size:11px;">ℹ️<br>詳細</button>
             <button class="pen-btn" onclick="window.setPen(-1)" id="pen--1" style="background:#9C27B0; color:#fff; border:2px solid #7B1FA2; font-size:10px; margin-top:0px;">📜<br>ｽｸﾛｰﾙ</button>
         </div>
 
@@ -561,9 +562,12 @@ if not os.path.exists("custom_editor_v4"):
         let selectedMode = 1;
         window.setPen = function(mode) {
             selectedMode = mode;
-            [-1, 0, 1, 2].forEach(m => {
+            [-2, -1, 0, 1, 2].forEach(m => { // 💡 -2 を配列に追加
                 const b = document.getElementById('pen-' + m);
                 if(b) b.classList.remove('active');
+            });
+            const activeBtn = document.getElementById('pen-' + mode);
+            if (activeBtn) activeBtn.classList.add('active');
             });
             document.getElementById('pen-' + mode).classList.add('active');
             
@@ -638,11 +642,19 @@ if not os.path.exists("custom_editor_v4"):
                     if (selectedMode === -1) return;
                     const cell = e.target.closest('.c');
                     if(!cell) return;
+                    
+                    // 💡 詳細モード(-2)が選ばれている場合はモーダルを開いて終了
+                    if (selectedMode === -2) {
+                        openModal(cell);
+                        return;
+                    }
+                    
                     down = true;
                     isLongPress = false;
                     touchMode = null;
                     startX = x; startY = y;
                     
+                    // 💡 長押しのタイマーは残したままでも詳細ボタンと共存可能です
                     pressTimer = setTimeout(() => {
                         if (touchMode !== 'scroll' && down) {
                             isLongPress = true;
@@ -762,6 +774,18 @@ def format_deadline_jp(date_str):
         return f"{dt.month}/{dt.day}({wday}) {dt.strftime('%H:%M')}"
     except:
         return str(date_str)
+
+# ==========================================
+# 時間割マスターの定義（昼休みを追加）
+# ==========================================
+PERIODS_MASTER = [
+    ("1限", "09:00〜", 36, 42, "p1"),
+    ("2限", "10:45〜", 43, 49, "p2"),
+    ("昼休み", "12:15〜", 49, 53, "lunch"), # 💡 追加
+    ("3限", "13:15〜", 53, 59, "p3"),
+    ("4限", "15:00〜", 60, 66, "p4"),
+    ("5限", "16:45〜", 67, 73, "p5")
+]
 
 def main():
     if "app_initialized" not in st.session_state:
@@ -952,7 +976,7 @@ def main():
         default_menu_index = 0
         del st.session_state.jump_to_event
     
-    menu_opts = ["📅 日程調整 回答", "👤 プロフィール設定", "⏰ 時間割設定"]
+    menu_opts = ["📅 日程調整 回答", "👤 プロフィール設定", "⏰ 時間割設定", "📖 使い方ガイド"] # 💡 追加
     if user.get("role") in ["user", "admin", "top_admin"]: menu_opts.append("➕ イベント新規作成")
     if user.get("role") in ["admin", "top_admin"]: menu_opts.append("⚙️ 管理者専用")
     
@@ -1141,7 +1165,8 @@ def main():
             ("3限", "13:15〜", 53, 59, "p3"), ("4限", "15:00〜", 60, 66, "p4"), ("5限", "16:45〜", 67, 73, "p5")
         ]
         
-        for p_name, p_time, s_idx, e_idx, p_key in periods:
+        # 💡 periods = [...] を削除して PERIODS_MASTER を使う
+        for p_name, p_time, s_idx, e_idx, p_key in PERIODS_MASTER:
             cols = st.columns(col_ratios)
             cols[0].markdown(f"<div class='tt-time-cell'>{p_name}<br><span class='tt-time-sub'>{p_time}</span></div>", unsafe_allow_html=True)
             for i in range(5):
@@ -1184,11 +1209,11 @@ def main():
             new_fixed_sched = {}
             for i in range(5):
                 wd_str = str(i); new_bin = ["0"] * 96
-                if ui_state[wd_str]["p1"]: new_bin[36:42] = ["1"] * 6
-                if ui_state[wd_str]["p2"]: new_bin[43:49] = ["1"] * 6
-                if ui_state[wd_str]["p3"]: new_bin[53:59] = ["1"] * 6
-                if ui_state[wd_str]["p4"]: new_bin[60:66] = ["1"] * 6
-                if ui_state[wd_str]["p5"]: new_bin[67:73] = ["1"] * 6
+                # 💡 マスターを使って動的に保存
+                for p_name, _, p_start, p_end, p_key in PERIODS_MASTER:
+                    if ui_state[wd_str][p_key]:
+                        new_bin[p_start:p_end] = ["1"] * (p_end - p_start)
+                
                 if ui_state[wd_str]["af"]:
                     end_idx = time_master.index(ui_state[wd_str]["af_end"])
                     new_bin[74:end_idx] = ["1"] * (end_idx - 74)
@@ -1207,6 +1232,20 @@ def main():
                 st.error(f"更新に失敗しました: {e}")
         return
 
+    elif view_mode == "📖 使い方ガイド":
+        st.title("📖 SSScheduler 使い方ガイド")
+        st.write("日程調整の基本操作を解説します。")
+        
+        st.markdown("### 1. 📅 カレンダーの塗り方 (基本編)")
+        st.markdown("* **◯ 可 (緑) / △ 未定 (黄):** 参加できる時間帯をなぞって塗ります。\n* **🧽 消す:** 間違えた場合は「消す」ペンでなぞると白紙に戻ります。")
+        
+        st.markdown("### 2. 📝 メモを残す (詳細モード)")
+        st.markdown("パレットから **「ℹ️ 詳細」** を選び、カレンダーの枠をタップする（または枠を長押しする）と、「18:30到着」などのメモを残せます。")
+        
+        st.markdown("### 3. 📱 スマホでの操作")
+        st.markdown("パレットから **「📜 スクロール」** を選ぶと、色を塗らずに画面を動かせます。パレットが邪魔な時は、上部の「🖊️ペン」の文字をドラッグして移動できます。")
+        return
+
     # ----------------------------------------------------
     # ➕ イベント新規作成画面
     # ----------------------------------------------------
@@ -1214,7 +1253,7 @@ def main():
         st.title("➕ イベント新規作成")
         st.write("新しい日程調整イベントを作成します。")
         
-        ev_type_label = st.radio("📝 日程調整のタイプを選択", ["🕒 時間帯 (15分刻み)", "🏫 時間割 (月〜金)", "📅 複数の予定 (候補から選択)"], horizontal=True)
+        ev_type_label = st.radio("📝 日程調整のタイプを選択", ["🕒 時間帯 (15分刻み)", "🏫 時間割 (月〜金)", "📅 日付指定コマ", "📅 複数の予定 (候補から選択)"], horizontal=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
         ev_title = st.text_input("イベント名")
@@ -1251,6 +1290,14 @@ def main():
             ev_type = "timetable"
             st.info("💡 月曜〜金曜の「1限〜5限・放課後」の枠のみを使って、全員の空きコマを一括で集計するモードです。")
             
+        elif ev_type_label == "📅 日付指定コマ":
+            ev_type = "date_timetable"
+            st.info("💡 指定した期間の日付ごとに「1限〜5限・昼休み・放課後」のコマで集計するモードです。")
+            with st.container(border=True):
+                col1, col_m1, col2 = st.columns([10, 1, 10])
+                with col1: ev_start = st.date_input("開始日", label_visibility="collapsed")
+                with col_m1: st.markdown("<div style='text-align:center; font-weight:bold; font-size:18px;'>〜</div>", unsafe_allow_html=True)
+                with col2: ev_end = st.date_input("終了日", label_visibility="collapsed")
         else:
             ev_type = "options"
             st.info("💡 任意の予定（候補日やイベント案など）をリスト化し、どれに参加できるかアンケートを取るモードです。")
@@ -1852,7 +1899,7 @@ def main():
     event_type = event.get('type') or event.get('event_type', 'time')
 
     # ＝＝＝＝＝ 🕒 時間帯 / 🏫 時間割 モード ＝＝＝＝＝
-    if event_type in ['time', 'timetable']:
+    if event_type in ['time', 'timetable', 'date_timetable']:
         if event_type == 'time':
             s_idx = int(event.get('start_time_idx') or event.get('start_idx', 0))
             e_idx = int(event.get('end_time_idx') or event.get('end_idx', 0))
@@ -1909,6 +1956,36 @@ def main():
                     if "1" in day_bin[60:66]: u_rows.append(3)
                     if "1" in day_bin[67:73]: u_rows.append(4)
                     if "1" in day_bin[74:]: u_rows.append(5)
+                    if u_rows: unavail_col_rows[str(c)] = u_rows
+
+        elif event_type == 'date_timetable':
+            s_idx, e_idx = 0, len(PERIODS_MASTER) + 1 # 1限〜5限＋昼休み＋放課後
+            time_labels = [p[0] for p in PERIODS_MASTER] + ["放課後"]
+            scroll_h = "auto"
+            cell_h = "50px"
+            week_nav_display = "flex"
+
+            date_objs = []
+            try:
+                curr = pd.to_datetime(event.get('start_date', ''), errors='coerce').date()
+                end_d = pd.to_datetime(event.get('end_date', ''), errors='coerce').date()
+            except:
+                curr = datetime.today().date(); end_d = curr + timedelta(days=7)
+            while curr <= end_d: date_objs.append(curr); curr += timedelta(days=1)
+            
+            date_strs = [d.strftime("%Y-%m-%d") for d in date_objs]
+            clean_date_labels = [f"{d.strftime('%m/%d')}({['月','火','水','木','金','土','日'][d.weekday()]})" for d in date_objs]
+
+            fixed_sched = user.get("fixed_schedule", {})
+            unavail_col_rows = {}
+            for c, date_obj in enumerate(date_objs):
+                wd = str(date_obj.weekday())
+                if wd in fixed_sched:
+                    day_bin = fixed_sched[wd]
+                    u_rows = []
+                    for r, (p_name, _, p_start, p_end, p_key) in enumerate(PERIODS_MASTER):
+                        if "1" in day_bin[p_start:p_end]: u_rows.append(r)
+                    if "1" in day_bin[74:]: u_rows.append(len(PERIODS_MASTER)) # 放課後
                     if u_rows: unavail_col_rows[str(c)] = u_rows
 
         if "df_input" not in st.session_state or st.session_state.get("last_build_ev_id") != event.get('event_id'):
@@ -2138,6 +2215,12 @@ def main():
                             val = int(st.session_state.df_input.loc[time_labels[t_idx], d_id])
                             if val > 0: has_data = True
                             if event_type == 'time': bits[s_idx + t_idx] = str(val)
+                            # 💡 追加: 昼休みのインデックス対応
+                            elif event_type == 'date_timetable':
+                                if t_idx < len(PERIODS_MASTER):
+                                    bits[PERIODS_MASTER[t_idx][2]] = str(val)
+                                else:
+                                    bits[74] = str(val) # 放課後
                             else: bits[t_idx] = str(val)
                             
                         if has_data:

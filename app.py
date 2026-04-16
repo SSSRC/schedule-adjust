@@ -378,10 +378,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 v10へアップデート（長押し廃止・キャッシュクリア用）
-if not os.path.exists("custom_editor_v10"):
-    os.makedirs("custom_editor_v10", exist_ok=True)
-    with open("custom_editor_v10/index.html", "w", encoding="utf-8") as f:
+# 🚀 v11へアップデート（長押し廃止・キャッシュクリア用）
+if not os.path.exists("custom_editor_v11"):
+    os.makedirs("custom_editor_v11", exist_ok=True)
+    with open("custom_editor_v11/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -397,7 +397,7 @@ if not os.path.exists("custom_editor_v10"):
         .status-switch{display:flex;gap:8px;margin-top:5px;}
         .sw-btn{flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;background:#f9f9f9;color:#555;transition:0.2s;}
         .sw-btn.active[data-v="1"]{background:#4CAF50;color:white;border-color:#4CAF50;}
-        .sw-btn.active[data-v="2"]{background:#81C784;color:#fff;border-color:#81C784;opacity:0.8;}
+        .sw-btn.active[data-v="2"]{background:#FFEB3B;color:#333;border-color:#FBC02D;}
         .sw-btn.active[data-v="0"]{background:#fff;color:#333;border-color:#999;}
         .modal-btns{display:flex;gap:10px;margin-top:20px;}
         .modal-btn-save{flex:1;background:#4CAF50;color:white;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;}
@@ -408,7 +408,7 @@ if not os.path.exists("custom_editor_v10"):
         <div id="palette" style="position:fixed; top:20px; right:30px; z-index:99999; background:rgba(255,255,255,0.95); border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.2); padding:12px 8px; cursor:move; display:none; flex-direction:column; gap:12px; backdrop-filter: blur(8px);">
             <div style="font-size:12px; font-weight:bold; color:#666; text-align:center; pointer-events:none; user-select:none; margin-bottom:-4px;">🖊️ ペン</div>
             <button class="pen-btn active" onclick="window.setPen(1)" id="pen-1" style="background:#4CAF50; color:#fff;">可</button>
-            <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#81C784; color:#fff;">未定</button>
+            <button class="pen-btn" onclick="window.setPen(2)" id="pen-2" style="background:#FFEB3B; color:#333;">未定</button>
             <button class="pen-btn" onclick="window.setPen(0)" id="pen-0" style="background:#fff; color:#333; border:1px solid #ccc; font-size:12px;">🧽<br>消す</button>
             <hr style="margin:0; border-top:1px solid #ddd;">
             <button class="pen-btn" onclick="window.setPen(-2)" id="pen--2" style="background:#2196F3; color:#fff; border:2px solid #1976D2; font-size:11px;">ℹ️<br>詳細</button>
@@ -769,7 +769,7 @@ if not os.path.exists("custom_editor_v10"):
         }); init(); </script></body></html>
         """)
 
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v10")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v11")
 
 
 # ==========================================
@@ -1352,9 +1352,9 @@ def main():
             if not is_all_members:
                 all_u = [d.to_dict() for d in db.collection("users").stream()]
                 
-                all_g1 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_1', '').split(',') if g.strip()])), MASTER_G1)
-                all_g2 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_2', '').split(',') if g.strip()])), MASTER_G2)
-                all_g3 = sort_groups(list(set([g.strip() for u in all_u for g in u.get('group_3', '').split(',') if g.strip()])), MASTER_G3)
+                all_g1 = sort_groups(list(set([g.strip() for u in all_u for g in str(u.get('group_1', '')).split(',') if g.strip()])), MASTER_G1)
+                all_g2 = sort_groups(list(set([g.strip() for u in all_u for g in str(u.get('group_2', '')).split(',') if g.strip()])), MASTER_G2)
+                all_g3 = sort_groups(list(set([g.strip() for u in all_u for g in str(u.get('group_3', '')).split(',') if g.strip()])), MASTER_G3)
                 
                 st.markdown("<span style='font-size:13px; color:#555;'>※ここで指定したグループや個人のみにイベントが表示されます。</span>", unsafe_allow_html=True)
                 col_t1, col_t2 = st.columns(2)
@@ -1807,7 +1807,6 @@ def main():
                             st.rerun()
         return
 
-    # 💡💡💡 ここから下のブロックを丸ごと追加してください 💡💡💡
     # ----------------------------------------------------
     # 📅 一般ユーザー画面 (ユーザー情報の表示とデータ取得)
     # ----------------------------------------------------
@@ -1825,8 +1824,6 @@ def main():
     if not events: 
         st.info("現在表示できるイベントはありません。")
         return
-    # 💡💡💡 追加部分はここまで 💡💡💡
-
 
     # ----------------------------------------------------
     # 💡 1. ダッシュボード画面（カード形式）
@@ -1925,6 +1922,7 @@ def main():
 
     if event.get('description'): 
         # 💡 st.expander をやめて、直接 st.markdown で表示（折りたたまない）
+        st.markdown("##### 📝 イベントの説明・管理者からのメッセージ")
         st.markdown(f"<div style='font-size:14px; line-height:1.6; background:#f8f9fa; padding:15px; border-radius:8px; border-left:4px solid #4CAF50; margin-bottom:20px;'>{event['description'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
         
     if is_private_event:
@@ -2068,36 +2066,36 @@ def main():
                         st.write("プロフィールに設定したカレンダーの予定を読み込んで、自動で「授業等(グレー)」として反映します。")
                     with c_import2:
                         if st.button("🔄 カレンダーから取得", use_container_width=True):
-                        user_cal_url = user.get('calendar_url', '')
-                        if not user_cal_url or "http" not in user_cal_url:
-                            st.warning("プロフィール画面でカレンダーの非公開URLを設定してください。")
-                        else:
-                            with st.spinner("予定を取得中..."):
-                                res = call_gas("import_google_calendar", {
-                                    "payload": {
-                                        "start_date": event.get('start_date'),
-                                        "end_date": event.get('end_date'),
-                                        "ical_url": user_cal_url
-                                    }
-                                }, method="POST")
-                                
-                                if res.get("status") == "success":
-                                    busy_data = res.get("data", {}).get("busy_slots", {})
-                                    if not busy_data:
-                                        st.info("指定期間に予定は見つかりませんでした。")
+                            user_cal_url = user.get('calendar_url', '')
+                            if not user_cal_url or "http" not in user_cal_url:
+                                st.warning("プロフィール画面でカレンダーの非公開URLを設定してください。")
+                            else:
+                                with st.spinner("予定を取得中..."):
+                                    res = call_gas("import_google_calendar", {
+                                        "payload": {
+                                            "start_date": event.get('start_date'),
+                                            "end_date": event.get('end_date'),
+                                            "ical_url": user_cal_url
+                                        }
+                                    }, method="POST")
+                                    
+                                    if res.get("status") == "success":
+                                        busy_data = res.get("data", {}).get("busy_slots", {})
+                                        if not busy_data:
+                                            st.info("指定期間に予定は見つかりませんでした。")
+                                        else:
+                                            for d_str, slots in busy_data.items():
+                                                if d_str in st.session_state.df_input.columns:
+                                                    for t_idx in slots:
+                                                        if s_idx <= t_idx <= e_idx:
+                                                            time_label = time_master[t_idx]
+                                                            if time_label in st.session_state.df_input.index:
+                                                                st.session_state.df_input.loc[time_label, d_str] = 3
+                                            st.success("カレンダーの予定を反映しました！内容を確認して「提出」を押してください。")
+                                            time.sleep(1)
+                                            st.rerun()
                                     else:
-                                        for d_str, slots in busy_data.items():
-                                            if d_str in st.session_state.df_input.columns:
-                                                for t_idx in slots:
-                                                    if s_idx <= t_idx <= e_idx:
-                                                        time_label = time_master[t_idx]
-                                                        if time_label in st.session_state.df_input.index:
-                                                            st.session_state.df_input.loc[time_label, d_str] = 3
-                                        st.success("カレンダーの予定を反映しました！内容を確認して「提出」を押してください。")
-                                        time.sleep(1)
-                                        st.rerun()
-                                else:
-                                    st.error("取得に失敗しました。GAS側の権限承認が済んでいるか確認してください。")
+                                        st.error("取得に失敗しました。GAS側の権限承認が済んでいるか確認してください。")
 
             st.markdown("---")
 
@@ -2246,7 +2244,7 @@ def main():
                 cellDetails=my_cell_details,
                 defaultCampus=default_campus_initial,
                 default=None, 
-                key=f"editor_v10_{event.get('event_id')}"  # 💡 キーを v10 に変更！
+                key=f"editor_v11_{event.get('event_id')}"
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:
@@ -2287,7 +2285,8 @@ def main():
                         "responses": all_res
                     }
                     if save_response_hybrid(payload):
-                        st.session_state.save_success_msg = "回答を保存しました！"
+                        st.session_state.save_success_msg = "回答を保存しました！みんなの集計を確認しましょう👀"
+                        st.session_state.active_tab = "📊 みんなの集計"
                         st.rerun()
 
         with tab_graph:
@@ -2300,6 +2299,11 @@ def main():
 
             all_res_data = st.session_state.event_responses
             all_names = list(set([r.get('user_name', '不明') for r in all_res_data]))
+            
+            if can_view_details:
+                with st.expander(f"🙋 回答済みのメンバー ({len(all_names)}名)", expanded=False):
+                    st.write(", ".join(sorted(all_names)))
+
             all_g1, all_g2, all_g3, all_g4 = set(), set(), set(), set()
             for r in all_res_data:
                 for g in str(r.get('group_1', '')).split(','):
@@ -2470,17 +2474,17 @@ def main():
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 
-                    agg_css = f"""
+                    agg_css_template = """
                     <style>
                     /* 💡 Streamlit特有のコンテナの切り取り(overflow:hidden)を強制的に解除 */
-                    .stTabs [data-baseweb="tab-panel"] {{ overflow: visible !important; padding-bottom: 200px; }}
-                    div[data-testid="stVerticalBlock"] {{ overflow: visible !important; }}
-                    div[data-testid="stVerticalBlockBorderWrapper"] {{ overflow: visible !important; }}
+                    .stTabs [data-baseweb="tab-panel"] { overflow: visible !important; padding-bottom: 200px; }
+                    div[data-testid="stVerticalBlock"] { overflow: visible !important; }
+                    div[data-testid="stVerticalBlockBorderWrapper"] { overflow: visible !important; }
                     
                     /* 💡 グラフ全体を包む枠。下部に十分な余白(padding-bottom)を取り、ツールチップが隠れないようにする */
-                    .agg-wrapper {{ 
+                    .agg-wrapper { 
                         max-height: 70vh; 
-                        height: {agg_scroll_h}; 
+                        height: VAR_SCROLL_H; 
                         overflow-x: auto; 
                         overflow-y: visible !important; 
                         -webkit-overflow-scrolling: touch; 
@@ -2491,27 +2495,27 @@ def main():
                         width: 100%; 
                         padding-bottom: 200px; 
                         margin-bottom: 50px;
-                    }}
+                    }
                     
-                    .agg-inner-container {{ 
+                    .agg-inner-container { 
                         display: grid; 
-                        grid-template-columns: 65px repeat({len(disp_date_strs)}, minmax(85px, 1fr)); 
+                        grid-template-columns: 65px repeat(VAR_COLS, minmax(85px, 1fr)); 
                         width: 100%; 
                         min-width: max-content; 
                         background: #fdfdfd; 
-                    }}
+                    }
                     
-                    .agg-time-col {{ position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }}
-                    .agg-header {{ position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }}
-                    .agg-top-left {{ position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }}
+                    .agg-time-col { position: sticky; left: 0; z-index: 10; background: #f0f2f6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); grid-column: 1 / 2; box-sizing: border-box; }
+                    .agg-header { position: sticky; top: 0; z-index: 11; background: #eee; font-size: 13px; font-weight: bold; text-align: center; border-bottom: 2px solid #555; border-right: 1px solid #ccc; height: 50px; display: flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box; line-height: 1.2; }
+                    .agg-top-left { position: sticky; top: 0; left: 0; z-index: 20; background: #f0f2f6; border-right: 1px solid #ccc; border-bottom: 2px solid #555; height: 50px; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); box-sizing: border-box; }
                     
-                    .agg-day-col {{ box-sizing: border-box; }}
+                    .agg-day-col { box-sizing: border-box; }
                     
                     /* マス目の設定（overflow: visible にしてツールチップが枠外に出れるようにする） */
-                    .agg-cell {{ border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible !important; }}
+                    .agg-cell { border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible !important; }
                     
                     /* 💡 ツールチップの本体設定。z-indexを極端に高くする */
-                    .agg-cell .tooltip {{ 
+                    .agg-cell .tooltip { 
                         visibility: hidden; 
                         width: 200px; 
                         max-height: 300px; 
@@ -2536,25 +2540,27 @@ def main():
                         margin-bottom: 8px; 
                         box-shadow: 0 8px 24px rgba(0,0,0,0.4); 
                         -webkit-overflow-scrolling: touch; 
-                    }}
+                    }
                     
                     /* ツールチップ内のスクロールバーを少し太く・見やすく */
-                    .agg-cell .tooltip::-webkit-scrollbar {{ width: 8px; }}
-                    .agg-cell .tooltip::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.5); border-radius: 4px; }}
+                    .agg-cell .tooltip::-webkit-scrollbar { width: 8px; }
+                    .agg-cell .tooltip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.5); border-radius: 4px; }
                     
                     /* ツールチップの吹き出しの三角形（上部用） */
-                    .agg-cell .tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -8px; border-width: 8px; border-style: solid; border-color: rgba(30,30,30,0.95) transparent transparent transparent; }}
+                    .agg-cell .tooltip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -8px; border-width: 8px; border-style: solid; border-color: rgba(30,30,30,0.95) transparent transparent transparent; }
                     
                     /* 下向きに表示させるツールチップ（画面上部のマス用） */
-                    .agg-cell .tooltip-bottom {{ top: 100%; bottom: auto; margin-top: 8px; margin-bottom: 0; }}
-                    .agg-cell .tooltip-bottom::after {{ bottom: 100%; top: auto; margin-top: -8px; border-color: transparent transparent rgba(30,30,30,0.95) transparent; }}
+                    .agg-cell .tooltip-bottom { top: 100%; bottom: auto; margin-top: 8px; margin-bottom: 0; }
+                    .agg-cell .tooltip-bottom::after { bottom: 100%; top: auto; margin-top: -8px; border-color: transparent transparent rgba(30,30,30,0.95) transparent; }
                     
                     /* ホバー時の表示 */
-                    .agg-cell:hover .tooltip {{ visibility: visible; opacity: 1; }}
+                    .agg-cell:hover .tooltip { visibility: visible; opacity: 1; }
                     
-                    .agg-time-cell {{ background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }}
+                    .agg-time-cell { background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }
                     </style>
                     """
+
+                    agg_css = agg_css_template.replace("VAR_SCROLL_H", agg_scroll_h).replace("VAR_COLS", str(len(disp_date_strs)))
 
                     st.markdown(f"""
                     {agg_css}
@@ -2601,7 +2607,8 @@ def main():
                     "responses": res_data
                 }
                 if save_response_hybrid(payload):
-                    st.session_state.save_success_msg = "回答を保存しました！"
+                    st.session_state.save_success_msg = "回答を保存しました！みんなの集計を確認しましょう👀"
+                    st.session_state.active_tab = "📊 みんなの集計"
                     st.rerun()
 
         with tab_graph:
@@ -2614,6 +2621,11 @@ def main():
 
             all_res_data = st.session_state.event_responses
             all_names = list(set([r.get('user_name', '不明') for r in all_res_data]))
+            
+            if can_view_details:
+                with st.expander(f"🙋 回答済みのメンバー ({len(all_names)}名)", expanded=False):
+                    st.write(", ".join(sorted(all_names)))
+
             all_g1, all_g2, all_g3, all_g4 = set(), set(), set(), set()
             for r in all_res_data:
                 for g in str(r.get('group_1', '')).split(','):

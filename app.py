@@ -378,10 +378,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 v11へアップデート（長押し廃止・キャッシュクリア用）
-if not os.path.exists("custom_editor_v11"):
-    os.makedirs("custom_editor_v11", exist_ok=True)
-    with open("custom_editor_v11/index.html", "w", encoding="utf-8") as f:
+# 🚀 💡 v12へアップデート（長押し廃止・キャンパス機能削除・黄色未定・キャッシュクリア用）
+if not os.path.exists("custom_editor_v12"):
+    os.makedirs("custom_editor_v12", exist_ok=True)
+    with open("custom_editor_v12/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -424,16 +424,6 @@ if not os.path.exists("custom_editor_v11"):
                     <button class="sw-btn" data-v="2" onclick="setModalStatus(2)">△ 未定</button>
                     <button class="sw-btn" data-v="0" onclick="setModalStatus(0)">× 不可</button>
                 </div>
-                <label class="modal-label">🏫 キャンパスの指定</label>
-                <select id="modal-campus" class="modal-select">
-                    <option value="">指定なし</option>
-                    <option value="なかもず">なかもず</option>
-                    <option value="すぎもと">すぎもと</option>
-                    <option value="あべの">あべの</option>
-                    <option value="りんくう">りんくう</option>
-                    <option value="もりのみや">もりのみや</option>
-                    <option value="その他/移動中">その他 / 移動中</option>
-                </select>
                 <label class="modal-label">📝 補足コメント (任意)</label>
                 <input type="text" id="modal-note" class="modal-input" placeholder="例: 13:30に移動開始, 20分遅延">
                 <div class="modal-btns">
@@ -449,7 +439,7 @@ if not os.path.exists("custom_editor_v11"):
         function setComponentValue(value) { sendMessageToStreamlitClient("streamlit:setComponentValue", {value: value, dataType: "json"}); }
         
         let currentWeek = 0; let totalDays = 0; let numRows = 0; let unavailColRows = {};
-        window.cellDetails = {}; let defaultCampus = "";
+        window.cellDetails = {}; 
         let modalStatus = 1; let selectedMode = 1; let editingCell = null;
 
         const modalBg = document.getElementById('detail-modal');
@@ -463,12 +453,9 @@ if not os.path.exists("custom_editor_v11"):
 
         window.openModal = function(cell) {
             editingCell = cell; const r = cell.dataset.r; const c = cell.dataset.c; const key = `${r}_${c}`;
-            const campusSelect = document.getElementById('ui-default-campus');
-            const currentDef = campusSelect ? campusSelect.value : defaultCampus;
             
-            const detail = window.cellDetails[key] || {campus: currentDef, note: ""};
+            const detail = window.cellDetails[key] || {note: ""};
             setModalStatus(parseInt(cell.dataset.v) || 1);
-            document.getElementById('modal-campus').value = detail.campus || "";
             document.getElementById('modal-note').value = detail.note || "";
             document.getElementById('detail-modal').style.display = 'flex';
         };
@@ -481,8 +468,8 @@ if not os.path.exists("custom_editor_v11"):
         window.saveModal = function() {
             if(!editingCell) return;
             const r = editingCell.dataset.r; const c = editingCell.dataset.c; const key = `${r}_${c}`;
-            const campus = document.getElementById('modal-campus').value; const note = document.getElementById('modal-note').value.trim();
-            if(campus || note || modalStatus === 0) { window.cellDetails[key] = {campus: campus, note: note}; window.upd(editingCell, modalStatus); }
+            const note = document.getElementById('modal-note').value.trim();
+            if(note || modalStatus === 0) { window.cellDetails[key] = {note: note}; window.upd(editingCell, modalStatus); }
             else { delete window.cellDetails[key]; window.upd(editingCell, modalStatus); }
             closeModal();
         };
@@ -490,12 +477,10 @@ if not os.path.exists("custom_editor_v11"):
         window.paintCell = function(cell, mode) {
             if(!cell) return;
             const key = `${cell.dataset.r}_${cell.dataset.c}`;
-            const campusSelect = document.getElementById('ui-default-campus');
-            const currentDefCampus = campusSelect ? campusSelect.value : defaultCampus;
             
             if (mode == 1 || mode == 2) {
                 let existingNote = window.cellDetails[key] ? window.cellDetails[key].note : "";
-                window.cellDetails[key] = {campus: currentDefCampus, note: existingNote};
+                window.cellDetails[key] = {note: existingNote};
             } else if (mode == 0) {
                 let detail = window.cellDetails[key];
                 if (detail && (detail.note === "バイト/サークル等" || detail.note === "バイト/私用")) { }
@@ -507,23 +492,14 @@ if not os.path.exists("custom_editor_v11"):
         window.upd = function(el, v) { 
             el.dataset.v = v; const key = `${el.dataset.r}_${el.dataset.c}`; let detail = window.cellDetails[key];
             
-            let campus = detail ? detail.campus : "";
             let note = detail ? detail.note : "";
             
             let bgColor = '#fff'; let txt = ''; let txtColor = '#fff'; let opacity = 1.0;
 
-            if (v == 1 || v == 2) {
-                let info = { color: "#4CAF50", text: "◯" }; 
-                if (campus === "なかもず") info = { color: "#FFA726", text: "な" };
-                else if (campus === "すぎもと" || campus === "杉本") info = { color: "#42A5F5", text: "す" };
-                else if (campus === "もりのみや") info = { color: "#66BB6A", text: "も" };
-                else if (campus === "あべの" || campus === "阿倍野") info = { color: "#EC407A", text: "あ" };
-                else if (campus === "りんくう") info = { color: "#AB47BC", text: "り" };
-                else if (campus === "その他/移動中") info = { color: "#9E9E9E", text: "他" };
-                
-                bgColor = info.color;
-                txt = info.text;
-                if (v == 2) opacity = 0.4; 
+            if (v == 1) {
+                bgColor = "#4CAF50"; txt = "◯"; txtColor = "#fff";
+            } else if (v == 2) {
+                bgColor = "#FFEB3B"; txt = "△"; txtColor = "#333";
             } else if (v == 3) {
                 bgColor = '#E0E0E0'; txt = '授'; txtColor = '#555';
             } else if (v == 0 && (note === "バイト/サークル等" || note === "バイト/私用")) {
@@ -578,12 +554,11 @@ if not os.path.exists("custom_editor_v11"):
                 let key = String(c);
                 if (unavailColRows[key]) {
                     unavailColRows[key].forEach(item => {
-                        const r = (typeof item === 'object') ? item.row : item; const campus = (typeof item === 'object') ? item.campus : ""; const cell = document.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+                        const r = (typeof item === 'object') ? item.row : item; const note = (typeof item === 'object') ? item.campus : ""; const cell = document.querySelector(`[data-r="${r}"][data-c="${c}"]`);
                         if(cell) {
                             const cellKey = `${r}_${c}`;
-                            if (campus === "💼 バイト/サークル等" || campus === "💼 バイト/私用") { window.cellDetails[cellKey] = {campus: "", note: "バイト/サークル等"}; window.paintCell(cell, 0); }
-                            else if (campus) { window.cellDetails[cellKey] = {campus: campus, note: "定期授業"}; window.paintCell(cell, 3); }
-                            else { window.paintCell(cell, 3); }
+                            if (note === "💼 バイト/サークル等" || note === "💼 バイト/私用") { window.cellDetails[cellKey] = {note: "バイト/サークル等"}; window.paintCell(cell, 0); }
+                            else { window.cellDetails[cellKey] = {note: "定期授業"}; window.paintCell(cell, 3); }
                         }
                     });
                 }
@@ -608,27 +583,6 @@ if not os.path.exists("custom_editor_v11"):
                 if (mode === -1) { g.style.touchAction = 'pan-x pan-y'; }
                 else { g.style.touchAction = 'none'; }
             }
-        };
-
-        window.updatePaletteCampus = function() {
-            const camp = document.getElementById('ui-default-campus').value;
-            
-            let p1Info = {color:"#4CAF50", txt:"可"};
-            if (camp === "なかもず") p1Info = {color:"#FFA726", txt:"な"};
-            else if (camp === "すぎもと" || camp === "杉本") p1Info = {color:"#42A5F5", txt:"す"};
-            else if (camp === "もりのみや") p1Info = {color:"#66BB6A", txt:"も"};
-            else if (camp === "あべの" || camp === "阿倍野") p1Info = {color:"#EC407A", txt:"あ"};
-            else if (camp === "りんくう") p1Info = {color:"#AB47BC", txt:"り"};
-            else if (camp === "その他/移動中") p1Info = {color:"#9E9E9E", txt:"他"};
-
-            document.getElementById('pen-1').innerHTML = camp ? `${p1Info.txt}<br><span style='font-size:9px;'>(${camp})</span>` : "可";
-            document.getElementById('pen-1').style.background = p1Info.color;
-            document.getElementById('pen-2').innerHTML = camp ? `未定<br><span style='font-size:9px;'>(${camp})</span>` : "未定";
-            document.getElementById('pen-2').style.background = p1Info.color;
-            document.getElementById('pen-2').style.opacity = 0.6;
-            document.getElementById('pen-2').style.color = "#fff";
-            
-            window.setPen(1);
         };
 
         const palette = document.getElementById('palette');
@@ -680,12 +634,6 @@ if not os.path.exists("custom_editor_v11"):
                 document.getElementById("content").innerHTML = args.html_code;
                 totalDays = args.cols; numRows = args.rows; unavailColRows = args.unavailColRows || {};
                 window.cellDetails = args.cellDetails || {}; 
-                defaultCampus = args.defaultCampus || "";
-                
-                if(document.getElementById('ui-default-campus')) {
-                    document.getElementById('ui-default-campus').value = defaultCampus;
-                    window.updatePaletteCampus();
-                }
                 
                 const detailsEl = document.querySelector('details');
                 if (detailsEl) {
@@ -704,7 +652,6 @@ if not os.path.exists("custom_editor_v11"):
                 const g = document.getElementById('g'); if(!g) return;
                 let down = false;
                 
-                // 💡💡💡 ここで「長押し処理」を完全に廃止しました 💡💡💡
                 const handleStart = (e, x, y) => {
                     if (selectedMode === -1) return; // scroll mode
                     const cell = e.target.closest('.c'); if(!cell) return;
@@ -769,7 +716,7 @@ if not os.path.exists("custom_editor_v11"):
         }); init(); </script></body></html>
         """)
 
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v11")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v12")
 
 
 # ==========================================
@@ -1282,7 +1229,61 @@ def main():
         st.title("➕ イベント新規作成")
         st.write("新しい日程調整イベントを作成します。")
         
-        ev_type_label = st.radio("📝 日程調整のタイプを選択", ["🕒 時間帯 (15分刻み)", "🏫 時間割 (月〜金)", "📅 日付指定コマ", "📅 複数の予定 (候補から選択)"], horizontal=True)
+        # 💡 HTML/CSSによるUIプレビュー表示
+        st.markdown("##### 📝 日程調整のタイプを選択")
+        c1, c2, c3, c4 = st.columns(4)
+        
+        html_time = """
+        <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
+            <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>🕒 時間帯 (15分刻み)</div>
+            <div style='font-size:10px; border:1px solid #eee; border-radius:4px; overflow:hidden;'>
+                <div style='background:#f0f2f6; padding:2px;'>4/1 (月)</div>
+                <div style='display:flex; border-top:1px solid #eee;'><div style='width:30px; background:#f0f2f6;'>9:00</div><div style='flex:1; background:#4CAF50; color:#fff;'>◯</div></div>
+                <div style='display:flex; border-top:1px dashed #eee;'><div style='width:30px; background:#f0f2f6;'>9:15</div><div style='flex:1; background:#FFEB3B; color:#333;'>△</div></div>
+            </div>
+        </div>
+        """
+        html_timetable = """
+        <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
+            <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>🏫 時間割 (月〜金)</div>
+            <div style='font-size:10px; border:1px solid #eee; border-radius:4px; overflow:hidden;'>
+                <div style='display:flex; background:#f0f2f6; border-bottom:1px solid #eee;'><div style='width:25px;'></div><div style='flex:1;'>月</div><div style='flex:1;'>火</div></div>
+                <div style='display:flex; border-bottom:1px solid #eee;'><div style='width:25px; background:#f0f2f6;'>1限</div><div style='flex:1; background:#4CAF50; color:#fff; border-right:1px solid #eee;'>◯</div><div style='flex:1; background:#e0e0e0; color:#555;'>授</div></div>
+                <div style='display:flex;'><div style='width:25px; background:#f0f2f6;'>2限</div><div style='flex:1; background:#FFEB3B; color:#333; border-right:1px solid #eee;'>△</div><div style='flex:1; background:#4CAF50; color:#fff;'>◯</div></div>
+            </div>
+        </div>
+        """
+        html_date_timetable = """
+        <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
+            <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>📅 日付指定コマ</div>
+            <div style='font-size:10px; border:1px solid #eee; border-radius:4px; overflow:hidden;'>
+                <div style='display:flex; background:#f0f2f6; border-bottom:1px solid #eee;'><div style='width:25px;'></div><div style='flex:1;'>4/10</div><div style='flex:1;'>4/12</div></div>
+                <div style='display:flex; border-bottom:1px solid #eee;'><div style='width:25px; background:#f0f2f6;'>1限</div><div style='flex:1; background:#4CAF50; color:#fff; border-right:1px solid #eee;'>◯</div><div style='flex:1; background:#FFEB3B; color:#333;'>△</div></div>
+            </div>
+        </div>
+        """
+        html_options = """
+        <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
+            <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>📅 複数の予定 (候補から)</div>
+            <div style='font-size:10px; text-align:left; padding:2px;'>
+                <div style='font-weight:bold; color:#2e7d32;'>📅 4/1 新歓</div>
+                <div style='display:flex; gap:2px; margin-top:2px;'>
+                    <div style='flex:1; border:1px solid #ccc; text-align:center; border-radius:2px;'>×</div>
+                    <div style='flex:1; background:#FFEB3B; text-align:center; border-radius:2px;'>△</div>
+                    <div style='flex:1; background:#4CAF50; color:#fff; text-align:center; border-radius:2px;'>◯</div>
+                </div>
+            </div>
+        </div>
+        """
+        
+        c1.markdown(html_time, unsafe_allow_html=True)
+        c2.markdown(html_timetable, unsafe_allow_html=True)
+        c3.markdown(html_date_timetable, unsafe_allow_html=True)
+        c4.markdown(html_options, unsafe_allow_html=True)
+        
+        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+        
+        ev_type_label = st.radio("上記のイメージを参考に、作成するタイプを選択してください：", ["🕒 時間帯 (15分刻み)", "🏫 時間割 (月〜金)", "📅 日付指定コマ", "📅 複数の予定 (候補から選択)"], horizontal=True, label_visibility="collapsed")
         st.markdown("<br>", unsafe_allow_html=True)
         
         ev_title = st.text_input("イベント名")
@@ -1317,11 +1318,9 @@ def main():
                 
         elif ev_type_label == "🏫 時間割 (月〜金)":
             ev_type = "timetable"
-            st.info("💡 月曜〜金曜の「1限〜5限・放課後」の枠のみを使って、全員の空きコマを一括で集計するモードです。")
             
         elif ev_type_label == "📅 日付指定コマ":
             ev_type = "date_timetable"
-            st.info("💡 指定した期間の日付ごとに「1限〜5限・昼休み・放課後」のコマで集計するモードです。")
             with st.container(border=True):
                 col1, col_m1, col2 = st.columns([10, 1, 10])
                 with col1: ev_start = st.date_input("開始日", label_visibility="collapsed")
@@ -1329,7 +1328,6 @@ def main():
                 with col2: ev_end = st.date_input("終了日", label_visibility="collapsed")
         else:
             ev_type = "options"
-            st.info("💡 任意の予定（候補日やイベント案など）をリスト化し、どれに参加できるかアンケートを取るモードです。")
             if "opt_count" not in st.session_state: st.session_state.opt_count = 3
             with st.container(border=True):
                 st.markdown("##### 📅 候補リストを作成")
@@ -2230,7 +2228,7 @@ def main():
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
                 default=None, 
-                key=f"editor_v11_{event.get('event_id')}"
+                key=f"editor_v12_{event.get('event_id')}"
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:
@@ -2497,6 +2495,7 @@ def main():
                     
                     .agg-day-col { box-sizing: border-box; }
                     
+                    /* マス目の設定（overflow: visible にしてツールチップが枠外に出れるようにする） */
                     .agg-cell { border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; box-sizing: border-box; cursor: pointer; overflow: visible !important; }
                     
                     /* ツールチップの本体設定。z-indexを極端に高くする */
@@ -2539,7 +2538,7 @@ def main():
                     .agg-time-cell { background: #f0f2f6; font-size: 12px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; box-sizing: border-box; }
                     </style>
                     """
-                    
+
                     agg_css = agg_css_template.replace("VAR_SCROLL_H", agg_scroll_h).replace("VAR_COLS", str(len(disp_date_strs)))
 
                     st.markdown(f"""

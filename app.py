@@ -13,6 +13,7 @@ from google.cloud import firestore
 import threading
 import uuid
 import hashlib
+import random  
 
 def hash_pin(pin_str):
     """PINをSHA-256でハッシュ化する関数"""

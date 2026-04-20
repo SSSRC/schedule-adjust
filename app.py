@@ -2563,7 +2563,6 @@ def main():
         if "event_responses" not in st.session_state:
             st.session_state.event_responses = []
 
-        tab_in, tab_graph = st.tabs(["📅 入力", "📊 集計"])
         with tab_in:
             my_ans_row = next((r for r in st.session_state.event_responses if str(r.get('user_id')) == str(user.get('user_id'))), None)
             b_data_val = my_ans_row.get('binary_data') or my_ans_row.get('binary', "") if my_ans_row else ""

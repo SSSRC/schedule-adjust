@@ -524,9 +524,21 @@ if not os.path.exists("custom_editor_v12"):
         
         window.renderWeek = function() {
             const start = currentWeek * 7; const end = start + 7;
+            let visibleCount = 0; // 表示される日数をカウント
             document.querySelectorAll('.day-col').forEach(el => {
-                const c = parseInt(el.dataset.c); el.style.display = (c >= start && c < end) ? 'block' : 'none';
+                const c = parseInt(el.dataset.c); 
+                if (c >= start && c < end) {
+                    el.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    el.style.display = 'none';
+                }
             });
+            
+            // ▼追加: 表示日数に合わせてグリッドの列設定を動的に更新する
+            const g = document.getElementById('g');
+            if (g) { g.style.gridTemplateColumns = `65px repeat(${visibleCount}, minmax(85px, 1fr))`; }
+            
             const btnPrev = document.getElementById('btn-prev'); const btnNext = document.getElementById('btn-next');
             if(btnPrev) btnPrev.disabled = (currentWeek === 0); if(btnNext) btnNext.disabled = (end >= totalDays);
             setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50}), 150);

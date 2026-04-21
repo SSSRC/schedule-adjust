@@ -379,10 +379,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 💡 v12へアップデート（長押し廃止・キャンパス機能削除・黄色未定・キャッシュクリア用）
-if not os.path.exists("custom_editor_v12"):
-    os.makedirs("custom_editor_v12", exist_ok=True)
-    with open("custom_editor_v12/index.html", "w", encoding="utf-8") as f:
+# 🚀 💡 v13へアップデート（レイアウトの左寄りバグ修正＆キャッシュクリア）
+if not os.path.exists("custom_editor_v13"):
+    os.makedirs("custom_editor_v13", exist_ok=True)
+    with open("custom_editor_v13/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -522,9 +522,11 @@ if not os.path.exists("custom_editor_v12"):
             el.innerHTML = innerHtml;
         };
         
+        // ✨ ここが修正ポイント ✨
         window.renderWeek = function() {
             const start = currentWeek * 7; const end = start + 7;
             let visibleCount = 0; // 表示される日数をカウント
+            
             document.querySelectorAll('.day-col').forEach(el => {
                 const c = parseInt(el.dataset.c); 
                 if (c >= start && c < end) {
@@ -535,14 +537,17 @@ if not os.path.exists("custom_editor_v12"):
                 }
             });
             
-            // ▼追加: 表示日数に合わせてグリッドの列設定を動的に更新する
+            // グリッドの列設定を表示されている日数に合わせて動的に変更し、幅一杯に広げる
             const g = document.getElementById('g');
-            if (g) { g.style.gridTemplateColumns = `65px repeat(${visibleCount}, minmax(85px, 1fr))`; }
+            if (g) {
+                g.style.gridTemplateColumns = `65px repeat(${visibleCount}, minmax(85px, 1fr))`;
+            }
             
             const btnPrev = document.getElementById('btn-prev'); const btnNext = document.getElementById('btn-next');
             if(btnPrev) btnPrev.disabled = (currentWeek === 0); if(btnNext) btnNext.disabled = (end >= totalDays);
             setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50}), 150);
         };
+        
         window.changeWeek = function(dir) { currentWeek += dir; window.renderWeek(); };
         
         window.doBulk = function(btnEl) {
@@ -729,7 +734,7 @@ if not os.path.exists("custom_editor_v12"):
         }); init(); </script></body></html>
         """)
 
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v12")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v13")
 
 
 # ==========================================
@@ -2231,6 +2236,7 @@ def main():
                     except:
                         pass
 
+            # 1260行目付近の grid_editor 呼び出し
             raw = grid_editor(
                 html_code=html_code, 
                 rows=len(time_labels), 
@@ -2241,7 +2247,7 @@ def main():
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
                 default=None, 
-                key=f"editor_v12_{event.get('event_id')}"
+                key=f"editor_v13_{event.get('event_id')}"  # ここを v13 に変更
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:

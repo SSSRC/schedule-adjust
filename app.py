@@ -453,18 +453,24 @@ if not os.path.exists("custom_editor_v13"):
 
         window.renderWeek = function() {
             const dayCols = document.querySelectorAll('.day-col');
+            let visibleCount = 0;
             dayCols.forEach((col, i) => {
-                if(currentWeek === 0 && i < 7) col.style.display = 'block';
-                else if(currentWeek === 1 && i >= 7 && i < 14) col.style.display = 'block';
-                else if(currentWeek === 2 && i >= 14 && i < 21) col.style.display = 'block';
-                else if(currentWeek === 3 && i >= 21 && i < 28) col.style.display = 'block';
-                else if(currentWeek === 4 && i >= 28 && i < 35) col.style.display = 'block';
+                if(currentWeek === 0 && i < 7) { col.style.display = 'block'; visibleCount++; }
+                else if(currentWeek === 1 && i >= 7 && i < 14) { col.style.display = 'block'; visibleCount++; }
+                else if(currentWeek === 2 && i >= 14 && i < 21) { col.style.display = 'block'; visibleCount++; }
+                else if(currentWeek === 3 && i >= 21 && i < 28) { col.style.display = 'block'; visibleCount++; }
+                else if(currentWeek === 4 && i >= 28 && i < 35) { col.style.display = 'block'; visibleCount++; }
                 else col.style.display = 'none';
             });
             const btnPrev = document.getElementById('btn-prev');
             const btnNext = document.getElementById('btn-next');
             if(btnPrev) btnPrev.disabled = (currentWeek === 0);
             if(btnNext) btnNext.disabled = (currentWeek >= Math.ceil(totalDays / 7) - 1);
+            
+            const g = document.getElementById('g');
+            if (g && visibleCount > 0) {
+                g.style.gridTemplateColumns = `65px repeat(${visibleCount}, minmax(85px, 1fr))`;
+            }
         };
 
         const modalBg = document.getElementById('detail-modal');
@@ -2091,7 +2097,7 @@ def main():
             with col_z2: st.markdown("<div style='font-size:11px; color:#888; margin-top:8px;'>※変更すると未保存の入力はリセットされます。</div>", unsafe_allow_html=True)
             if zoom_mode.startswith("小"): cell_h = "20px"
             elif zoom_mode.startswith("大"): cell_h = "50px"
-            if event_type == 'time': cell_h = "36px"
+            else: cell_h = "36px"
 
         with tab_in:
             if event_type == 'time':
@@ -2397,7 +2403,7 @@ def main():
                             f_wdays = st.multiselect("表示する曜日", ["月", "火", "水", "木", "金", "土", "日"], default=["月", "火", "水", "木", "金", "土", "日"])
                     else:
                         f_dates = None
-                        f_wdays = ["月", "火", "水", "木", "金"]
+                        f_wdays = ["月", "火", "水", "木", "金", "土", "日"]
 
                     submitted = st.form_submit_button("✅ フィルターを適用して集計", type="primary")
 
@@ -2434,7 +2440,7 @@ def main():
             disp_is_active = []
             if event_type in ['time', 'date_timetable']:
                 d_start = f_dates[0] if isinstance(f_dates, tuple) and len(f_dates) > 0 else date_objs[0]
-                d_end = f_dates[1] if isinstance(f_dates, tuple) and len(f_dates) > 1 else d_start
+                d_end = f_dates[1] if isinstance(f_dates, tuple) and len(f_dates) > 1 else date_objs[-1]
                 for c, d_obj in enumerate(date_objs):
                     wd_str = ["月", "火", "水", "木", "金", "土", "日"][d_obj.weekday()]
                     if d_start <= d_obj <= d_end and wd_str in f_wdays:

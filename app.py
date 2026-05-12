@@ -443,6 +443,30 @@ if not os.path.exists("custom_editor_v13"):
         window.cellDetails = {}; 
         let modalStatus = 1; let selectedMode = 1; let editingCell = null;
 
+        window.changeWeek = function(delta) {
+            currentWeek += delta;
+            const maxWeek = Math.ceil(totalDays / 7) - 1;
+            if(currentWeek < 0) currentWeek = 0;
+            if(currentWeek > maxWeek) currentWeek = maxWeek;
+            window.renderWeek();
+        };
+
+        window.renderWeek = function() {
+            const dayCols = document.querySelectorAll('.day-col');
+            dayCols.forEach((col, i) => {
+                if(currentWeek === 0 && i < 7) col.style.display = 'block';
+                else if(currentWeek === 1 && i >= 7 && i < 14) col.style.display = 'block';
+                else if(currentWeek === 2 && i >= 14 && i < 21) col.style.display = 'block';
+                else if(currentWeek === 3 && i >= 21 && i < 28) col.style.display = 'block';
+                else if(currentWeek === 4 && i >= 28 && i < 35) col.style.display = 'block';
+                else col.style.display = 'none';
+            });
+            const btnPrev = document.getElementById('btn-prev');
+            const btnNext = document.getElementById('btn-next');
+            if(btnPrev) btnPrev.disabled = (currentWeek === 0);
+            if(btnNext) btnNext.disabled = (currentWeek >= Math.ceil(totalDays / 7) - 1);
+        };
+
         const modalBg = document.getElementById('detail-modal');
         modalBg.addEventListener('mousedown', function(e) { if(e.target === this) closeModal(); });
         modalBg.addEventListener('touchstart', function(e) { if(e.target === this) closeModal(); }, {passive: true});
@@ -2044,8 +2068,16 @@ def main():
                     if d_id in date_strs:
                         b_str = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
                         for i in range(len(time_labels)):
-                            if event_type == 'time': v = int(b_str[s_idx + i]) if (s_idx + i) < len(b_str) else 0
-                            else: v = int(b_str[i]) if i < len(b_str) else 0
+                            if event_type == 'time':
+                                v = int(b_str[s_idx + i]) if (s_idx + i) < len(b_str) else 0
+                            elif event_type == 'date_timetable':
+                                if i < len(PERIODS_MASTER):
+                                    p_start = PERIODS_MASTER[i][2]
+                                    v = int(b_str[p_start]) if p_start < len(b_str) else 0
+                                else:
+                                    v = int(b_str[74]) if 74 < len(b_str) else 0
+                            else:
+                                v = int(b_str[i]) if i < len(b_str) else 0
                             df.loc[time_labels[i], d_id] = v
                             
             st.session_state.df_input = df
@@ -2129,8 +2161,7 @@ def main():
                         cell_class = "c-disabled"
                         
                     b_top = get_border_top(t_str, event_type)
-                    cells_html += f'<div class="{cell_class}" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; {pointer_ev}"></div>'
-                
+                    cells_html += f'<div class="{cell_class}" data-r="{r}" data-c="{c}" data-v="{val}" style="display:flex; align-items:center; justify-content:center; height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; {pointer_ev}"></div>'
                 header_bg = "#eee" if is_active else "#aaa"
                 day_cols_html += f'<div class="day-col" data-c="{c}" style="display:none;"><div class="header-cell" style="background:{header_bg};">{lbl}</div>{cells_html}</div>'
 

@@ -2125,9 +2125,10 @@ def main():
                 day_cols_html += f'<div class="day-col" data-c="{c}" style="display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
 
             time_cells_html = ""
+            time_cells_html = ""
             for r, t_str in enumerate(time_labels):
                 b_top = get_border_top(t_str, event_type)
-                lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
+                lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type in ['timetable', 'date_timetable'] else ""
                 time_cells_html += f'<div style="background:#f0f2f6; text-align:center; font-size:12px; font-weight:bold; color:#555; height:{cell_h}; line-height:{cell_h}; border-top:{b_top}; border-right:1px solid #ccc; box-sizing:border-box;">{lbl}</div>'
             time_col_html = f'<div class="time-col"><div class="top-left-cell"></div>{time_cells_html}</div>'
 
@@ -2459,10 +2460,11 @@ def main():
                     
                     max_z = np.max(z) if np.max(z) > 0 else 1
                     
+                    # 修正後
                     agg_time_cells = ""
                     for r, t_str in enumerate(disp_time_labels):
                         b_top = get_border_top(t_str, event_type)
-                        lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type == 'timetable' else ""
+                        lbl = t_str if t_str.endswith(":00") or t_str.endswith(":30") or event_type in ['timetable', 'date_timetable'] else ""
                         agg_time_cells += f'<div class="agg-time-cell" style="border-top:{b_top}; height:{cell_h};">{lbl}</div>'
                         
                     agg_time_col = f'<div class="agg-time-col"><div class="agg-top-left"></div>{agg_time_cells}</div>'

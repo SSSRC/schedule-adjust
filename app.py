@@ -768,7 +768,7 @@ def idx_to_time(i): return f"{(i*15)//60:02d}:{(i*15)%60:02d}"
 time_master = [idx_to_time(i) for i in range(96)]
 
 def get_border_top(t_str, event_type="time"):
-    if event_type == "timetable": return "1px solid #aaa"
+    if event_type in ["timetable", "date_timetable"]: return "1px solid #aaa"
     if t_str.endswith(":00"): return "2px solid #555"
     elif t_str.endswith(":30"): return "1px dashed #999"
     else: return "1px solid #f0f0f0"

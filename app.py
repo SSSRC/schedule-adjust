@@ -2269,7 +2269,14 @@ def main():
                             if event_type == 'time': bits[s_idx + t_idx] = str(val)
                             elif event_type == 'date_timetable':
                                 if t_idx < len(PERIODS_MASTER):
-                                    bits[PERIODS_MASTER[t_idx][2]] = str(val)
+                                    p_start = PERIODS_MASTER[t_idx][2]
+                                    p_end = PERIODS_MASTER[t_idx][3]
+                                    for bit_i in range(p_start, p_end):
+                                        bits[bit_i] = str(val)
+                                else:
+                                    # 放課後（74〜95）
+                                    for bit_i in range(74, 96):
+                                        bits[bit_i] = str(val)
                                 else:
                                     bits[74] = str(val) # 放課後
                             else: bits[t_idx] = str(val)
@@ -2423,10 +2430,16 @@ def main():
                         c_idx = disp_date_strs.index(r['date'])
                         b = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
                         
-                        for disp_r, t_str in enumerate(disp_time_labels):
-                            orig_r_idx = time_labels.index(t_str)
-                            if event_type == 'time': v = int(b[s_idx + orig_r_idx]) if (s_idx + orig_r_idx) < 96 else 0
-                            else: v = int(b[orig_r_idx]) if orig_r_idx < 96 else 0
+                        if event_type == 'time':
+                            v = int(b[s_idx + orig_r_idx]) if (s_idx + orig_r_idx) < 96 else 0
+                        elif event_type == 'date_timetable':
+                            if orig_r_idx < len(PERIODS_MASTER):
+                                p_start = PERIODS_MASTER[orig_r_idx][2]
+                                v = int(b[p_start]) if p_start < 96 else 0
+                            else:
+                                v = int(b[74]) if 74 < 96 else 0
+                        else:
+                            v = int(b[orig_r_idx]) if orig_r_idx < 96 else 0
                             
                             if v == 3: v = 0
                             z[disp_r, c_idx] += (1.0 if v==1 else policy if v==2 else 0.0)

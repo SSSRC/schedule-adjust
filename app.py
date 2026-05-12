@@ -143,7 +143,7 @@ def get_app_data_from_firestore(user):
     expanded_user_groups = set(user_groups)
     if any(m in user_groups for m in ["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ"]):
         expanded_user_groups.add("シスマネ")
-    if any(k in user_groups for k in ["燃焼系長", "推進系長", "構造系長", "電装系長"]):
+    if any(k in user_groups for k in ["燃焼系長", "推進系長", "構造系長", "電装系長", "エンジン系長"]):
         expanded_user_groups.add("系長")
         
     all_events_docs = db.collection("events").stream()
@@ -785,9 +785,9 @@ def main():
     
     # 💡 グループの並び順（マスター）を定義
     MASTER_G1 = ["衛星", "ロケット", "BizSat"]
-    MASTER_G2 = ["ミッション系", "電源系", "構造系", "通信系", "姿勢系", "熱系", "C＆DH系", "COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系"]
+    MASTER_G2 = ["ミッション系", "電源系", "構造系", "通信系", "姿勢系", "熱系", "C＆DH系", "COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系", "COLOURSエンジン系"]
     MASTER_G3 = ["執行部", "新入生教育", "広報", "イベント", "会計"]
-    MASTER_G4_OPTS = ["PMs (衛星)", "PMs (ロケット)", "シスマネ", "系長"]
+    MASTER_G4_OPTS = ["PMs (衛星)", "PMs (ロケット)", "シスマネ", "系長", "エンジン系長"]
 
     def sort_groups(lst, master):
         return sorted(lst, key=lambda x: master.index(x) if x in master else 999)
@@ -852,8 +852,8 @@ def main():
                     g2_opts.extend(["ミッション系", "電源系", "構造系", "通信系", "姿勢系", "熱系", "C＆DH系"])
                     g4_opts.extend(["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ", "PMs (衛星)"])
                 if "ロケット" in g1:
-                    g2_opts.extend(["COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系"])
-                    g4_opts.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "PMs (ロケット)"])
+                    g2_opts.extend(["COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系", "COLOURSエンジン系"])
+                    g4_opts.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "エンジン系長", "PMs (ロケット)"])
                 
                 g2_opts = list(dict.fromkeys(g2_opts)); g4_opts = list(dict.fromkeys(g4_opts))
                 g2 = st.multiselect("🔧 系", g2_opts, key="reg_g2")
@@ -993,8 +993,8 @@ def main():
             upd_g2_opts.extend(["ミッション系", "電源系", "構造系", "通信系", "姿勢系", "熱系", "C＆DH系"])
             upd_g4_opts.extend(["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ", "PMs (衛星)"])
         if "ロケット" in upd_g1:
-            upd_g2_opts.extend(["COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系"])
-            upd_g4_opts.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "PMs (ロケット)"])
+            upd_g2_opts.extend(["COLOURS燃焼系", "COLOURS推進系", "COLOURS構造系", "COLOURS電装系", "COLOURSエンジン系"])
+            upd_g4_opts.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "PMs (ロケット)", "エンジン系長"])
         
         upd_g2_opts = list(dict.fromkeys(upd_g2_opts)); upd_g4_opts = list(dict.fromkeys(upd_g4_opts))
         safe_def_g2 = [x for x in def_g2 if x in upd_g2_opts]
@@ -1356,7 +1356,7 @@ def main():
                     if g == "シスマネ":
                         expanded_g4.extend(["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ", "シスマネ"])
                     elif g == "系長":
-                        expanded_g4.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "系長"])
+                        expanded_g4.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "エンジン系長", "系長"])
                     else:
                         expanded_g4.append(g)
 
@@ -1636,7 +1636,6 @@ def main():
                         else:
                             st.success("🎉 対象者は全員回答済みです！")
 
-                st.markdown("---")
                 st.markdown("---")
                 st.subheader("📦 アーカイブ済み")
                 archived_events = [ev for ev in all_events if ev.get('status') == 'archived']

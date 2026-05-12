@@ -2277,8 +2277,6 @@ def main():
                                     # 放課後（74〜95）
                                     for bit_i in range(74, 96):
                                         bits[bit_i] = str(val)
-                                else:
-                                    bits[74] = str(val) # 放課後
                             else: bits[t_idx] = str(val)
                             
                         if has_data:
@@ -2427,26 +2425,30 @@ def main():
                             if {"user": r.get('user_name'), "comment": r.get('comment')} not in comments_list: 
                                 comments_list.append({"user": r.get('user_name'), "comment": r.get('comment')})
                         
+                        # ✅ 正しい修正後
                         c_idx = disp_date_strs.index(r['date'])
                         b = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
                         
-                        if event_type == 'time':
-                            v = int(b[s_idx + orig_r_idx]) if (s_idx + orig_r_idx) < 96 else 0
-                        elif event_type == 'date_timetable':
-                            if orig_r_idx < len(PERIODS_MASTER):
-                                p_start = PERIODS_MASTER[orig_r_idx][2]
-                                v = int(b[p_start]) if p_start < 96 else 0
+                        for disp_r, t_str in enumerate(disp_time_labels):   # ← このforループが必要
+                            orig_r_idx = time_labels.index(t_str)
+                            
+                            if event_type == 'time':
+                                v = int(b[s_idx + orig_r_idx]) if (s_idx + orig_r_idx) < 96 else 0
+                            elif event_type == 'date_timetable':
+                                if orig_r_idx < len(PERIODS_MASTER):
+                                    p_start = PERIODS_MASTER[orig_r_idx][2]
+                                    v = int(b[p_start]) if p_start < 96 else 0
+                                else:
+                                    v = int(b[74]) if 74 < 96 else 0
                             else:
-                                v = int(b[74]) if 74 < 96 else 0
-                        else:
-                            v = int(b[orig_r_idx]) if orig_r_idx < 96 else 0
+                                v = int(b[orig_r_idx]) if orig_r_idx < 96 else 0
                             
                             if v == 3: v = 0
                             z[disp_r, c_idx] += (1.0 if v==1 else policy if v==2 else 0.0)
                             
                             cell_note = ""
                             cell_key = f"{orig_r_idx}_{c_idx}"
-                            if cell_key in cd and cd[cell_key].get('note'): 
+                            if cell_key in cd and cd[cell_key].get('note'):
                                 cell_note = cd[cell_key]['note']
                                 
                             if can_view_details and v in [1, 2, 3]:

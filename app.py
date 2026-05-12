@@ -522,46 +522,18 @@ if not os.path.exists("custom_editor_v13"):
             el.innerHTML = innerHtml;
         };
         
-        // ✨ ここが修正ポイント ✨
-        window.renderWeek = function() {
-            const start = currentWeek * 7; const end = start + 7;
-            let visibleCount = 0; // 表示される日数をカウント
-            
-            document.querySelectorAll('.day-col').forEach(el => {
-                const c = parseInt(el.dataset.c); 
-                if (c >= start && c < end) {
-                    el.style.display = 'block';
-                    visibleCount++;
-                } else {
-                    el.style.display = 'none';
-                }
-            });
-            
-            // グリッドの列設定を表示されている日数に合わせて動的に変更し、幅一杯に広げる
-            const g = document.getElementById('g');
-            if (g) {
-                g.style.gridTemplateColumns = `65px repeat(${visibleCount}, minmax(85px, 1fr))`;
-            }
-            
-            const btnPrev = document.getElementById('btn-prev'); const btnNext = document.getElementById('btn-next');
-            if(btnPrev) btnPrev.disabled = (currentWeek === 0); if(btnNext) btnNext.disabled = (end >= totalDays);
-            setTimeout(() => sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50}), 150);
-        };
-        
-        window.changeWeek = function(dir) { currentWeek += dir; window.renderWeek(); };
-        
         window.doBulk = function(btnEl) {
             const val = document.getElementById('b-val').value;
             const sIdx = parseInt(document.getElementById('b-start').value); const eIdx = parseInt(document.getElementById('b-end').value);
             if(sIdx > eIdx) { alert('エラー：開始時刻は終了時刻より前に設定してください。'); return; }
-            document.querySelectorAll('.b-day-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); for(let r = sIdx; r <= eIdx; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.paintCell(cell, val); } } });
+            document.querySelectorAll('.b-day-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); for(let r = sIdx; r <= eIdx; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell && cell.classList.contains('c')) window.paintCell(cell, val); } } });
             const origText = btnEl.innerText; btnEl.innerText = "✅ 完了"; setTimeout(() => btnEl.innerText = origText, 1500);
         };
         window.doCopy = function(btnEl) {
             const srcIdx = parseInt(document.getElementById('c-src').value);
-            let srcData = []; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${srcIdx}"]`); srcData.push(cell ? cell.dataset.v : 0); }
+            let srcData = []; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${srcIdx}"]`); srcData.push((cell && cell.classList.contains('c')) ? cell.dataset.v : 0); }
             let copied = false;
-            document.querySelectorAll('.c-tgt-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); if(cIdx !== srcIdx) { copied = true; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell) window.paintCell(cell, srcData[r]); } } } });
+            document.querySelectorAll('.c-tgt-chk').forEach(chk => { if(chk.checked) { const cIdx = parseInt(chk.value); if(cIdx !== srcIdx) { copied = true; for(let r = 0; r < numRows; r++) { const cell = document.querySelector(`[data-r="${r}"][data-c="${cIdx}"]`); if(cell && cell.classList.contains('c')) window.paintCell(cell, srcData[r]); } } } });
             if(!copied) { alert('コピー先を選択してください。'); return; }
             const origText = btnEl.innerText; btnEl.innerText = "✅ 完了"; setTimeout(() => btnEl.innerText = origText, 1500);
         };
@@ -573,7 +545,7 @@ if not os.path.exists("custom_editor_v13"):
                 if (unavailColRows[key]) {
                     unavailColRows[key].forEach(item => {
                         const r = (typeof item === 'object') ? item.row : item; const note = (typeof item === 'object') ? item.campus : ""; const cell = document.querySelector(`[data-r="${r}"][data-c="${c}"]`);
-                        if(cell) {
+                        if(cell && cell.classList.contains('c')) {
                             const cellKey = `${r}_${c}`;
                             if (note === "💼 バイト/サークル等" || note === "💼 バイト/私用") { window.cellDetails[cellKey] = {note: "バイト/サークル等"}; window.paintCell(cell, 0); }
                             else { window.cellDetails[cellKey] = {note: "定期授業"}; window.paintCell(cell, 3); }
@@ -1665,7 +1637,19 @@ def main():
                             st.success("🎉 対象者は全員回答済みです！")
 
                 st.markdown("---")
+                st.markdown("---")
                 st.subheader("📦 アーカイブ済み")
+                archived_events = [ev for ev in all_events if ev.get('status') == 'archived']
+                if archived_events:
+                    with st.form("restore_event_form"):
+                        restore_ev = st.selectbox("復元するイベントを選択", archived_events, format_func=lambda x: x.get('title'))
+                        if st.form_submit_button("🔄 選択したイベントを復元 (openにする)"):
+                            db.collection("events").document(restore_ev['event_id']).update({"status": "open"})
+                            backup_to_gas_async("update_event_status", {"payload": {"event_id": restore_ev['event_id'], "status": "open"}})
+                            st.toast("✅ イベントを復元しました")
+                            time.sleep(1)
+                            st.rerun()
+
                 html_table_arch = df_display[df_display['status'] == 'archived'].to_html(index=False, border=0, classes="custom-tbl")
                 st.markdown(f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_arch}</div>', unsafe_allow_html=True)
             else: st.info("イベントがありません。")
@@ -1962,9 +1946,18 @@ def main():
                 curr = datetime.today().date()
                 end_d = curr + timedelta(days=7)
                 
-            while curr <= end_d: date_objs.append(curr); curr += timedelta(days=1)
+            days_to_subtract = (curr.weekday() + 1) % 7
+            calendar_start = curr - timedelta(days=days_to_subtract)
+            days_to_add = (5 - end_d.weekday()) % 7 if end_d.weekday() != 6 else 6
+            calendar_end = end_d + timedelta(days=days_to_add)
+
+            while calendar_start <= calendar_end: 
+                date_objs.append(calendar_start)
+                calendar_start += timedelta(days=1)
+                
             date_strs = [d.strftime("%Y-%m-%d") for d in date_objs]
             clean_date_labels = [f"{d.strftime('%m/%d')}({['月','火','水','木','金','土','日'][d.weekday()]})" for d in date_objs]
+            is_active_date = [(curr <= d <= end_d) for d in date_objs]
             time_labels = [idx_to_time(i) for i in range(s_idx, e_idx + 1)]
             
             scroll_h = "650px"
@@ -2018,11 +2011,19 @@ def main():
                 end_d = pd.to_datetime(event.get('end_date', ''), errors='coerce').date()
             except:
                 curr = datetime.today().date(); end_d = curr + timedelta(days=7)
-            while curr <= end_d: date_objs.append(curr); curr += timedelta(days=1)
+                
+            days_to_subtract = (curr.weekday() + 1) % 7
+            calendar_start = curr - timedelta(days=days_to_subtract)
+            days_to_add = (5 - end_d.weekday()) % 7 if end_d.weekday() != 6 else 6
+            calendar_end = end_d + timedelta(days=days_to_add)
+
+            while calendar_start <= calendar_end: 
+                date_objs.append(calendar_start)
+                calendar_start += timedelta(days=1)
             
             date_strs = [d.strftime("%Y-%m-%d") for d in date_objs]
             clean_date_labels = [f"{d.strftime('%m/%d')}({['月','火','水','木','金','土','日'][d.weekday()]})" for d in date_objs]
-
+            is_active_date = [(curr <= d <= end_d) for d in date_objs]
             fixed_sched = user.get("fixed_schedule", {})
             unavail_col_rows = {}
             for c, date_obj in enumerate(date_objs):
@@ -2111,18 +2112,28 @@ def main():
             day_cols_html = ""
             for c, d_str in enumerate(date_strs):
                 lbl = clean_date_labels[c].replace("(", "<br>(")
+                is_active = is_active_date[c] if event_type in ['time', 'date_timetable'] else True
                 cells_html = ""
                 for r, t_str in enumerate(time_labels):
-                    val = int(m[r][c])
-                    if val == 1: bg, bg_img = "#4CAF50", "none"
-                    elif val == 2: bg, bg_img = "#FFEB3B", "none"
-                    elif val == 3: bg, bg_img = "#e0e0e0", "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,.7) 5px, rgba(255,255,255,.7) 10px)"
-                    else: bg, bg_img = "#fff", "none"
-                    
+                    if is_active:
+                        val = int(m[r][c])
+                        if val == 1: bg, bg_img = "#4CAF50", "none"
+                        elif val == 2: bg, bg_img = "#FFEB3B", "none"
+                        elif val == 3: bg, bg_img = "#e0e0e0", "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,.7) 5px, rgba(255,255,255,.7) 10px)"
+                        else: bg, bg_img = "#fff", "none"
+                        pointer_ev = ""
+                        cell_class = "c"
+                    else:
+                        val = 0
+                        bg, bg_img = "#444", "none"
+                        pointer_ev = "pointer-events:none; opacity: 0.5;"
+                        cell_class = "c-disabled"
+                        
                     b_top = get_border_top(t_str, event_type)
-                    cells_html += f'<div class="c" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box;"></div>'
+                    cells_html += f'<div class="{cell_class}" data-r="{r}" data-c="{c}" data-v="{val}" style="height:{cell_h}; background:{bg}; background-image:{bg_img}; cursor:pointer; border-top:{b_top}; border-right:1px solid #eee; box-sizing:border-box; {pointer_ev}"></div>'
                 
-                day_cols_html += f'<div class="day-col" data-c="{c}" style="display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
+                header_bg = "#eee" if is_active else "#aaa"
+                day_cols_html += f'<div class="day-col" data-c="{c}" style="display:none;"><div class="header-cell" style="background:{header_bg};">{lbl}</div>{cells_html}</div>'
 
         
             # 修正後
@@ -2390,7 +2401,8 @@ def main():
 
             disp_date_strs = []
             disp_clean_date_labels = []
-            if event_type == 'time':
+            disp_is_active = []
+            if event_type in ['time', 'date_timetable']:
                 d_start = f_dates[0] if isinstance(f_dates, tuple) and len(f_dates) > 0 else date_objs[0]
                 d_end = f_dates[1] if isinstance(f_dates, tuple) and len(f_dates) > 1 else d_start
                 for c, d_obj in enumerate(date_objs):
@@ -2398,9 +2410,11 @@ def main():
                     if d_start <= d_obj <= d_end and wd_str in f_wdays:
                         disp_date_strs.append(date_strs[c])
                         disp_clean_date_labels.append(clean_date_labels[c])
+                        disp_is_active.append(is_active_date[c])
             else:
                 disp_date_strs = date_strs
                 disp_clean_date_labels = clean_date_labels
+                disp_is_active = [True] * len(date_strs)
 
             unique_all = len(set([r.get('user_id') for r in all_res_data]))
             unique_filtered = len(set([r.get('user_id') for r in filtered_data]))
@@ -2473,25 +2487,33 @@ def main():
                     agg_day_cols = ""
                     for c, d_str in enumerate(disp_date_strs):
                         lbl = disp_clean_date_labels[c].replace("(", "<br>(")
+                        is_active = disp_is_active[c]
                         cells_html = ""
                         for r, t_str in enumerate(disp_time_labels):
                             val = z[r][c]
                             b_top = get_border_top(t_str, event_type)
-                            if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
+                            if not is_active:
+                                bg, txt_color, val_txt = "#444", "#888", "-"
+                                tooltip_txt = "対象外の日付です"
+                                tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
+                                cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size}; opacity: 0.5;">{val_txt}<span class="{tooltip_class}">{t_str}<br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
                             else:
-                                ratio = val / max_z
-                                r_col = int(240 - (240 - 46) * ratio); g_col = int(248 - (248 - 125) * ratio); b_col = int(242 - (242 - 50) * ratio)
-                                bg, txt_color, val_txt = f"rgb({r_col}, {g_col}, {b_col})", ("#000" if ratio < 0.6 else "#fff"), f"{val:g}"
-                            
-                            if not can_view_details: tooltip_txt = f"この時間帯は {val_txt} 人が参加可能です"
-                            else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
+                                if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
+                                else:
+                                    ratio = val / max_z
+                                    r_col = int(240 - (240 - 46) * ratio); g_col = int(248 - (248 - 125) * ratio); b_col = int(242 - (242 - 50) * ratio)
+                                    bg, txt_color, val_txt = f"rgb({r_col}, {g_col}, {b_col})", ("#000" if ratio < 0.6 else "#fff"), f"{val:g}"
                                 
-                            agg_font_size = "11px" if cell_h == "20px" else "15px"
-                            
-                            tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
-                            cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
+                                if not can_view_details: tooltip_txt = f"この時間帯は {val_txt} 人が参加可能です"
+                                else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
+                                    
+                                agg_font_size = "11px" if cell_h == "20px" else "15px"
+                                
+                                tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
+                                cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
                         
-                        agg_day_cols += f'<div class="agg-day-col"><div class="agg-header">{lbl}</div>{cells_html}</div>'
+                        header_bg = "#eee" if is_active else "#aaa"
+                        agg_day_cols += f'<div class="agg-day-col"><div class="agg-header" style="background:{header_bg};">{lbl}</div>{cells_html}</div>'
 
                     agg_scroll_h = "680px" if event_type == "time" else "auto"
 

@@ -2124,7 +2124,8 @@ def main():
                 
                 day_cols_html += f'<div class="day-col" data-c="{c}" style="display:none;"><div class="header-cell">{lbl}</div>{cells_html}</div>'
 
-            time_cells_html = ""
+        
+            # 修正後
             time_cells_html = ""
             for r, t_str in enumerate(time_labels):
                 b_top = get_border_top(t_str, event_type)

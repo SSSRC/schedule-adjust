@@ -2483,6 +2483,7 @@ def main():
                         
                     agg_time_col = f'<div class="agg-time-col"><div class="agg-top-left"></div>{agg_time_cells}</div>'
                     
+                    agg_font_size = "11px" if cell_h == "20px" else "15px"  # ★ループの外でサイズを定義するよう修正
                     agg_day_cols = ""
                     for c, d_str in enumerate(disp_date_strs):
                         lbl = disp_clean_date_labels[c].replace("(", "<br>(")
@@ -2491,10 +2492,11 @@ def main():
                         for r, t_str in enumerate(disp_time_labels):
                             val = z[r][c]
                             b_top = get_border_top(t_str, event_type)
+                            tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
+                            
                             if not is_active:
                                 bg, txt_color, val_txt = "#444", "#888", "-"
                                 tooltip_txt = "対象外の日付です"
-                                tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
                                 cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size}; opacity: 0.5;">{val_txt}<span class="{tooltip_class}">{t_str}<br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
                             else:
                                 if val == 0: bg, txt_color, val_txt = "#ffffff", "#ccc", "-"
@@ -2506,9 +2508,6 @@ def main():
                                 if not can_view_details: tooltip_txt = f"この時間帯は {val_txt} 人が参加可能です"
                                 else: tooltip_txt = h[r][c] if h[r][c] else "参加可能者なし"
                                     
-                                agg_font_size = "11px" if cell_h == "20px" else "15px"
-                                
-                                tooltip_class = "tooltip tooltip-bottom" if r <= 1 else "tooltip"
                                 cells_html += f'<div class="agg-cell" style="background:{bg}; color:{txt_color}; border-top:{b_top}; height:{cell_h}; font-size:{agg_font_size};">{val_txt}<span class="{tooltip_class}">{t_str}<br><b>{val_txt}人</b><br><hr style="margin:4px 0; border:0; border-top:1px solid rgba(255,255,255,0.3);">{tooltip_txt}</span></div>'
                         
                         header_bg = "#eee" if is_active else "#aaa"

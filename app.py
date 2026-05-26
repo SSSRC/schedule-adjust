@@ -732,6 +732,9 @@ if not os.path.exists("custom_editor_v13"):
                     btn.innerText = "⏳ 保存処理中..."; btn.style.backgroundColor = "#ff7b7b"; btn.style.pointerEvents = "none"; palette.style.display = 'none'; 
                 }; }
                 document.querySelectorAll('.c').forEach(cell => { window.upd(cell, cell.dataset.v); });
+                setTimeout(() => {
+                    sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight + 50});
+                }, 150);
             }
         }); init(); </script></body></html>
         """)

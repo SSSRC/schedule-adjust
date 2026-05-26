@@ -1649,7 +1649,11 @@ def main():
                             new_title = st.text_input("タイトル", value=target_ev.get('title', ''))
                             new_desc = st.text_area("説明文・備考 (HTMLタグが含まれる場合があります)", value=target_ev.get('description', ''), height=150)
                             
+                            # 💡追加: 編集画面で自動アーカイブのON/OFFを切り替えられるようにする
+                            new_auto_archive = st.checkbox("✅ 締切後、7日経過したら自動でアーカイブする", value=target_ev.get('auto_archive', True))
+                            
                             orig_deadline = target_ev.get('deadline') or target_ev.get('close_time', '')
+                            # (日付・時刻の変換処理はそのまま)
                             try:
                                 dt = pd.to_datetime(orig_deadline)
                                 d_val = dt.date()
@@ -1670,7 +1674,8 @@ def main():
                                     updates = {
                                         "title": new_title,
                                         "description": new_desc,
-                                        "deadline": new_dl_str
+                                        "deadline": new_dl_str,
+                                        "auto_archive": new_auto_archive # 💡追加
                                     }
                                     db.collection("events").document(target_ev['event_id']).update(updates)
                                     backup_to_gas_async("update_event", {"payload": {"event_id": target_ev['event_id'], **updates}})
@@ -1816,9 +1821,19 @@ def main():
                         restore_ev = ev_options_arch[selected_restore_label]
                         
                         if st.form_submit_button("🔄 選択したイベントを復元 (openにする)"):
-                            db.collection("events").document(restore_ev['event_id']).update({"status": "open"})
-                            backup_to_gas_async("update_event_status", {"payload": {"event_id": restore_ev['event_id'], "status": "open"}})
-                            st.toast("✅ イベントを復元しました")
+                            # 💡変更: 復元時は自動アーカイブ設定を強制的にオフ(False)にする
+                            db.collection("events").document(restore_ev['event_id']).update({
+                                "status": "open", 
+                                "auto_archive": False
+                            })
+                            backup_to_gas_async("update_event_status", {
+                                "payload": {
+                                    "event_id": restore_ev['event_id'], 
+                                    "status": "open", 
+                                    "auto_archive": False
+                                }
+                            })
+                            st.toast("✅ イベントを復元しました（自動アーカイブはオフになりました）")
                             time.sleep(1)
                             st.rerun()
                 else:

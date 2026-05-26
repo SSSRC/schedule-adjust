@@ -1582,20 +1582,24 @@ def main():
 
                 selected_rows = event_selection.selection.rows
                 just_selected = False
-                selected_event_ids = [] # 💡 追加
+                selected_event_ids = []
 
                 if selected_rows:
-                    selected_event_ids = [df_ev_active.iloc[r]['event_id'] for r in selected_rows]
-                    selected_event_id = selected_event_ids[0] # 編集・ステータス変更タブ用には先頭の1件を使う
+                    # 💡 安全対策: DataFrameの行数（長さ）を超えないインデックスだけを抽出
+                    valid_rows = [r for r in selected_rows if r < len(df_ev_active)]
                     
-                    if selected_event_id != prev_selected:
-                        just_selected = True  # 新たに選択された
-                        st.session_state["manage_target_ev_id"] = selected_event_id
+                    if valid_rows:
+                        selected_event_ids = [df_ev_active.iloc[r]['event_id'] for r in valid_rows]
+                        selected_event_id = selected_event_ids[0] # 編集・ステータス変更タブ用には先頭の1件を使う
                         
-                        selected_row_data = df_ev_active.iloc[selected_rows[0]]
-                        target_label = f"{selected_row_data['title']} ({selected_row_data['status']})"
-                        st.session_state["manage_target_ev"] = target_label
-                        st.session_state["chk_unanswered"] = target_label
+                        if selected_event_id != prev_selected:
+                            just_selected = True  # 新たに選択された
+                            st.session_state["manage_target_ev_id"] = selected_event_id
+                            
+                            selected_row_data = df_ev_active.iloc[valid_rows[0]]
+                            target_label = f"{selected_row_data['title']} ({selected_row_data['status']})"
+                            st.session_state["manage_target_ev"] = target_label
+                            st.session_state["chk_unanswered"] = target_label
 
                 # 💡 追加: 複数選択されている場合の一括アクションUI
                 if len(selected_rows) > 0:
@@ -1805,11 +1809,15 @@ def main():
 
                     # 行がクリックされたらStateを更新
                     if arch_selection.selection.rows:
-                        selected_arch_event_id = df_ev_archived.iloc[arch_selection.selection.rows[0]]['event_id']
-                        if selected_arch_event_id != prev_arch_selected:
-                            st.session_state["manage_arch_ev_id"] = selected_arch_event_id
-                            selected_arch_row_data = df_ev_archived.iloc[arch_selection.selection.rows[0]]
-                            st.session_state["manage_restore_ev"] = selected_arch_row_data['title']
+                        # 💡 安全対策: アーカイブ用の表でも行数チェックを行う
+                        valid_arch_rows = [r for r in arch_selection.selection.rows if r < len(df_ev_archived)]
+                        
+                        if valid_arch_rows:
+                            selected_arch_event_id = df_ev_archived.iloc[valid_arch_rows[0]]['event_id']
+                            if selected_arch_event_id != prev_arch_selected:
+                                st.session_state["manage_arch_ev_id"] = selected_arch_event_id
+                                selected_arch_row_data = df_ev_archived.iloc[valid_arch_rows[0]]
+                                st.session_state["manage_restore_ev"] = selected_arch_row_data['title']
 
                     with st.form("restore_event_form"):
                         # 💡変更: 選択式の連動selectbox

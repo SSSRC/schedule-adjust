@@ -1626,6 +1626,9 @@ def main():
                                     st.rerun()
                                 else:
                                     st.error("入力された確認コードが一致しません。")
+                # 💡 ここから2行を追加（インデントは st.markdown や if active_events: と同じ位置に揃える）
+                else:
+                    st.info("💡 現在、編集・管理できるイベント（open または closed）はありません。新規作成するか、下のアーカイブから復元してください。")
                             
                 st.markdown("---")
                 st.subheader("👀 未回答者の抽出")

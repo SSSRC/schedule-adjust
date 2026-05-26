@@ -1508,7 +1508,27 @@ def main():
             all_users_admin = [d.to_dict() for d in db.collection("users").stream()]
             user_map = {u.get('user_id'): u.get('name') for u in all_users_admin}
 
-            # 既存の format_target_scope 関数はそのまま維持
+def format_target_scope(scope_str, user_map):
+    """ターゲット公開範囲を読みやすい文字列に変換する関数"""
+    if not scope_str:
+        return "全員"
+    try:
+        import json
+        scope = json.loads(scope_str)
+        groups = scope.get("groups", [])
+        user_ids = scope.get("users", [])
+        
+        parts = []
+        if groups:
+            parts.append("Gr: " + ", ".join(groups))
+        if user_ids:
+            # IDから名前に変換を試みる（なければIDをそのまま表示）
+            names = [user_map.get(str(uid), str(uid)) for uid in user_ids]
+            parts.append("User: " + ", ".join(names))
+        
+        return " / ".join(parts) if parts else "全員"
+    except:
+        return "全員"
 
             all_events = [d.to_dict() for d in db.collection("events").stream()]
             

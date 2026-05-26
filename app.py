@@ -1500,15 +1500,7 @@ def main():
     # ----------------------------------------------------
     # ⚙️ 管理者専用画面
     # ----------------------------------------------------
-    if view_mode == "⚙️ 管理者専用":
-        st.title("⚙️ 管理者ダッシュボード")
-        tab_manage, tab_users = st.tabs(["📝 イベント・アーカイブ管理", "👥 ユーザー管理"])
-
-        with tab_manage:
-            all_users_admin = [d.to_dict() for d in db.collection("users").stream()]
-            user_map = {u.get('user_id'): u.get('name') for u in all_users_admin}
-
-def format_target_scope(scope_str, user_map):
+    def format_target_scope(scope_str, user_map):
     """ターゲット公開範囲を読みやすい文字列に変換する関数"""
     if not scope_str:
         return "全員"
@@ -1529,6 +1521,16 @@ def format_target_scope(scope_str, user_map):
         return " / ".join(parts) if parts else "全員"
     except:
         return "全員"
+        
+    if view_mode == "⚙️ 管理者専用":
+        st.title("⚙️ 管理者ダッシュボード")
+        tab_manage, tab_users = st.tabs(["📝 イベント・アーカイブ管理", "👥 ユーザー管理"])
+
+        with tab_manage:
+            all_users_admin = [d.to_dict() for d in db.collection("users").stream()]
+            user_map = {u.get('user_id'): u.get('name') for u in all_users_admin}
+
+
 
             all_events = [d.to_dict() for d in db.collection("events").stream()]
             

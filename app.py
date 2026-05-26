@@ -1541,38 +1541,55 @@ def main():
                 df_ev['秘密'] = df_ev['is_private'].apply(lambda x: "🤫" if x else "-")
                 df_ev['URL'] = df_ev['event_id'].apply(lambda eid: f"{APP_BASE_URL}?event={eid}")
 
-                # 💡 1. イベント一覧をソート＆検索可能なテーブルで表示（archivedを除外）
-                # 💡 1. イベント一覧（クリックで選択→下の編集に反映）
+                # 💡 1. イベント一覧（クリックで選択→下の編集欄にスクロール）
                 st.subheader("📋 全イベント一覧（行をクリックで選択）")
                 df_ev_active = df_ev[df_ev['status'] != 'archived'].reset_index(drop=True)
                 df_ev_active['URL'] = df_ev_active['event_id'].apply(lambda eid: f"{APP_BASE_URL}?event={eid}")
-                
+
+                # 前回の選択状態を保持（rerun後に比較するため）
+                prev_selected = st.session_state.get("manage_target_ev_id", None)
+
                 event_selection = st.dataframe(
                     df_ev_active[['title', '種類', '期限', '公開範囲', 'status', 'URL']],
                     use_container_width=True,
                     hide_index=True,
                     on_select="rerun",
                     selection_mode="single-row",
-                    key="event_table",           # ← これを追加
+                    key="event_table",
                     column_config={
                         "URL": st.column_config.TextColumn("URL（コピー用）")
                     }
                 )
-                
+
                 # 選択された行のevent_idをsession_stateに保存
                 selected_rows = event_selection.selection.rows
+                just_selected = False
                 if selected_rows:
                     selected_event_id = df_ev_active.iloc[selected_rows[0]]['event_id']
+                    if selected_event_id != prev_selected:
+                        just_selected = True  # 新たに選択された
                     st.session_state["manage_target_ev_id"] = selected_event_id
-                
+
                 st.markdown("---")
+                # スクロール先のアンカー
+                st.markdown('<div id="manage-section"></div>', unsafe_allow_html=True)
                 st.subheader("⚙️ イベントの編集・ステータス管理・削除")
-                
+
+                # 行クリック直後だけスクロールJSを発火
+                if just_selected:
+                    import streamlit.components.v1 as components
+                    components.html("""
+                        <script>
+                            window.parent.document.getElementById('manage-section')
+                                .scrollIntoView({behavior: 'smooth', block: 'start'});
+                        </script>
+                    """, height=0)
+
                 active_events = [ev for ev in all_events if ev.get('status') in ['open', 'closed']]
-                
+
                 if active_events:
                     ev_options = {f"{ev.get('title')} ({ev.get('status')})": ev for ev in active_events}
-                
+
                     # 表で選択されたイベントがあればそれをデフォルトに
                     default_idx = 0
                     if "manage_target_ev_id" in st.session_state:
@@ -1580,7 +1597,7 @@ def main():
                             if ev.get('event_id') == st.session_state["manage_target_ev_id"]:
                                 default_idx = i
                                 break
-                
+
                     selected_label = st.selectbox(
                         "管理するイベントを検索・選択（↑表の行クリックでも選択可）",
                         options=list(ev_options.keys()),

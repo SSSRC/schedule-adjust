@@ -1551,8 +1551,9 @@ def main():
                     df_ev_active[['title', '種類', '期限', '公開範囲', 'status', 'URL']],
                     use_container_width=True,
                     hide_index=True,
-                    on_select="rerun",          # ← 行選択を有効化
-                    selection_mode="single-row", # ← 1行だけ選択
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    key="event_table",           # ← これを追加
                     column_config={
                         "URL": st.column_config.TextColumn("URL（コピー用）")
                     }

@@ -1570,10 +1570,13 @@ def main():
                         just_selected = True  # 新たに選択された
                         st.session_state["manage_target_ev_id"] = selected_event_id
                         
-                        # 💡 修正1: 選択されたイベント名に合わせてselectboxのStateを直接書き換える
+                        # 管理・編集用のselectboxを更新
                         selected_row_data = df_ev_active.iloc[selected_rows[0]]
                         target_label = f"{selected_row_data['title']} ({selected_row_data['status']})"
                         st.session_state["manage_target_ev"] = target_label
+                        
+                        # 💡 追記: 未回答者抽出用のselectboxも同時に更新させる
+                        st.session_state["chk_unanswered"] = target_label
 
                 st.markdown("---")
                 # スクロール先のアンカー
@@ -1694,7 +1697,14 @@ def main():
                 st.markdown("---")
                 st.subheader("👀 未回答者の抽出")
                 if active_events:
-                    check_ev = st.selectbox("確認するイベントを選択", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})", key="chk_unanswered")
+                    # 💡変更: 管理用と同じ ev_options を使って連動させる
+                    selected_chk_label = st.selectbox(
+                        "確認するイベントを選択（↑表の行クリックでも選択可）", 
+                        options=list(ev_options.keys()), 
+                        key="chk_unanswered"
+                    )
+                    check_ev = ev_options[selected_chk_label]
+
                     if st.button("未回答者を抽出する", type="primary"):
                         with st.spinner("データを照合中..."):
                             ans_docs = db.collection("responses").where("event_id", "==", check_ev['event_id']).stream()
@@ -1739,19 +1749,50 @@ def main():
                 st.markdown("---")
                 st.subheader("📦 アーカイブ済み")
                 archived_events = [ev for ev in all_events if ev.get('status') == 'archived']
+                
                 if archived_events:
+                    # アーカイブ用のDataFrameと辞書を作成
+                    df_ev_archived = df_ev[df_ev['status'] == 'archived'].reset_index(drop=True)
+                    ev_options_arch = {ev.get('title'): ev for ev in archived_events}
+
+                    # 前回の選択状態を保持
+                    prev_arch_selected = st.session_state.get("manage_arch_ev_id", None)
+
+                    st.markdown("##### 📋 アーカイブ一覧（行をクリックで選択）")
+                    arch_selection = st.dataframe(
+                        df_ev_archived[['title', '種類', '期限', '公開範囲', 'status']],
+                        use_container_width=True,
+                        hide_index=True,
+                        on_select="rerun",
+                        selection_mode="single-row",
+                        key="arch_table"
+                    )
+
+                    # 行がクリックされたらStateを更新
+                    if arch_selection.selection.rows:
+                        selected_arch_event_id = df_ev_archived.iloc[arch_selection.selection.rows[0]]['event_id']
+                        if selected_arch_event_id != prev_arch_selected:
+                            st.session_state["manage_arch_ev_id"] = selected_arch_event_id
+                            selected_arch_row_data = df_ev_archived.iloc[arch_selection.selection.rows[0]]
+                            st.session_state["manage_restore_ev"] = selected_arch_row_data['title']
+
                     with st.form("restore_event_form"):
-                        restore_ev = st.selectbox("復元するイベントを選択", archived_events, format_func=lambda x: x.get('title'))
+                        # 💡変更: 選択式の連動selectbox
+                        selected_restore_label = st.selectbox(
+                            "復元するイベントを選択（↑表の行クリックでも選択可）", 
+                            options=list(ev_options_arch.keys()),
+                            key="manage_restore_ev"
+                        )
+                        restore_ev = ev_options_arch[selected_restore_label]
+                        
                         if st.form_submit_button("🔄 選択したイベントを復元 (openにする)"):
                             db.collection("events").document(restore_ev['event_id']).update({"status": "open"})
                             backup_to_gas_async("update_event_status", {"payload": {"event_id": restore_ev['event_id'], "status": "open"}})
                             st.toast("✅ イベントを復元しました")
                             time.sleep(1)
                             st.rerun()
-
-                html_table_arch = df_ev[df_ev['status'] == 'archived'][['title', '種類', '期限', '公開範囲', 'status']].to_html(index=False, border=0, classes="custom-tbl")
-                st.markdown(f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_arch}</div>', unsafe_allow_html=True)
-            else: st.info("イベントがありません。")
+                else:
+                    st.info("アーカイブされたイベントはありません。")
 
         with tab_users:
             st.subheader("👥 ユーザー一覧と権限管理")

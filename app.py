@@ -1542,28 +1542,50 @@ def main():
                 df_ev['URL'] = df_ev['event_id'].apply(lambda eid: f"{APP_BASE_URL}?event={eid}")
 
                 # 💡 1. イベント一覧をソート＆検索可能なテーブルで表示（archivedを除外）
-                st.subheader("📋 全イベント一覧（クリックでソート可）")
-                df_ev_active = df_ev[df_ev['status'] != 'archived']
-                st.dataframe(
+                # 💡 1. イベント一覧（クリックで選択→下の編集に反映）
+                st.subheader("📋 全イベント一覧（行をクリックで選択）")
+                df_ev_active = df_ev[df_ev['status'] != 'archived'].reset_index(drop=True)
+                df_ev_active['URL'] = df_ev_active['event_id'].apply(lambda eid: f"{APP_BASE_URL}?event={eid}")
+                
+                event_selection = st.dataframe(
                     df_ev_active[['title', '種類', '期限', '公開範囲', 'status', 'URL']],
                     use_container_width=True,
                     hide_index=True,
+                    on_select="rerun",          # ← 行選択を有効化
+                    selection_mode="single-row", # ← 1行だけ選択
                     column_config={
-                        "URL": st.column_config.LinkColumn("URL", display_text="🔗 開く")
+                        "URL": st.column_config.TextColumn("URL（コピー用）")
                     }
                 )
-
+                
+                # 選択された行のevent_idをsession_stateに保存
+                selected_rows = event_selection.selection.rows
+                if selected_rows:
+                    selected_event_id = df_ev_active.iloc[selected_rows[0]]['event_id']
+                    st.session_state["manage_target_ev_id"] = selected_event_id
+                
                 st.markdown("---")
                 st.subheader("⚙️ イベントの編集・ステータス管理・削除")
                 
-                # 💡 2. 検索可能なセレクトボックス
-                # pd.DataFrameのfilterを活用して、タイトル等で絞り込み可能なセレクトボックスを構築
                 active_events = [ev for ev in all_events if ev.get('status') in ['open', 'closed']]
                 
                 if active_events:
-                    # 検索の補助として、タイトルをキーにした辞書を作る
                     ev_options = {f"{ev.get('title')} ({ev.get('status')})": ev for ev in active_events}
-                    selected_label = st.selectbox("管理するイベントを検索・選択", options=list(ev_options.keys()), key="manage_target_ev")
+                
+                    # 表で選択されたイベントがあればそれをデフォルトに
+                    default_idx = 0
+                    if "manage_target_ev_id" in st.session_state:
+                        for i, ev in enumerate(active_events):
+                            if ev.get('event_id') == st.session_state["manage_target_ev_id"]:
+                                default_idx = i
+                                break
+                
+                    selected_label = st.selectbox(
+                        "管理するイベントを検索・選択（↑表の行クリックでも選択可）",
+                        options=list(ev_options.keys()),
+                        index=default_idx,
+                        key="manage_target_ev"
+                    )
                     target_ev = ev_options[selected_label]
                     
                     tab_edit, tab_status, tab_delete = st.tabs(["✏️ 情報編集", "⚙️ ステータス変更", "🗑️ 削除"])

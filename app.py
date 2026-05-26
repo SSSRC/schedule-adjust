@@ -1518,7 +1518,7 @@ def main():
                 df_ev['種類'] = df_ev['event_type'].replace({"time": "🕒 時間", "timetable": "🏫 時間割", "options": "📅 予定候補"})
                 df_ev['詳細'] = df_ev.apply(lambda row: f"{idx_to_time(row.get('start_idx', 0))}〜{idx_to_time(row.get('end_idx', 0))}" if row.get('event_type')=='time' else ("月〜金" if row.get('event_type')=='timetable' else "複数候補"), axis=1)
                 df_ev['期限'] = df_ev['deadline'].apply(format_deadline_jp)
-                df_ev['公開範囲'] = df_ev['target_scope'].apply(format_target_scope)
+                df_ev['公開範囲'] = df_ev['target_scope'].apply(lambda x: format_target_scope(x, user_map))
                 df_ev['秘密'] = df_ev['is_private'].apply(lambda x: "🤫" if x else "-")
                 
                 # 💡 1. イベント一覧をソート＆検索可能なテーブルで表示

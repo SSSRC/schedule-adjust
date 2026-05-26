@@ -1541,13 +1541,11 @@ def main():
                 
                 st.markdown("---")
                 st.subheader("⚙️ イベントの編集・ステータス管理・削除")
-                # 💡 all_events を active_events に変更
+                # 💡 有効なイベントがある場合のみ、選択ボックスと各種編集タブを表示する
                 if active_events:
                     target_ev = st.selectbox("管理するイベントを選択", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})", key="manage_target_ev")
                     
                     tab_edit, tab_status, tab_delete = st.tabs(["✏️ 情報編集", "⚙️ ステータス変更", "🗑️ 削除"])
-                else:
-                    st.info("現在、編集可能なイベント（open / closed）はありません。")
                     
                     with tab_edit:
                         with st.form("edit_event_form"):
@@ -1626,7 +1624,7 @@ def main():
                                     st.rerun()
                                 else:
                                     st.error("入力された確認コードが一致しません。")
-                # 💡 ここから2行を追加（インデントは st.markdown や if active_events: と同じ位置に揃える）
+                # 💡 有効なイベント（open / closed）が1件もない場合は、メッセージを表示する
                 else:
                     st.info("💡 現在、編集・管理できるイベント（open または closed）はありません。新規作成するか、下のアーカイブから復元してください。")
                             

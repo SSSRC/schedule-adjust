@@ -379,10 +379,10 @@ if not os.path.exists("options_editor"):
 options_editor = components.declare_component("options_editor", path="options_editor")
 
 
-# 🚀 💡 v13へアップデート（レイアウトの左寄りバグ修正＆キャッシュクリア）
-if not os.path.exists("custom_editor_v13"):
-    os.makedirs("custom_editor_v13", exist_ok=True)
-    with open("custom_editor_v13/index.html", "w", encoding="utf-8") as f:
+# 🚀 💡 v14へアップデート（レイアウトの左寄りバグ修正＆キャッシュクリア）
+if not os.path.exists("custom_editor_v14"):
+    os.makedirs("custom_editor_v14", exist_ok=True)
+    with open("custom_editor_v14/index.html", "w", encoding="utf-8") as f:
         f.write("""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         body{margin:0;font-family:sans-serif;} *{box-sizing:border-box;}
@@ -739,7 +739,7 @@ if not os.path.exists("custom_editor_v13"):
         }); init(); </script></body></html>
         """)
 
-grid_editor = components.declare_component("grid_editor", path="custom_editor_v13")
+grid_editor = components.declare_component("grid_editor", path="custom_editor_v14")
 
 
 # ==========================================
@@ -2299,7 +2299,7 @@ def main():
                 saveTs=st.session_state.get("last_saved_ts", 0), 
                 cellDetails=my_cell_details,
                 default=None, 
-                key=f"editor_v13_{event.get('event_id')}"  # ここを v13 に変更
+                key=f"editor_v14_{event.get('event_id')}"  # ここを v14 に変更
             )
             
             if raw and isinstance(raw, dict) and "data" in raw:

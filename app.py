@@ -171,6 +171,22 @@ def get_app_data_from_firestore(user):
             except: 
                 pass
 
+        if ev.get("status") in ["open", "closed"] and ev.get("auto_archive", True) and ev_close_time:
+            try:
+                dl_dt = pd.to_datetime(ev_close_time, errors='coerce')
+                if pd.notna(dl_dt):
+                    if dl_dt.tzinfo is not None: dl_dt = dl_dt.tz_convert(None)
+                    else: dl_dt = dl_dt.tz_localize(None)
+                        
+                    archive_threshold = dl_dt + timedelta(days=7)
+                    if datetime.now() > archive_threshold:
+                        ev["status"] = "archived"
+                        db.collection("events").document(ev["event_id"]).update({"status": "archived"})
+                        backup_to_gas_async("update_event_status", {"payload": {"event_id": ev["event_id"], "status": "archived"}})
+            except: 
+                pass
+        # 💡 👆ここまで追加
+
         is_target = True
         scope_str = ev.get("target_scope", "")
         if scope_str and scope_str.startswith("{"):
@@ -1337,6 +1353,7 @@ def main():
             with col_d1: deadline_date = st.date_input("回答期限 (日付)", value=datetime.today() + timedelta(days=7))
             with col_d2: deadline_time = st.time_input("回答期限 (時刻)", value=datetime.strptime("23:59", "%H:%M").time())
             auto_close = st.checkbox("✅ 期限が過ぎたら自動で締め切る (回答不可にする)", value=True)
+            auto_archive = st.checkbox("✅ 締切後、7日経過したら自動でアーカイブする", value=True) # 👈 追加
             
         ev_start, ev_end = None, None
         t_start, t_end = None, None
@@ -1495,6 +1512,7 @@ def main():
                     "event_options": json.dumps([o.strip() for o in opts_list if o.strip()]) if ev_type == "options" else "",
                     "deadline": deadline_str,
                     "auto_close": auto_close,
+                    "auto_archive": auto_archive, # 👈 追加
                     "target_scope": target_scope_json,
                     "is_private": is_private,
                     "skip_slack": skip_slack,
@@ -1549,34 +1567,46 @@ def main():
                 # 前回の選択状態を保持（rerun後に比較するため）
                 prev_selected = st.session_state.get("manage_target_ev_id", None)
 
+                # 💡 変更: selection_mode を "multi-row" にする
                 event_selection = st.dataframe(
                     df_ev_active[['title', '種類', '期限', '公開範囲', 'status', 'URL']],
                     use_container_width=True,
                     hide_index=True,
                     on_select="rerun",
-                    selection_mode="single-row",
+                    selection_mode="multi-row", 
                     key="event_table",
                     column_config={
                         "URL": st.column_config.TextColumn("URL（コピー用）")
                     }
                 )
 
-                # 選択された行のevent_idをsession_stateに保存
                 selected_rows = event_selection.selection.rows
                 just_selected = False
+                selected_event_ids = [] # 💡 追加
+
                 if selected_rows:
-                    selected_event_id = df_ev_active.iloc[selected_rows[0]]['event_id']
+                    selected_event_ids = [df_ev_active.iloc[r]['event_id'] for r in selected_rows]
+                    selected_event_id = selected_event_ids[0] # 編集・ステータス変更タブ用には先頭の1件を使う
+                    
                     if selected_event_id != prev_selected:
                         just_selected = True  # 新たに選択された
                         st.session_state["manage_target_ev_id"] = selected_event_id
                         
-                        # 管理・編集用のselectboxを更新
                         selected_row_data = df_ev_active.iloc[selected_rows[0]]
                         target_label = f"{selected_row_data['title']} ({selected_row_data['status']})"
                         st.session_state["manage_target_ev"] = target_label
-                        
-                        # 💡 追記: 未回答者抽出用のselectboxも同時に更新させる
                         st.session_state["chk_unanswered"] = target_label
+
+                # 💡 追加: 複数選択されている場合の一括アクションUI
+                if len(selected_rows) > 0:
+                    st.markdown(f"**✅ {len(selected_rows)} 件のイベントが選択されています**")
+                    if st.button(f"📦 選択した {len(selected_rows)} 件を一括アーカイブする", type="primary"):
+                        for eid in selected_event_ids:
+                            db.collection("events").document(eid).update({"status": "archived"})
+                            backup_to_gas_async("update_event_status", {"payload": {"event_id": eid, "status": "archived"}})
+                        st.toast(f"✅ {len(selected_rows)}件のイベントをアーカイブしました！")
+                        time.sleep(1)
+                        st.rerun()
 
                 st.markdown("---")
                 # スクロール先のアンカー

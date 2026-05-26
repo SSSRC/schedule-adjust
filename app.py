@@ -1541,10 +1541,13 @@ def main():
                 
                 st.markdown("---")
                 st.subheader("⚙️ イベントの編集・ステータス管理・削除")
-                if all_events:
-                    target_ev = st.selectbox("管理するイベントを選択", all_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})", key="manage_target_ev")
+                # 💡 all_events を active_events に変更
+                if active_events:
+                    target_ev = st.selectbox("管理するイベントを選択", active_events, format_func=lambda x: f"{x.get('title')} ({x.get('status')})", key="manage_target_ev")
                     
                     tab_edit, tab_status, tab_delete = st.tabs(["✏️ 情報編集", "⚙️ ステータス変更", "🗑️ 削除"])
+                else:
+                    st.info("現在、編集可能なイベント（open / closed）はありません。")
                     
                     with tab_edit:
                         with st.form("edit_event_form"):

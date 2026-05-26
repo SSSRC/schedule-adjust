@@ -1706,7 +1706,7 @@ def main():
                             time.sleep(1)
                             st.rerun()
 
-                html_table_arch = df_display[df_display['status'] == 'archived'].to_html(index=False, border=0, classes="custom-tbl")
+                html_table_arch = df_ev[df_ev['status'] == 'archived'][['title', '種類', '期限', '公開範囲', 'status']].to_html(index=False, border=0, classes="custom-tbl")
                 st.markdown(f'<div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px;">{html_table_arch}</div>', unsafe_allow_html=True)
             else: st.info("イベントがありません。")
 

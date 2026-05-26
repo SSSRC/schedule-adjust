@@ -1568,20 +1568,29 @@ def main():
                     selected_event_id = df_ev_active.iloc[selected_rows[0]]['event_id']
                     if selected_event_id != prev_selected:
                         just_selected = True  # 新たに選択された
-                    st.session_state["manage_target_ev_id"] = selected_event_id
+                        st.session_state["manage_target_ev_id"] = selected_event_id
+                        
+                        # 💡 修正1: 選択されたイベント名に合わせてselectboxのStateを直接書き換える
+                        selected_row_data = df_ev_active.iloc[selected_rows[0]]
+                        target_label = f"{selected_row_data['title']} ({selected_row_data['status']})"
+                        st.session_state["manage_target_ev"] = target_label
 
                 st.markdown("---")
                 # スクロール先のアンカー
                 st.markdown('<div id="manage-section"></div>', unsafe_allow_html=True)
                 st.subheader("⚙️ イベントの編集・ステータス管理・削除")
 
-                # 行クリック直後だけスクロールJSを発火
+                # 💡 修正2: 行クリック直後だけスクロールJSを発火 (setTimeoutを追加してDOM描画を待機)
                 if just_selected:
                     import streamlit.components.v1 as components
                     components.html("""
                         <script>
-                            window.parent.document.getElementById('manage-section')
-                                .scrollIntoView({behavior: 'smooth', block: 'start'});
+                            setTimeout(function() {
+                                const target = window.parent.document.getElementById('manage-section');
+                                if (target) {
+                                    target.scrollIntoView({behavior: 'smooth', block: 'start'});
+                                }
+                            }, 150); // 150ミリ秒待機して確実にスクロール
                         </script>
                     """, height=0)
 
@@ -1590,18 +1599,10 @@ def main():
                 if active_events:
                     ev_options = {f"{ev.get('title')} ({ev.get('status')})": ev for ev in active_events}
 
-                    # 表で選択されたイベントがあればそれをデフォルトに
-                    default_idx = 0
-                    if "manage_target_ev_id" in st.session_state:
-                        for i, ev in enumerate(active_events):
-                            if ev.get('event_id') == st.session_state["manage_target_ev_id"]:
-                                default_idx = i
-                                break
-
+                    # 💡 修正3: indexによる指定を削除（修正1でStateが更新されるため自動で反映される）
                     selected_label = st.selectbox(
                         "管理するイベントを検索・選択（↑表の行クリックでも選択可）",
                         options=list(ev_options.keys()),
-                        index=default_idx,
                         key="manage_target_ev"
                     )
                     target_ev = ev_options[selected_label]

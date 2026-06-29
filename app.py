@@ -2721,8 +2721,8 @@ def main():
                             except: pass
 
                         if can_view_details and r.get('comment') and r.get('comment').strip() != "":
-                            if {"user": r.get('user_name'), "comment": r.get('comment')} not in comments_list: 
-                                comments_list.append({"user": r.get('user_name'), "comment": r.get('comment')})
+                            if {"user": f"{r.get('user_name')}{badge}", "comment": r.get('comment')} not in comments_list: 
+                                comments_list.append({"user": f"{r.get('user_name')}{badge}", "comment": r.get('comment')})
                         
                         # ✅ 正しい修正後
                         c_idx = disp_date_strs.index(r['date'])
@@ -3016,7 +3016,7 @@ def main():
                 # ======== 👆追加ここまで ========
                 if can_view_details and r.get('comment') and r.get('comment').strip() != "":
                     if {"user": disp_name, "comment": r.get('comment')} not in comments_list: 
-                        comments_list.append({"user": r.get('user_name'), "comment": r.get('comment')})
+                        comments_list.append({"user": disp_name, "comment": r.get('comment')}) # 👈 disp_name にする
                 
                 b = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
                 for i in range(len(opts)):

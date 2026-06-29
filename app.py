@@ -118,10 +118,10 @@ def save_response_hybrid(payload):
         st.error(f"Firestoreへの保存に失敗しました: {e}")
         return False
 
-    backup_to_gas_async("submit_binary_response", {"payload": payload})
+backup_to_gas_async("submit_binary_response", {"payload": payload})
     return True
 
-# ======== 👇ここに貼り付ける ========
+# ======== 👇ここに貼り付ける（147行目付近） ========
 def is_in_scope(user_groups_list, user_id, scope_str):
     """ユーザーがイベントのターゲット範囲内か判定するヘルパー関数"""
     if not scope_str or not scope_str.startswith("{"): return True

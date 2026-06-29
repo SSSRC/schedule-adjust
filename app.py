@@ -121,6 +121,27 @@ def save_response_hybrid(payload):
     backup_to_gas_async("submit_binary_response", {"payload": payload})
     return True
 
+# ======== 👇ここに貼り付ける ========
+def is_in_scope(user_groups_list, user_id, scope_str):
+    """ユーザーがイベントのターゲット範囲内か判定するヘルパー関数"""
+    if not scope_str or not scope_str.startswith("{"): return True
+    try:
+        scope = json.loads(scope_str)
+        t_groups = scope.get("groups", [])
+        t_users = scope.get("users", [])
+        if not t_groups and not t_users: return True
+        
+        exp_groups = set(user_groups_list)
+        if any(m in user_groups_list for m in ["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ"]):
+            exp_groups.add("シスマネ")
+        if any(k in user_groups_list for k in ["燃焼系長", "推進系長", "構造系長", "電装系長", "エンジン系長"]):
+            exp_groups.add("系長")
+            
+        return any(g in exp_groups for g in t_groups) or (user_id in t_users)
+    except:
+        return True
+# ======== 👆ここまで ========
+
 def get_app_data_from_firestore(user, target_ev_id=""):
     user_id = str(user.get("user_id", ""))
     
@@ -870,26 +891,7 @@ def main():
     def sort_groups(lst, master):
         return sorted(lst, key=lambda x: master.index(x) if x in master else 999)
 
-    # ======== 👇追加ここから ========
-    def is_in_scope(user_groups_list, user_id, scope_str):
-        """ユーザーがイベントのターゲット範囲内か判定するヘルパー関数"""
-        if not scope_str or not scope_str.startswith("{"): return True
-        try:
-            scope = json.loads(scope_str)
-            t_groups = scope.get("groups", [])
-            t_users = scope.get("users", [])
-            if not t_groups and not t_users: return True
-            
-            exp_groups = set(user_groups_list)
-            if any(m in user_groups_list for m in ["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ"]):
-                exp_groups.add("シスマネ")
-            if any(k in user_groups_list for k in ["燃焼系長", "推進系長", "構造系長", "電装系長", "エンジン系長"]):
-                exp_groups.add("系長")
-                
-            return any(g in exp_groups for g in t_groups) or (user_id in t_users)
-        except:
-            return True
-    # ======== 👆追加ここまで ========
+
     
     # ==========================================
     # 🔑 未ログイン画面

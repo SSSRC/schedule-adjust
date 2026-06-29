@@ -121,7 +121,7 @@ def save_response_hybrid(payload):
     backup_to_gas_async("submit_binary_response", {"payload": payload})
     return True
 
-def get_app_data_from_firestore(user):
+def get_app_data_from_firestore(user, target_ev_id=""):
     user_id = str(user.get("user_id", ""))
     
     all_users = [doc.to_dict() for doc in db.collection("users").stream()]
@@ -202,11 +202,21 @@ def get_app_data_from_firestore(user):
             except: 
                 pass
             
+        # ======== 👇変更ここから ========
+        is_target = is_in_scope(expanded_user_groups, user_id, ev.get("target_scope", ""))
+        
+        is_bypassed = False
+        if not is_target and ev["event_id"] == target_ev_id:
+            is_target = True
+            is_bypassed = True # 有志メンバーとしてバイパス許可
+
         if is_target:
             ev["is_answered"] = ev["event_id"] in answered_ids
+            ev["is_out_of_scope"] = is_bypassed # フラグを保持
             if "deadline" not in ev and "close_time" in ev: ev["deadline"] = ev["close_time"]
             if "event_type" not in ev and "type" in ev: ev["event_type"] = ev["type"]
             active_events.append(ev)
+        # ======== 👆変更ここまで ========
 
     return all_users, active_events, user_map
 
@@ -859,6 +869,27 @@ def main():
 
     def sort_groups(lst, master):
         return sorted(lst, key=lambda x: master.index(x) if x in master else 999)
+
+    # ======== 👇追加ここから ========
+    def is_in_scope(user_groups_list, user_id, scope_str):
+        """ユーザーがイベントのターゲット範囲内か判定するヘルパー関数"""
+        if not scope_str or not scope_str.startswith("{"): return True
+        try:
+            scope = json.loads(scope_str)
+            t_groups = scope.get("groups", [])
+            t_users = scope.get("users", [])
+            if not t_groups and not t_users: return True
+            
+            exp_groups = set(user_groups_list)
+            if any(m in user_groups_list for m in ["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ"]):
+                exp_groups.add("シスマネ")
+            if any(k in user_groups_list for k in ["燃焼系長", "推進系長", "構造系長", "電装系長", "エンジン系長"]):
+                exp_groups.add("系長")
+                
+            return any(g in exp_groups for g in t_groups) or (user_id in t_users)
+        except:
+            return True
+    # ======== 👆追加ここまで ========
     
     # ==========================================
     # 🔑 未ログイン画面
@@ -1649,37 +1680,78 @@ def main():
                     
                     with tab_edit:
                         with st.form("edit_event_form"):
-                            st.info("💡 日程の枠組みは変更できません。タイトル、説明文、回答期限のみ編集可能です。")
+                            st.info("💡 タイトル、説明文、回答期限、および参加メンバー（公開範囲）を編集できます。")
                             new_title = st.text_input("タイトル", value=target_ev.get('title', ''))
-                            new_desc = st.text_area("説明文・備考 (HTMLタグが含まれる場合があります)", value=target_ev.get('description', ''), height=150)
-                            
-                            # 💡追加: 編集画面で自動アーカイブのON/OFFを切り替えられるようにする
+                            new_desc = st.text_area("説明文・備考", value=target_ev.get('description', ''), height=150)
                             new_auto_archive = st.checkbox("✅ 締切後、7日経過したら自動でアーカイブする", value=target_ev.get('auto_archive', True))
                             
                             orig_deadline = target_ev.get('deadline') or target_ev.get('close_time', '')
-                            # (日付・時刻の変換処理はそのまま)
                             try:
                                 dt = pd.to_datetime(orig_deadline)
-                                d_val = dt.date()
-                                t_val = dt.time()
+                                d_val = dt.date(); t_val = dt.time()
                             except:
-                                d_val = datetime.today().date()
-                                t_val = datetime.strptime("23:59", "%H:%M").time()
+                                d_val = datetime.today().date(); t_val = datetime.strptime("23:59", "%H:%M").time()
                                 
                             col_d1, col_d2 = st.columns([1, 1])
                             with col_d1: new_dl_date = st.date_input("回答期限 (日付)", value=d_val, key="edit_dl_d")
                             with col_d2: new_dl_time = st.time_input("回答期限 (時刻)", value=t_val, key="edit_dl_t")
+
+                            # ======== 👇追加: 公開範囲の編集 ========
+                            st.markdown("---")
+                            st.markdown("##### 👥 参加メンバーの再設定")
+                            scope_str = target_ev.get('target_scope', '')
+                            is_all_members_def = True
+                            t_g1_def, t_g2_def, t_g3_def, t_g4_def, t_users_def = [], [], [], [], []
                             
+                            if scope_str and scope_str.startswith("{"):
+                                try:
+                                    scope = json.loads(scope_str)
+                                    tg = scope.get("groups", [])
+                                    tu = scope.get("users", [])
+                                    if tg or tu:
+                                        is_all_members_def = False
+                                        t_g1_def = [g for g in tg if g in all_g1]
+                                        t_g2_def = [g for g in tg if g in all_g2]
+                                        t_g3_def = [g for g in tg if g in all_g3]
+                                        t_g4_def = [g for g in tg if g in MASTER_G4_OPTS]
+                                        t_users_def = [u for u in all_users_admin if u['user_id'] in tu]
+                                except: pass
+                            
+                            edit_is_all = st.checkbox("✅ 全員に公開する", value=is_all_members_def, key="edit_all_members")
+                            col_t1, col_t2 = st.columns(2)
+                            with col_t1:
+                                edit_g1 = st.multiselect("🚀 プロジェクト", all_g1, default=t_g1_def, key="edit_g1")
+                                edit_g3 = st.multiselect("🏢 委員会", all_g3, default=t_g3_def, key="edit_g3")
+                                edit_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS, default=t_g4_def, key="edit_g4")
+                            with col_t2:
+                                edit_g2 = st.multiselect("🔧 系", all_g2, default=t_g2_def, key="edit_g2")
+                                edit_users = st.multiselect("👤 特定の個人", sorted(all_users_admin, key=lambda x: x.get('name', '')), default=t_users_def, format_func=lambda x: f"{x.get('name')} (ID: {x.get('user_id')})", key="edit_users")
+                            # ======== 👆追加ここまで ========
+
                             if st.form_submit_button("💾 変更を保存", type="primary"):
                                 if not new_title:
                                     st.error("タイトルは必須です。")
                                 else:
                                     new_dl_str = f"{new_dl_date.strftime('%Y-%m-%d')} {new_dl_time.strftime('%H:%M')}"
+                                    
+                                    # ======== 👇追加: スコープ再生成 ========
+                                    new_scope_json = ""
+                                    if not edit_is_all:
+                                        expanded_g4 = []
+                                        for g in edit_g4:
+                                            if g == "シスマネ": expanded_g4.extend(["ミッションシスマネ", "電源シスマネ", "構造シスマネ", "通信シスマネ", "姿勢シスマネ", "熱シスマネ", "C＆DHシスマネ", "シスマネ"])
+                                            elif g == "系長": expanded_g4.extend(["燃焼系長", "推進系長", "構造系長", "電装系長", "エンジン系長", "系長"])
+                                            else: expanded_g4.append(g)
+                                            
+                                        new_scope_json = json.dumps({"groups": edit_g1 + edit_g2 + edit_g3 + expanded_g4, "users": [u['user_id'] for u in edit_users]})
+                                    # ======== 👆追加ここまで ========
+
                                     updates = {
                                         "title": new_title,
                                         "description": new_desc,
                                         "deadline": new_dl_str,
-                                        "auto_archive": new_auto_archive # 💡追加
+                                        "auto_archive": new_auto_archive,
+                                        "target_scope": new_scope_json # 👈 フィールド追加
                                     }
                                     db.collection("events").document(target_ev['event_id']).update(updates)
                                     backup_to_gas_async("update_event", {"payload": {"event_id": target_ev['event_id'], **updates}})
@@ -2008,7 +2080,7 @@ def main():
 
     current_ev_id = st.session_state.get("target_ev_id", "")
     
-    all_users_fs, events, user_map_fs = get_app_data_from_firestore(user)
+    all_users_fs, events, user_map_fs = get_app_data_from_firestore(user, target_ev_id=current_ev_id)
 
     if not events: 
         st.info("現在表示できるイベントはありません。")
@@ -2108,6 +2180,11 @@ def main():
         st.markdown("<div class='closed-alert' style='background:#ffebee; color:#c62828; padding:10px; border-radius:6px; font-weight:bold; margin-bottom:10px;'>🔒 このイベントは締め切られました。</div>", unsafe_allow_html=True)
     elif ev_close_time: 
         st.markdown(f"<div style='color: #E91E63; font-weight: bold; margin-bottom: 10px;'>⏳ 回答期限: {format_deadline_jp(ev_close_time)}</div>", unsafe_allow_html=True)
+
+    # ======== 👇追加ここから ========
+    if event.get("is_out_of_scope"):
+        st.warning("⚠️ **対象外イベントの閲覧・回答中**\n\nこのイベントは別グループを対象として作成されていますが、**有志メンバー（外部）**としての閲覧・回答が許可されています。")
+    # ======== 👆追加ここまで ========
 
     if event.get('description'): 
         st.markdown("##### 📝 イベントの説明・管理者からのメッセージ")
@@ -2631,6 +2708,12 @@ def main():
                     
                     for r in filtered_data:
                         if r.get('date') not in disp_date_strs: continue
+
+                        # ======== 👇追加ここから ========
+                        u_groups = [x.strip() for gk in ['group_1', 'group_2', 'group_3', 'group_4'] for x in str(r.get(gk, '')).split(',') if x.strip()]
+                        is_target = is_in_scope(u_groups, r.get('user_id'), event.get('target_scope', ''))
+                        badge = "" if is_target else " 💡対象外"
+                        # ======== 👆追加ここまで ========
                         
                         cd = {}
                         if r.get('cell_details') and str(r.get('cell_details')).strip() not in ["", "{}"]:
@@ -2669,7 +2752,7 @@ def main():
                                 
                             if can_view_details and v in [1, 2, 3]:
                                 note_str = f" <span style='color:#FFEB3B; font-size:10.5px;'>[{cell_note}]</span>" if cell_note else ""
-                                name_html = f"{r.get('user_name', '')}{note_str}"
+                                name_html = f"{r.get('user_name', '')}{badge}{note_str}"
                                 if v==1: h[disp_r][c_idx] += f"◯ {name_html}<br>"
                                 elif v==2: h[disp_r][c_idx] += f"△ {name_html}<br>"
                     
@@ -2925,8 +3008,14 @@ def main():
             comments_list = []
             
             for r in filtered_data:
+                # ======== 👇追加ここから ========
+                u_groups = [x.strip() for gk in ['group_1', 'group_2', 'group_3', 'group_4'] for x in str(r.get(gk, '')).split(',') if x.strip()]
+                is_target = is_in_scope(u_groups, r.get('user_id'), event.get('target_scope', ''))
+                badge = "" if is_target else " 💡対象外"
+                disp_name = f"{r.get('user_name', '')}{badge}"
+                # ======== 👆追加ここまで ========
                 if can_view_details and r.get('comment') and r.get('comment').strip() != "":
-                    if {"user": r.get('user_name'), "comment": r.get('comment')} not in comments_list: 
+                    if {"user": disp_name, "comment": r.get('comment')} not in comments_list: 
                         comments_list.append({"user": r.get('user_name'), "comment": r.get('comment')})
                 
                 b = str(r.get('binary_data') or r.get('binary', "")).replace("'", "").zfill(96)
@@ -2934,12 +3023,12 @@ def main():
                     v = int(b[i]) if i < len(b) else 0
                     if v == 1:
                         counts[i] += 1.0
-                        if can_view_details: details[i]["yes"].append(r.get('user_name', ''))
+                        if can_view_details: details[i]["yes"].append(disp_name) # 👈 disp_name に変更
                     elif v == 2:
                         counts[i] += policy
-                        if can_view_details: details[i]["maybe"].append(r.get('user_name', ''))
+                        if can_view_details: details[i]["maybe"].append(disp_name) # 👈 disp_name に変更
                     else:
-                        if can_view_details: details[i]["no"].append(r.get('user_name', ''))
+                        if can_view_details: details[i]["no"].append(disp_name)
                         
             max_c = max(counts) if counts and max(counts) > 0 else 1
             

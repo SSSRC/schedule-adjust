@@ -118,7 +118,7 @@ def save_response_hybrid(payload):
         st.error(f"Firestoreへの保存に失敗しました: {e}")
         return False
 
-backup_to_gas_async("submit_binary_response", {"payload": payload})
+    backup_to_gas_async("submit_binary_response", {"payload": payload})
     return True
 
 # ======== 👇ここに貼り付ける（147行目付近） ========

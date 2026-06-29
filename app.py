@@ -1578,6 +1578,12 @@ def main():
             all_users_admin = [d.to_dict() for d in db.collection("users").stream()]
             user_map = {u.get('user_id'): u.get('name') for u in all_users_admin}
 
+            # ======== 👇ここから追加 ========
+            all_g1 = sort_groups(list(set([g.strip() for u in all_users_admin for g in str(u.get('group_1', '')).split(',') if g.strip()])), MASTER_G1)
+            all_g2 = sort_groups(list(set([g.strip() for u in all_users_admin for g in str(u.get('group_2', '')).split(',') if g.strip()])), MASTER_G2)
+            all_g3 = sort_groups(list(set([g.strip() for u in all_users_admin for g in str(u.get('group_3', '')).split(',') if g.strip()])), MASTER_G3)
+            # ======== 👆ここまで追加 ========
+
 
 
             all_events = [d.to_dict() for d in db.collection("events").stream()]

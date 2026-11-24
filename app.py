@@ -120,48 +120,91 @@ st.markdown("""
         /* ヘッダー・カード・バナー */
         .user-header {
             display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
-            background: linear-gradient(135deg, #f8faf9, #eef5f0);
-            padding: 10px 16px; border-radius: 10px; border-left: 5px solid #4CAF50;
-            margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: linear-gradient(135deg, #f8fafc, #ecfdf5);
+            padding: 9px 14px; border-radius: 12px; border: 1px solid #d1fae5; border-left: 5px solid #10b981;
+            margin-bottom: 8px; box-shadow: 0 2px 6px rgba(16,185,129,0.06);
         }
+        .event-hero {
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            border: 1px solid #e2e8f0; border-radius: 14px;
+            padding: 14px 16px; margin: 6px 0 10px 0;
+            box-shadow: 0 2px 10px rgba(15,23,42,0.04);
+        }
+        .event-hero-title {
+            font-size: 21px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; line-height: 1.3;
+        }
+        .event-hero-pills {
+            display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+        }
+        .hero-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+        }
+        .pill-answered { background: #dcfce7; color: #166534; }
+        .pill-unanswered { background: #fef3c7; color: #92400e; }
+        .pill-deadline { background: #fce7f3; color: #be185d; }
+        .pill-closed { background: #fee2e2; color: #b91c1c; }
+        .pill-private { background: #ede9fe; color: #5b21b6; }
+        .pill-outscope { background: #fff7ed; color: #c2410c; }
+
         .event-desc {
-            background: #f8f9fa; padding: 14px 16px; border-radius: 8px;
-            border-left: 4px solid #4CAF50; margin-bottom: 14px; font-size: 14px; line-height: 1.6;
+            background: #f8fafc; padding: 12px 14px; border-radius: 10px;
+            border: 1px solid #e2e8f0; border-left: 4px solid #10b981;
+            margin: 6px 0 10px 0; font-size: 13.5px; line-height: 1.6; color: #334155;
         }
-        .event-desc a { color: #1976D2; font-weight: bold; text-decoration: none; }
+        .event-desc a { color: #2563eb; font-weight: 700; text-decoration: none; }
 
         .confirmed-banner {
-            background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
-            border: 2px solid #4CAF50; border-radius: 12px;
-            padding: 14px 18px; margin: 10px 0 14px 0;
-            box-shadow: 0 3px 10px rgba(76,175,80,0.12);
+            background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+            border: 2px solid #10b981; border-radius: 14px;
+            padding: 14px 16px; margin: 8px 0 12px 0;
+            box-shadow: 0 4px 14px rgba(16,185,129,0.12);
         }
         .confirmed-banner-title {
-            font-size: 13px; font-weight: 800; color: #2e7d32; letter-spacing: 0.04em; margin-bottom: 4px;
+            font-size: 12px; font-weight: 800; color: #047857; letter-spacing: 0.04em; margin-bottom: 4px;
         }
         .confirmed-banner-dt {
-            font-size: 20px; font-weight: 800; color: #1b5e20; margin-bottom: 6px;
+            font-size: 19px; font-weight: 800; color: #064e3b; margin-bottom: 4px;
         }
         .confirmed-banner-meta {
-            font-size: 13px; color: #333; line-height: 1.5;
+            font-size: 13px; color: #334155; line-height: 1.5;
+        }
+
+        .dash-stats {
+            display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px 0;
+        }
+        .dash-stat-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800;
+            border: 1px solid transparent;
         }
 
         .rank-card {
-            background: #fff; border: 1px solid #e0e6e0; border-radius: 10px;
-            padding: 12px 14px; margin-bottom: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 10px 14px; margin-bottom: 7px;
+            box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+            transition: transform 0.12s;
         }
-        .rank-card-top { border-left: 5px solid #4CAF50; background: #fcfffc; }
+        .rank-card-1 { border-left: 5px solid #f59e0b; background: linear-gradient(90deg, #fffbeb, #ffffff 35%); }
+        .rank-card-2 { border-left: 5px solid #94a3b8; background: linear-gradient(90deg, #f8fafc, #ffffff 35%); }
+        .rank-card-3 { border-left: 5px solid #d97706; background: linear-gradient(90deg, #fff7ed, #ffffff 35%); }
+
+        .active-filter-pill {
+            display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
+            background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+            border-radius: 10px; padding: 6px 12px; font-size: 12.5px; font-weight: 700;
+            margin: 4px 0 10px 0;
+        }
 
         .sss-badge {
             display: inline-block; font-size: 11px; font-weight: 700;
-            padding: 2px 8px; border-radius: 999px; margin-right: 6px;
+            padding: 2px 8px; border-radius: 999px; margin-right: 5px; margin-bottom: 3px;
         }
-        .sss-badge-type { background: #e3f2fd; color: #1565c0; }
-        .sss-badge-confirmed { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
-        .sss-badge-closed { background: #ffebee; color: #c62828; }
+        .sss-badge-type { background: #e0f2fe; color: #0369a1; }
+        .sss-badge-confirmed { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .sss-badge-closed { background: #fee2e2; color: #b91c1c; }
 
-        /* スマホでもナビボタンと入力/結果スイッチを横並び・折り返しに保つ */
+        /* スマホでもナビ・上部操作・入力/結果スイッチを横並び・折り返しに保つ */
         @media (max-width: 650px) {
             div[data-testid="stVerticalBlock"]:has(> div .sss-compact-nav-marker) div[data-testid="stHorizontalBlock"] {
                 flex-direction: row !important;
@@ -180,12 +223,14 @@ st.markdown("""
             }
 
             div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"],
+            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"],
             div[data-testid="stVerticalBlock"]:has(> div .sss-tt-row-marker) div[data-testid="stHorizontalBlock"] {
                 flex-direction: row !important;
                 flex-wrap: nowrap !important;
                 gap: 6px !important;
             }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
                 flex: 1 1 48% !important;
                 min-width: 0 !important;
                 width: auto !important;
@@ -199,17 +244,17 @@ st.markdown("""
 
         /* 入力/集計 セグメントスイッチャー強調 */
         div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] {
-            background: #eef2f6;
-            padding: 6px;
+            background: #f1f5f9;
+            padding: 5px;
             border-radius: 14px;
-            border: 1px solid #d5dde5;
-            margin: 8px 0 14px 0;
+            border: 1px solid #cbd5e1;
+            margin: 6px 0 12px 0;
         }
         div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) button {
             border-radius: 10px !important;
             font-weight: 800 !important;
-            min-height: 46px !important;
-            font-size: 15px !important;
+            min-height: 44px !important;
+            font-size: 14.5px !important;
         }
 
         /* 時間割設定テーブル用 */
@@ -1854,6 +1899,19 @@ window.doBulk = function(btnEl) {
     setTimeout(() => btnEl.innerText = orig, 1400);
 };
 
+window.toggleToolsDrawer = function() {
+    const dr = document.getElementById('tools-drawer');
+    const btn = document.getElementById('btn-tools-toggle');
+    if (!dr) return;
+    const isOpen = dr.style.display !== 'none';
+    dr.style.display = isOpen ? 'none' : 'block';
+    if (btn) {
+        btn.style.background = isOpen ? '#f8fafc' : '#e0f2fe';
+        btn.style.borderColor = isOpen ? '#cbd5e1' : '#38bdf8';
+    }
+    setTimeout(updateFrameHeight, 30);
+};
+
 window.doCopy = function(btnEl) {
     const srcIdx = parseInt(document.getElementById('c-src').value, 10);
     const numRows = stateArgs.timeLabels.length;
@@ -2260,23 +2318,43 @@ function buildEditor(args) {
     const bDayOptsHtml = args.cleanLabels.map((l, i) => `<label class="ms-opt"><input type="checkbox" class="b-day-chk" value="${i}" checked> ${escapeHtml(l)}</label>`).join('');
     const cTgtOptsHtml = args.cleanLabels.map((l, i) => `<label class="ms-opt"><input type="checkbox" class="c-tgt-chk" value="${i}"> ${escapeHtml(l)}</label>`).join('');
 
-    let toolsSection = "";
-    if (!isClosed) {
+    const sizeBtns = isTimeMode ? `
+        <div class="tb-group">
+            <span style="font-size:12px; font-weight:700; color:#475569;">🔍 マス高さ:</span>
+            <button type="button" class="size-pill ${defH===22?'active':''}" data-size="22" onclick="setCellSize(22)">小</button>
+            <button type="button" class="size-pill ${defH===36?'active':''}" data-size="36" onclick="setCellSize(36)">標準</button>
+            <button type="button" class="size-pill ${defH===50?'active':''}" data-size="50" onclick="setCellSize(50)">大</button>
+        </div>` : "";
+
+    const jumpBtns = cols > 7 ? `
+        <div class="tb-group">
+            <button type="button" class="act-pill" onclick="scrollGridX(-280)">◀</button>
+            <span style="font-size:11px; font-weight:700; color:#475569;">全${cols}日</span>
+            <button type="button" class="act-pill" onclick="scrollGridX(280)">▶</button>
+        </div>` : "";
+
+    const extraSettingsBar = (isTimeMode || !isClosed) ? `
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding-bottom:10px; margin-bottom:10px; border-bottom:1px solid #e2e8f0;">
+            ${sizeBtns}
+            ${!isClosed ? `<button type="button" class="act-pill" style="color:#b91c1c; border-color:#fecaca; background:#fef2f2;" onclick="doClearAll()">🗑️ すべて白紙に戻す</button>` : ''}
+        </div>` : "";
+
+    let toolsDrawer = "";
+    if (!isClosed || isTimeMode) {
         const ttBtnText = args.eventType === "time"
             ? "🚫 登録済みの時間割をすべて反映する"
             : "🚫 登録済みの時間割をそのまま反映する";
-        toolsSection = `
-        <details class="tools-box" id="tools-details">
-            <summary>🛠️ 便利ツールを開く (一括指定・日程コピー・時間割反映)</summary>
-            <div class="tools-grid">
+        toolsDrawer = `
+        <div id="tools-drawer" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:10px;">
+            ${extraSettingsBar}
+            ${!isClosed ? `<div class="tools-grid" style="margin-top:0;">
                 <div class="tool-card" style="display:${args.eventType === 'timetable' ? 'none' : 'block'};">
-                    <div class="tool-header">🪄 一括指定ツール</div>
-                    <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap;">
-                        状態: <select id="b-val" class="st-sel"><option value="1">可 (緑)</option><option value="2">未定 (黄)</option><option value="0">不可 (白)</option></select>
-                        時間: <select id="b-start" class="st-sel">${timeOptsHtml}</select> 〜 <select id="b-end" class="st-sel">${timeEndOptsHtml}</select>
+                    <div class="tool-header">🪄 一括指定</div>
+                    <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; flex-wrap:wrap; font-size:12px;">
+                        <select id="b-val" class="st-sel"><option value="1">◯ 可</option><option value="2">△ 未定</option><option value="0">× 不可</option></select>
+                        <select id="b-start" class="st-sel">${timeOptsHtml}</select>〜<select id="b-end" class="st-sel">${timeEndOptsHtml}</select>
                     </div>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        対象:
+                    <div style="display:flex; gap:6px; align-items:center;">
                         <div class="ms-container">
                             <div class="ms-header" onclick="toggleList('b-days-list')">対象日を選択 <span>▼</span></div>
                             <div id="b-days-list" class="ms-options" style="display:none;">
@@ -2289,46 +2367,30 @@ function buildEditor(args) {
                     </div>
                 </div>
                 <div class="tool-card">
-                    <div class="tool-header">📋 日程コピー機能</div>
-                    <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+                    <div class="tool-header">📋 日程コピー</div>
+                    <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; font-size:12px;">
                         元: <select id="c-src" class="st-sel" style="flex:1;">${srcOptsHtml}</select>
                     </div>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        先:
+                    <div style="display:flex; gap:6px; align-items:center;">
                         <div class="ms-container">
-                            <div class="ms-header" onclick="toggleList('c-tgt-list')">対象日を選択 <span>▼</span></div>
+                            <div class="ms-header" onclick="toggleList('c-tgt-list')">コピー先を選択 <span>▼</span></div>
                             <div id="c-tgt-list" class="ms-options" style="display:none;">
                                 <label class="ms-opt" style="font-weight:700;"><input type="checkbox" onchange="document.querySelectorAll('.c-tgt-chk').forEach(c => c.checked = this.checked)"> 全て選択 / 解除</label>
                                 <hr style="margin:4px 0; border:0; border-top:1px solid #e2e8f0;">
                                 ${cTgtOptsHtml}
                             </div>
                         </div>
-                        <button type="button" class="st-btn" style="background:#FF9800;" onclick="doCopy(this)">コピー実行</button>
+                        <button type="button" class="st-btn" style="background:#FF9800;" onclick="doCopy(this)">コピー</button>
                     </div>
                 </div>
                 <div class="tool-card">
-                    <div class="tool-header">⏰ 時間割パワー反映</div>
-                    <p style="font-size:12px; color:#64748b; margin:0 0 10px 0;">設定済みの時間割を読み込み、「授」として一括反映します。</p>
+                    <div class="tool-header">⏰ 時間割反映</div>
+                    <p style="font-size:11.5px; color:#64748b; margin:0 0 8px 0;">登録済みの時間割を「授」として一括反映します。</p>
                     <button type="button" class="st-btn" style="background:#E91E63; width:100%;" onclick="doTimetable(this)">${ttBtnText}</button>
                 </div>
-            </div>
-        </details>`;
+            </div>` : ''}
+        </div>`;
     }
-
-    const sizeBtns = isTimeMode ? `
-        <div class="tb-group">
-            <span style="font-size:11px; font-weight:700; color:#64748b;">マス高さ:</span>
-            <button type="button" class="size-pill ${defH===22?'active':''}" data-size="22" onclick="setCellSize(22)">小</button>
-            <button type="button" class="size-pill ${defH===36?'active':''}" data-size="36" onclick="setCellSize(36)">標準</button>
-            <button type="button" class="size-pill ${defH===50?'active':''}" data-size="50" onclick="setCellSize(50)">大</button>
-        </div>` : "";
-
-    const jumpBtns = cols > 7 ? `
-        <div class="tb-group">
-            <button type="button" class="act-pill" onclick="scrollGridX(-280)">◀ 左へ</button>
-            <span style="font-size:11px; font-weight:700; color:#475569;">全${cols}日</span>
-            <button type="button" class="act-pill" onclick="scrollGridX(280)">右へ ▶</button>
-        </div>` : "";
 
     const penControls = !isClosed ? `
         <div class="tb-row">
@@ -2340,28 +2402,23 @@ function buildEditor(args) {
             </div>
             <div class="tb-group">
                 <button type="button" class="act-pill" id="btn-undo" onclick="doUndo()" disabled>↩ 戻す</button>
-                <button type="button" class="act-pill" onclick="doClearAll()">🗑️ クリア</button>
+                <button type="button" class="act-pill" id="btn-tools-toggle" onclick="toggleToolsDrawer()">⚙️ 便利機能</button>
+                ${jumpBtns}
             </div>
-        </div>` : "";
+        </div>` : (isTimeMode || cols > 7 ? `
+        <div class="tb-row">
+            <div class="tb-group"><button type="button" class="act-pill" id="btn-tools-toggle" onclick="toggleToolsDrawer()">🔍 サイズ調整</button></div>
+            ${jumpBtns}
+        </div>` : "");
 
-    const toolbarHtml = (!isClosed || isTimeMode || cols > 7) ? `
+    const toolbarHtml = penControls ? `
         <div class="editor-toolbar">
             ${penControls}
-            ${(sizeBtns || jumpBtns) ? `<div class="tb-row">${sizeBtns}${jumpBtns}</div>` : ''}
             ${!isClosed ? `<div class="hint-bar">
-                <span class="hint-pc">🖱️ 左ドラッグ: 塗る ／ 右クリック・ドラッグ: 消す ／ ダブルクリック: メモ ／ 横移動: Shift+ホイール・バー</span>
-                <span class="hint-touch">👆 1本指: 塗る ／ ✌️ 2本指: 縦横スクロール ／ 長押し: メモ ／ 時刻・日付列は1本指スクロール可</span>
+                <span class="hint-pc">💡 ドラッグで入力 ／ 右クリックで消す ／ ダブルクリックでメモ</span>
+                <span class="hint-touch">💡 1本指で塗る ／ 2本指でスクロール ／ 長押しでメモ</span>
             </div>` : ''}
         </div>` : "";
-
-    const legendHtml = `
-        <div class="legend-strip">
-            <span class="lg-item"><span class="lg-box" style="background:#4CAF50; border-color:#4CAF50;"></span>◯ 可</span>
-            <span class="lg-item"><span class="lg-box" style="background:#FFEB3B; border-color:#FBC02D;"></span>△ 未定</span>
-            <span class="lg-item"><span class="lg-box" style="background:#fff;"></span>× 不可</span>
-            <span class="lg-item"><span class="lg-box" style="background:#e2e8f0; background-image:repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.7) 3px, rgba(255,255,255,0.7) 6px);"></span>授 授業等</span>
-            <span class="lg-item">💬 個別メモ</span>
-        </div>`;
 
     let timeCellsHtml = "";
     for (let r = 0; r < rows; r++) {
@@ -2389,13 +2446,13 @@ function buildEditor(args) {
 
     const submitSection = !isClosed ? `
         <div class="submit-area">
-            <label style="font-size:14px; font-weight:700; color:#334155;">📝 全体へのコメント (遅刻・早退など)</label>
-            <textarea id="comment-box" rows="2" placeholder="全体への補足事項があれば入力してください">${escapeHtml(args.myComment || "")}</textarea>
+            <label style="font-size:13.5px; font-weight:700; color:#334155;">📝 全体へのコメント（任意）</label>
+            <textarea id="comment-box" rows="2" placeholder="遅刻・早退などの連絡があれば入力">${escapeHtml(args.myComment || "")}</textarea>
             <div id="dirty-badge" class="dirty-badge">⚠️ 未保存の変更があります（「提出」を押すと保存されます）</div>
-            <button type="button" id="submit-btn">✅ すべて記入して提出 (全体が保存されます)</button>
+            <button type="button" id="submit-btn">✅ 回答を保存して提出する</button>
         </div>` : `
         <div class="submit-area">
-            <label style="font-size:14px; font-weight:700; color:#334155;">📝 全体へのコメント</label>
+            <label style="font-size:13.5px; font-weight:700; color:#334155;">📝 全体へのコメント</label>
             <div style="margin-top:6px; padding:10px; background:#f1f5f9; border-radius:8px; font-size:14px; min-height:40px; white-space:pre-wrap;">${escapeHtml(args.myComment || "（なし）")}</div>
         </div>`;
 
@@ -2403,9 +2460,8 @@ function buildEditor(args) {
     const lockGridStyle = isClosed ? "pointer-events:none; opacity:0.85;" : "";
 
     root.innerHTML = `
-        ${toolsSection}
         ${toolbarHtml}
-        ${legendHtml}
+        ${toolsDrawer}
         <div class="top-scroll-wrap" id="top-scroll-wrap"><div class="top-scroll-inner" id="top-scroll-inner"></div></div>
         <div class="scroll-wrapper ${scrollClass}" id="scroll-container">
             <div id="g" style="grid-template-columns: 62px repeat(${cols}, minmax(68px, 1fr)); ${lockGridStyle}">
@@ -2557,10 +2613,12 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .agg-cell {
     border-right: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center;
     height: var(--cell-h); font-weight: 800; position: relative; cursor: pointer;
-    transition: filter 0.1s;
+    transition: filter 0.1s; -webkit-tap-highlight-color: rgba(16,185,129,0.22);
 }
-.agg-cell:hover { filter: brightness(0.95); }
-.agg-cell.agg-selected { outline: 3px solid #1e293b; outline-offset: -3px; z-index: 5; }
+@media (hover: hover) and (pointer: fine) {
+    .agg-cell:hover { filter: brightness(0.95); }
+}
+.agg-cell.agg-selected { outline: 3px solid #0f172a; outline-offset: -3px; z-index: 5; }
 .agg-cell.req-blocked {
     background-image: repeating-linear-gradient(45deg, rgba(148,163,184,0.22), rgba(148,163,184,0.22) 5px, transparent 5px, transparent 10px) !important;
     opacity: 0.55;
@@ -2576,28 +2634,40 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 
 /* PC用ホバープレビュー（位置動的計算・はみ出しゼロ） */
 #agg-hover {
-    display: none; position: fixed; z-index: 99999; pointer-events: none;
+    display: none; position: fixed; z-index: 99998; pointer-events: none;
     width: 240px; max-height: calc(100vh - 16px); overflow: hidden;
     background: rgba(15, 23, 42, 0.96); color: #f8fafc;
     border-radius: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.45;
     box-shadow: 0 10px 26px rgba(0,0,0,0.35);
 }
 
-/* クリック・タップ展開 詳細パネル */
-#agg-detail-panel {
-    display: none; margin-top: 10px; background: #fff;
-    border: 2px solid #4CAF50; border-radius: 12px; padding: 14px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.07);
+/* スマホ・PC共通 タップ/クリック即時モーダル（画面中央に確実に表示） */
+#agg-modal {
+    display: none; position: fixed; inset: 0; z-index: 999999;
+    background: rgba(15, 23, 42, 0.48); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center; padding: 12px;
+}
+#agg-modal.open { display: flex; }
+.agg-modal-card {
+    background: #fff; width: min(440px, 94vw); max-height: calc(100vh - 24px);
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    border-radius: 14px; padding: 16px; border: 2px solid #10b981;
+    box-shadow: 0 16px 40px rgba(15,23,42,0.3);
+    animation: modalPop 0.14s ease-out;
+}
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.95) translateY(6px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .dp-head {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
     border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px;
 }
-.dp-title { font-size: 15px; font-weight: 800; color: #1e293b; }
+.dp-title { font-size: 15px; font-weight: 800; color: #0f172a; }
 .dp-actions { display: flex; gap: 6px; align-items: center; }
 .dp-btn {
     border: 1px solid #cbd5e1; background: #f8fafc; color: #334155;
-    padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
+    padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
 .dp-btn:hover { background: #e2e8f0; }
 .dp-section { margin-bottom: 10px; }
@@ -2605,10 +2675,10 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .dp-sec-title { font-size: 12px; font-weight: 800; margin-bottom: 5px; }
 .chip-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
 .m-chip {
-    display: inline-block; font-size: 12px; padding: 3px 8px; border-radius: 999px; font-weight: 600;
+    display: inline-block; font-size: 12px; padding: 3px 9px; border-radius: 999px; font-weight: 600;
 }
-.chip-yes { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
-.chip-maybe { background: #fff8e1; color: #92400e; border: 1px solid #fde68a; }
+.chip-yes { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.chip-maybe { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
 .chip-no { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 .req-warn {
     background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;
@@ -2617,6 +2687,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 </style></head><body>
 
 <div id="agg-hover"></div>
+<div id="agg-modal"><div class="agg-modal-card" id="agg-modal-card"></div></div>
 <div id="app-root"></div>
 
 <script>
@@ -2638,6 +2709,7 @@ function updateFrameHeight() {
 let aggArgs = null;
 let selectedCellKey = null;
 let lastTouchTime = 0;
+let lastTapHandledAt = 0;
 let isSyncingScroll = false;
 
 function getBorderTop(tStr, eventType) {
@@ -2680,10 +2752,19 @@ window.scrollAggX = function(delta) {
 window.closeDetailPanel = function() {
     selectedCellKey = null;
     document.querySelectorAll('.agg-cell.agg-selected').forEach(el => el.classList.remove('agg-selected'));
-    const panel = document.getElementById('agg-detail-panel');
-    if (panel) panel.style.display = 'none';
+    const modal = document.getElementById('agg-modal');
+    if (modal) modal.classList.remove('open');
+    const root = document.getElementById('app-root');
+    if (root) root.style.minHeight = '';
     updateFrameHeight();
 };
+
+const modalBackdrop = document.getElementById('agg-modal');
+if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', e => {
+        if (e.target === modalBackdrop) closeDetailPanel();
+    });
+}
 
 window.copyYesNames = function(r, c) {
     const info = (aggArgs.cellInfo || {})[`${r}_${c}`];
@@ -2709,17 +2790,14 @@ window.copyYesNames = function(r, c) {
 
 function openDetailPanel(cell, r, c) {
     const key = `${r}_${c}`;
-    if (selectedCellKey === key) {
-        closeDetailPanel();
-        return;
-    }
     selectedCellKey = key;
     document.querySelectorAll('.agg-cell.agg-selected').forEach(el => el.classList.remove('agg-selected'));
     cell.classList.add('agg-selected');
 
     const info = (aggArgs.cellInfo || {})[key] || {};
-    const panel = document.getElementById('agg-detail-panel');
-    if (!panel) return;
+    const modal = document.getElementById('agg-modal');
+    const card = document.getElementById('agg-modal-card');
+    if (!modal || !card) return;
 
     const titleText = `${aggArgs.cleanLabels[c]} ${aggArgs.timeLabels[r]}`;
     const scoreTxt = info.scoreText || "0";
@@ -2738,7 +2816,7 @@ function openDetailPanel(cell, r, c) {
 
         bodyHtml += `
             <div class="dp-section">
-                <div class="dp-sec-title" style="color:#1b5e20;">🟢 ◯ 参加可能 (${yesList.length}名)</div>
+                <div class="dp-sec-title" style="color:#166534;">🟢 ◯ 参加可能 (${yesList.length}名)</div>
                 <div class="chip-wrap">${yesList.length ? yesList.map(n => `<span class="m-chip chip-yes">${escapeHtml(n)}</span>`).join('') : '<span style="font-size:12px;color:#94a3b8;">なし</span>'}</div>
             </div>
             <div class="dp-section">
@@ -2752,22 +2830,27 @@ function openDetailPanel(cell, r, c) {
     }
 
     const copyBtnHtml = (aggArgs.canViewDetails && info.yes && info.yes.length > 0)
-        ? `<button type="button" id="dp-copy-btn" class="dp-btn" onclick="copyYesNames(${r}, ${c})">📋 ◯の人をコピー</button>`
+        ? `<button type="button" id="dp-copy-btn" class="dp-btn" onclick="copyYesNames(${r}, ${c})">📋 ◯をコピー</button>`
         : "";
 
-    panel.innerHTML = `
+    card.innerHTML = `
         <div class="dp-head">
-            <div class="dp-title">📅 ${escapeHtml(titleText)} — 参加目安: <span style="color:#2e7d32;">${escapeHtml(scoreTxt)}人</span></div>
+            <div class="dp-title">📅 ${escapeHtml(titleText)}（<span style="color:#047857;">${escapeHtml(scoreTxt)}人</span>）</div>
             <div class="dp-actions">
                 ${copyBtnHtml}
                 <button type="button" class="dp-btn" onclick="closeDetailPanel()">✕ 閉じる</button>
             </div>
         </div>
         ${bodyHtml}
+        <div style="text-align:center; font-size:11px; color:#94a3b8; margin-top:10px;">枠外をタップしても閉じられます</div>
     `;
-    panel.style.display = 'block';
-    updateFrameHeight();
-    setTimeout(() => panel.scrollIntoView({behavior: 'smooth', block: 'nearest'}), 40);
+
+    const root = document.getElementById('app-root');
+    if (root && root.getBoundingClientRect().height < 360) {
+        root.style.minHeight = '360px';
+        updateFrameHeight();
+    }
+    modal.classList.add('open');
 }
 
 function showHover(cell, r, c) {
@@ -2916,7 +2999,6 @@ function buildAgg(args) {
                 ${dayCols}
             </div>
         </div>
-        <div id="agg-detail-panel"></div>
     `;
 
     const sc = document.getElementById('agg-scroll');
@@ -2935,7 +3017,38 @@ function buildAgg(args) {
 
     const grid = document.getElementById('agg-grid');
     if (grid) {
-        grid.addEventListener('touchstart', () => { lastTouchTime = Date.now(); }, {passive: true});
+        let tapStart = null;
+        grid.addEventListener('touchstart', e => {
+            lastTouchTime = Date.now();
+            if (e.touches.length === 1) {
+                const cell = e.target.closest('.agg-cell');
+                tapStart = cell ? {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY,
+                    t: Date.now(),
+                    cell: cell
+                } : null;
+            } else {
+                tapStart = null;
+            }
+        }, {passive: true});
+
+        grid.addEventListener('touchend', e => {
+            if (!tapStart || e.changedTouches.length !== 1) { tapStart = null; return; }
+            const ct = e.changedTouches[0];
+            const dist = Math.hypot(ct.clientX - tapStart.x, ct.clientY - tapStart.y);
+            const elapsed = Date.now() - tapStart.t;
+            const cell = tapStart.cell;
+            tapStart = null;
+            if (dist < 12 && elapsed < 500 && cell) {
+                lastTapHandledAt = Date.now();
+                hideHover();
+                openDetailPanel(cell, parseInt(cell.dataset.r, 10), parseInt(cell.dataset.c, 10));
+            }
+        }, {passive: true});
+
+        grid.addEventListener('touchcancel', () => { tapStart = null; }, {passive: true});
+
         grid.addEventListener('mouseover', e => {
             const cell = e.target.closest('.agg-cell');
             if (cell) showHover(cell, parseInt(cell.dataset.r, 10), parseInt(cell.dataset.c, 10));
@@ -2946,6 +3059,7 @@ function buildAgg(args) {
             }
         });
         grid.addEventListener('click', e => {
+            if (Date.now() - lastTapHandledAt < 500) return;
             const cell = e.target.closest('.agg-cell');
             if (!cell) return;
             hideHover();
@@ -2967,6 +3081,133 @@ sendMsg("streamlit:componentReady", {apiVersion: 1});
 </script></body></html>
 """
 
+TYPE_PICKER_V1_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: transparent; }
+* { box-sizing: border-box; }
+#app-root { padding: 4px 2px 6px 2px; }
+.tp-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+}
+@media (max-width: 720px) {
+    .tp-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+}
+.tp-card {
+    position: relative; background: #ffffff; border: 2px solid #e2e8f0;
+    border-radius: 14px; padding: 12px 10px 10px 10px; text-align: center;
+    cursor: pointer; transition: all 0.16s ease; user-select: none;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+    display: flex; flex-direction: column; justify-content: space-between;
+}
+.tp-card:hover { border-color: #94a3b8; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(15,23,42,0.08); }
+.tp-card.selected {
+    border-color: #10b981; background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 65%);
+    box-shadow: 0 6px 18px rgba(16,185,129,0.22); transform: translateY(-2px);
+}
+.tp-check {
+    position: absolute; top: 7px; right: 7px; width: 22px; height: 22px;
+    border-radius: 50%; background: #10b981; color: #fff; font-size: 12px; font-weight: 900;
+    display: none; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(16,185,129,0.4);
+}
+.tp-card.selected .tp-check { display: flex; }
+.tp-title { font-size: 13.5px; font-weight: 800; color: #0f172a; margin-bottom: 3px; }
+.tp-sub { font-size: 11px; color: #64748b; margin-bottom: 8px; line-height: 1.3; }
+.mini-box {
+    font-size: 10px; border: 1px solid #e2e8f0; border-radius: 7px; overflow: hidden; background: #fff;
+}
+</style></head><body>
+<div id="app-root">
+    <div class="tp-grid">
+        <div class="tp-card" data-type="time" onclick="pick('time')">
+            <div class="tp-check">✓</div>
+            <div>
+                <div class="tp-title">🕒 時間帯</div>
+                <div class="tp-sub">15分刻みの細かい調整に</div>
+            </div>
+            <div class="mini-box">
+                <div style="background:#f1f5f9; padding:2px; font-weight:700;">4/1 (月)</div>
+                <div style="display:flex; border-top:1px solid #e2e8f0;"><div style="width:32px; background:#f8fafc;">9:00</div><div style="flex:1; background:#4CAF50; color:#fff; font-weight:700;">◯</div></div>
+                <div style="display:flex; border-top:1px dashed #e2e8f0;"><div style="width:32px; background:#f8fafc;">9:15</div><div style="flex:1; background:#FFEB3B; color:#333; font-weight:700;">△</div></div>
+                <div style="display:flex; border-top:1px dashed #e2e8f0;"><div style="width:32px; background:#f8fafc;">9:30</div><div style="flex:1; background:#4CAF50; color:#fff; font-weight:700;">◯</div></div>
+            </div>
+        </div>
+        <div class="tp-card" data-type="timetable" onclick="pick('timetable')">
+            <div class="tp-check">✓</div>
+            <div>
+                <div class="tp-title">🏫 時間割 (月〜金)</div>
+                <div class="tp-sub">定例MTG・空きコマ調査に</div>
+            </div>
+            <div class="mini-box">
+                <div style="display:flex; background:#f1f5f9; border-bottom:1px solid #e2e8f0; font-weight:700;"><div style="width:28px;"></div><div style="flex:1;">月</div><div style="flex:1;">火</div></div>
+                <div style="display:flex; border-bottom:1px solid #e2e8f0;"><div style="width:28px; background:#f8fafc;">1限</div><div style="flex:1; background:#4CAF50; color:#fff; border-right:1px solid #fff;">◯</div><div style="flex:1; background:#e2e8f0; color:#475569;">授</div></div>
+                <div style="display:flex; border-bottom:1px solid #e2e8f0;"><div style="width:28px; background:#f8fafc;">2限</div><div style="flex:1; background:#FFEB3B; color:#333; border-right:1px solid #fff;">△</div><div style="flex:1; background:#4CAF50; color:#fff;">◯</div></div>
+                <div style="display:flex;"><div style="width:28px; background:#f8fafc;">昼</div><div style="flex:1; background:#4CAF50; color:#fff; border-right:1px solid #fff;">◯</div><div style="flex:1; background:#4CAF50; color:#fff;">◯</div></div>
+            </div>
+        </div>
+        <div class="tp-card" data-type="date_timetable" onclick="pick('date_timetable')">
+            <div class="tp-check">✓</div>
+            <div>
+                <div class="tp-title">📅 日付指定コマ</div>
+                <div class="tp-sub">特定日の1〜5限・放課後に</div>
+            </div>
+            <div class="mini-box">
+                <div style="display:flex; background:#f1f5f9; border-bottom:1px solid #e2e8f0; font-weight:700;"><div style="width:28px;"></div><div style="flex:1;">4/10</div><div style="flex:1;">4/12</div></div>
+                <div style="display:flex; border-bottom:1px solid #e2e8f0;"><div style="width:28px; background:#f8fafc;">1限</div><div style="flex:1; background:#4CAF50; color:#fff; border-right:1px solid #fff;">◯</div><div style="flex:1; background:#FFEB3B; color:#333;">△</div></div>
+                <div style="display:flex; border-bottom:1px solid #e2e8f0;"><div style="width:28px; background:#f8fafc;">2限</div><div style="flex:1; background:#fff; color:#cbd5e1; border-right:1px solid #e2e8f0;">×</div><div style="flex:1; background:#4CAF50; color:#fff;">◯</div></div>
+                <div style="display:flex;"><div style="width:28px; background:#f8fafc;">放課</div><div style="flex:1; background:#4CAF50; color:#fff; border-right:1px solid #fff;">◯</div><div style="flex:1; background:#4CAF50; color:#fff;">◯</div></div>
+            </div>
+        </div>
+        <div class="tp-card" data-type="options" onclick="pick('options')">
+            <div class="tp-check">✓</div>
+            <div>
+                <div class="tp-title">🗳️ 複数の予定</div>
+                <div class="tp-sub">候補リストの出欠アンケートに</div>
+            </div>
+            <div class="mini-box" style="padding:5px; text-align:left;">
+                <div style="font-weight:800; color:#166534; margin-bottom:4px;">📅 4/1 19:00 新歓</div>
+                <div style="display:flex; gap:3px; margin-bottom:5px;">
+                    <div style="flex:1; border:1px solid #cbd5e1; text-align:center; border-radius:4px;">×</div>
+                    <div style="flex:1; background:#FFEB3B; text-align:center; border-radius:4px; font-weight:700;">△</div>
+                    <div style="flex:1; background:#4CAF50; color:#fff; text-align:center; border-radius:4px; font-weight:700;">◯</div>
+                </div>
+                <div style="font-weight:800; color:#166534; margin-bottom:2px;">📅 4/3 18:00 説明会</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+function sendMsg(type, data) {
+    window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*");
+}
+function updateHeight() {
+    const root = document.getElementById('app-root');
+    if (!root) return;
+    sendMsg("streamlit:setFrameHeight", {height: Math.ceil(root.getBoundingClientRect().height) + 4});
+}
+let currentSelected = "time";
+function applySelected(val) {
+    currentSelected = val || "time";
+    document.querySelectorAll('.tp-card').forEach(el => {
+        el.classList.toggle('selected', el.dataset.type === currentSelected);
+    });
+}
+window.pick = function(val) {
+    if (val === currentSelected) return;
+    applySelected(val);
+    sendMsg("streamlit:setComponentValue", {value: val, dataType: "json"});
+};
+window.addEventListener("message", function(event) {
+    if (!event.data || event.data.type !== "streamlit:render") return;
+    const args = event.data.args || {};
+    applySelected(args.selected || "time");
+    setTimeout(updateHeight, 30);
+});
+const ro = new ResizeObserver(() => updateHeight());
+ro.observe(document.getElementById('app-root'));
+sendMsg("streamlit:componentReady", {apiVersion: 1});
+</script></body></html>
+"""
+
 
 @st.cache_resource
 def ensure_components():
@@ -2975,8 +3216,9 @@ def ensure_components():
         "rt_editor": RT_EDITOR_HTML,
         "auth_storage_v1": AUTH_STORAGE_HTML,
         "options_editor_v2": OPTIONS_EDITOR_V2_HTML,
-        "custom_editor_v15": CUSTOM_EDITOR_V15_HTML,
-        "agg_viewer_v1": AGG_VIEWER_V1_HTML,
+        "custom_editor_v16": CUSTOM_EDITOR_V15_HTML,
+        "agg_viewer_v2": AGG_VIEWER_V1_HTML,
+        "type_picker_v1": TYPE_PICKER_V1_HTML,
     }
     for folder, content in specs.items():
         dirpath = os.path.join(BASE_DIR, folder)
@@ -2992,8 +3234,9 @@ ensure_components()
 rt_editor = components.declare_component("rt_editor", path=os.path.join(BASE_DIR, "rt_editor"))
 auth_storage = components.declare_component("auth_storage", path=os.path.join(BASE_DIR, "auth_storage_v1"))
 options_editor = components.declare_component("options_editor", path=os.path.join(BASE_DIR, "options_editor_v2"))
-grid_editor = components.declare_component("grid_editor", path=os.path.join(BASE_DIR, "custom_editor_v15"))
-agg_viewer = components.declare_component("agg_viewer", path=os.path.join(BASE_DIR, "agg_viewer_v1"))
+grid_editor = components.declare_component("grid_editor", path=os.path.join(BASE_DIR, "custom_editor_v16"))
+agg_viewer = components.declare_component("agg_viewer", path=os.path.join(BASE_DIR, "agg_viewer_v2"))
+type_picker = components.declare_component("type_picker", path=os.path.join(BASE_DIR, "type_picker_v1"))
 
 
 # ==========================================
@@ -3527,57 +3770,17 @@ def render_guide_view():
 
 def render_create_event_view(user):
     st.title("➕ イベント新規作成")
-    st.write("新しい日程調整イベントを作成します。")
+    st.caption("作成したい日程調整のタイプを下のカードからタップして選んでください。")
 
-    st.markdown("##### 📝 日程調整のタイプを選択")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown("""
-    <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
-        <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>🕒 時間帯 (15分刻み)</div>
-        <div style='font-size:10px; border:1px solid #eee; border-radius:4px; overflow:hidden;'>
-            <div style='background:#f0f2f6; padding:2px;'>4/1 (月)</div>
-            <div style='display:flex; border-top:1px solid #eee;'><div style='width:30px; background:#f0f2f6;'>9:00</div><div style='flex:1; background:#4CAF50; color:#fff;'>◯</div></div>
-            <div style='display:flex; border-top:1px dashed #eee;'><div style='width:30px; background:#f0f2f6;'>9:15</div><div style='flex:1; background:#FFEB3B; color:#333;'>△</div></div>
-        </div>
-    </div>""", unsafe_allow_html=True)
-    c2.markdown("""
-    <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
-        <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>🏫 時間割 (月〜金)</div>
-        <div style='font-size:10px; border:1px solid #eee; border-radius:4px; overflow:hidden;'>
-            <div style='display:flex; background:#f0f2f6; border-bottom:1px solid #eee;'><div style='width:25px;'></div><div style='flex:1;'>月</div><div style='flex:1;'>火</div></div>
-            <div style='display:flex; border-bottom:1px solid #eee;'><div style='width:25px; background:#f0f2f6;'>1限</div><div style='flex:1; background:#4CAF50; color:#fff; border-right:1px solid #eee;'>◯</div><div style='flex:1; background:#e0e0e0; color:#555;'>授</div></div>
-            <div style='display:flex;'><div style='width:25px; background:#f0f2f6;'>2限</div><div style='flex:1; background:#FFEB3B; color:#333; border-right:1px solid #eee;'>△</div><div style='flex:1; background:#4CAF50; color:#fff;'>◯</div></div>
-        </div>
-    </div>""", unsafe_allow_html=True)
-    c3.markdown("""
-    <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
-        <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>📅 日付指定コマ</div>
-        <div style='font-size:10px; border:1px solid #eee; border-radius:4px; overflow:hidden;'>
-            <div style='display:flex; background:#f0f2f6; border-bottom:1px solid #eee;'><div style='width:25px;'></div><div style='flex:1;'>4/10</div><div style='flex:1;'>4/12</div></div>
-            <div style='display:flex; border-bottom:1px solid #eee;'><div style='width:25px; background:#f0f2f6;'>1限</div><div style='flex:1; background:#4CAF50; color:#fff; border-right:1px solid #eee;'>◯</div><div style='flex:1; background:#FFEB3B; color:#333;'>△</div></div>
-        </div>
-    </div>""", unsafe_allow_html=True)
-    c4.markdown("""
-    <div style='background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;'>
-        <div style='font-size:13px; font-weight:bold; margin-bottom:5px;'>📅 複数の予定 (候補から)</div>
-        <div style='font-size:10px; text-align:left; padding:2px;'>
-            <div style='font-weight:bold; color:#2e7d32;'>📅 4/1 新歓</div>
-            <div style='display:flex; gap:2px; margin-top:2px;'>
-                <div style='flex:1; border:1px solid #ccc; text-align:center; border-radius:2px;'>×</div>
-                <div style='flex:1; background:#FFEB3B; text-align:center; border-radius:2px;'>△</div>
-                <div style='flex:1; background:#4CAF50; color:#fff; text-align:center; border-radius:2px;'>◯</div>
-            </div>
-        </div>
-    </div>""", unsafe_allow_html=True)
+    if "create_ev_type" not in st.session_state:
+        st.session_state.create_ev_type = "time"
 
-    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
-    ev_type_label = st.radio(
-        "タイプ選択",
-        ["🕒 時間帯 (15分刻み)", "🏫 時間割 (月〜金)", "📅 日付指定コマ", "📅 複数の予定 (候補から選択)"],
-        horizontal=True,
-        label_visibility="collapsed",
-    )
-    ev_title = st.text_input("イベント名")
+    picked_type = type_picker(selected=st.session_state.create_ev_type, key="create_ev_type_picker")
+    if picked_type in ["time", "timetable", "date_timetable", "options"]:
+        st.session_state.create_ev_type = picked_type
+    ev_type = st.session_state.create_ev_type
+
+    ev_title = st.text_input("イベント名", placeholder="例: 定例MTG / 新歓日程調整")
 
     with st.container(border=True):
         st.markdown("##### ⏳ 回答期限の設定")
@@ -3592,8 +3795,7 @@ def render_create_event_view(user):
     ev_start, ev_end, t_start, t_end = None, None, None, None
     opts_list = []
 
-    if ev_type_label == "🕒 時間帯 (15分刻み)":
-        ev_type = "time"
+    if ev_type == "time":
         with st.container(border=True):
             st.markdown("##### 📅 1. カレンダーに表示する【期間】")
             col1, col_m1, col2 = st.columns([10, 1, 10])
@@ -3614,11 +3816,10 @@ def render_create_event_view(user):
             with col4:
                 t_end = st.selectbox("終了時刻", time_master, index=72, label_visibility="collapsed")
 
-    elif ev_type_label == "🏫 時間割 (月〜金)":
-        ev_type = "timetable"
+    elif ev_type == "timetable":
+        pass
 
-    elif ev_type_label == "📅 日付指定コマ":
-        ev_type = "date_timetable"
+    elif ev_type == "date_timetable":
         with st.container(border=True):
             st.markdown("##### 📅 対象となる【期間】")
             col1, col_m1, col2 = st.columns([10, 1, 10])
@@ -4291,12 +4492,19 @@ def render_dashboard_view(events):
                 closed_unanswered.append(ev)
 
     answered_events = [ev for ev in events if ev.get("is_answered")]
+    confirmed_cnt = sum(1 for ev in events if parse_confirmed_info(ev.get("confirmed_info")))
 
-    if unanswered_open:
-        st.warning(f"⚠️ **未回答のイベントが {len(unanswered_open)} 件あります！** 早めの回答をお願いします。")
-
-    st.subheader("📋 イベント ダッシュボード")
-    st.markdown("<p style='font-size:14px; color:#555; margin-bottom:14px;'>回答・確認したいイベントを選んでください。</p>", unsafe_allow_html=True)
+    st.subheader("📋 イベント一覧")
+    st.markdown(
+        f"""
+        <div class="dash-stats">
+            <span class="dash-stat-pill" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;">🔴 未回答 {len(unanswered_open)}件</span>
+            <span class="dash-stat-pill" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">✅ 回答済 {len(answered_events)}件</span>
+            <span class="dash-stat-pill" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">🎉 開催決定 {confirmed_cnt}件</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     c_left, c_right = st.columns(2)
     with c_left:
@@ -4305,7 +4513,7 @@ def render_dashboard_view(events):
             for ev in unanswered_open:
                 _render_event_card(ev, "btn_u", "📝 このイベントに回答する")
         else:
-            st.info("未回答のイベントはありません！🎉")
+            st.success("未回答のイベントはありません！🎉")
 
     with c_right:
         st.markdown("#### ✅ 回答済みのイベント")
@@ -4339,11 +4547,12 @@ def _save_confirmed_info(event_id, info_dict, notify_slack=False):
     })
 
 
-def render_confirmed_banner(event, share_url):
+def render_confirmed_banner(event, share_url, can_confirm=False):
     confirmed = parse_confirmed_info(event.get("confirmed_info"))
     if not confirmed:
         return
 
+    event_id = event.get("event_id")
     loc_html = f"<br>📍 <b>場所/URL:</b> {html_lib.escape(confirmed['location'])}" if confirmed.get("location") else ""
     note_html = f"<br>📝 <b>連絡:</b> {html_lib.escape(confirmed['note'])}" if confirmed.get("note") else ""
 
@@ -4376,7 +4585,7 @@ def render_confirmed_banner(event, share_url):
         end_dt,
         location=confirmed.get("location", ""),
         details=details_txt,
-        uid_prefix=event.get("event_id", "ssscheduler"),
+        uid_prefix=event_id or "ssscheduler",
     )
 
     if gcal_url and ics_data:
@@ -4387,7 +4596,7 @@ def render_confirmed_banner(event, share_url):
             st.download_button(
                 "📥 カレンダー(.ics)保存",
                 data=ics_data.encode("utf-8"),
-                file_name=f"{event.get('event_id', 'event')}.ics",
+                file_name=f"{event_id or 'event'}.ics",
                 mime="text/calendar",
                 use_container_width=True,
             )
@@ -4395,107 +4604,133 @@ def render_confirmed_banner(event, share_url):
             render_copy_button(
                 announce_txt,
                 btn_label="📋 決定連絡をコピー",
-                key_suffix=f"conf_cp_{event.get('event_id')}",
+                key_suffix=f"conf_cp_{event_id}",
                 full_width=True,
             )
     else:
         render_copy_button(
             announce_txt,
             btn_label="📋 決定連絡をコピー",
-            key_suffix=f"conf_cp_{event.get('event_id')}",
+            key_suffix=f"conf_cp_{event_id}",
         )
 
+    if can_confirm:
+        with st.expander("⚙️ 決定日時の取り消し・変更（主催者 / 管理者）", expanded=False):
+            st.caption("決定した日時を取り消して再調整に戻すことができます（詳細編集は「📊 みんなの集計」下部の編集フォームからも行えます）。")
+            if st.button("🗑️ 開催日時の決定を取り消す", key=f"banner_unconfirm_{event_id}", type="secondary"):
+                _save_confirmed_info(event_id, None)
+                st.toast("開催日時の決定を取り消しました。")
+                st.rerun()
 
-def render_ranking_and_confirm_section(event, user, best_slots, share_url, can_confirm, key_prefix):
+
+def render_ranking_cards(event, user, best_slots, share_url, can_confirm, key_prefix):
+    """おすすめ候補日時をすっきり見やすく表示（上位3件を表示、4〜5位は展開式）"""
     event_id = event.get("event_id")
     existing_conf = parse_confirmed_info(event.get("confirmed_info")) or {}
 
-    st.markdown("#### 🏆 おすすめ候補日時 トップ5")
-    if best_slots:
-        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
-        for i, slot in enumerate(best_slots):
-            medal = medals[i] if i < len(medals) else f"{i + 1}."
-            card_cls = "rank-card rank-card-top" if i == 0 else "rank-card"
-            card_html = (
-                f"<div class='{card_cls}'>"
-                f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;'>"
-                f"<div style='font-size:15px; font-weight:800; color:#1e293b;'>{medal} {html_lib.escape(slot['label'])}</div>"
-                f"<div style='font-size:13px; font-weight:800; color:#2e7d32;'>目安 {slot['score']:g}名 "
-                f"<span style='font-weight:600; color:#475569;'>(◯{slot['yes']} / △{slot['maybe']} / ×{slot['no']})</span></div>"
-                f"</div></div>"
-            )
-            if can_confirm:
-                c_card, c_act = st.columns([4, 1])
-                with c_card:
-                    st.markdown(card_html, unsafe_allow_html=True)
-                with c_act:
-                    if st.button("📌 確定", key=f"{key_prefix}_pin_{i}_{event_id}", use_container_width=True):
-                        new_conf = {
-                            "label": slot["label"],
-                            "start_dt": slot.get("start_dt", ""),
-                            "end_dt": slot.get("end_dt", ""),
-                            "location": existing_conf.get("location", ""),
-                            "note": existing_conf.get("note", ""),
-                            "confirmed_by": user.get("name", ""),
-                            "confirmed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        }
-                        _save_confirmed_info(event_id, new_conf)
-                        st.toast(f"📌 「{slot['label']}」で確定しました！")
-                        st.rerun()
-            else:
-                st.markdown(card_html, unsafe_allow_html=True)
+    if not best_slots:
+        st.info("条件を満たすおすすめ候補がまだありません。")
+        return
 
-        slack_txt = format_slack_ranking_text(event, best_slots, share_url)
-        render_copy_button(
-            slack_txt,
-            btn_label="📋 Slack投稿用ランキング文をコピー",
-            key_suffix=f"{key_prefix}_slack_{event_id}",
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+    rank_classes = ["rank-card rank-card-1", "rank-card rank-card-2", "rank-card rank-card-3", "rank-card", "rank-card"]
+
+    def _draw_slot(i, slot):
+        medal = medals[i] if i < len(medals) else f"{i + 1}."
+        card_cls = rank_classes[i] if i < len(rank_classes) else "rank-card"
+        card_html = (
+            f"<div class='{card_cls}'>"
+            f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;'>"
+            f"<div style='font-size:14.5px; font-weight:800; color:#0f172a;'>{medal} {html_lib.escape(slot['label'])}</div>"
+            f"<div style='font-size:13px; font-weight:800; color:#047857;'>目安 {slot['score']:g}名 "
+            f"<span style='font-weight:600; color:#64748b;'>(◯{slot['yes']} / △{slot['maybe']} / ×{slot['no']})</span></div>"
+            f"</div></div>"
         )
-    else:
-        st.info("条件（必須メンバー・所要時間など）を満たす候補枠がまだありません。")
-
-    if can_confirm:
-        with st.expander("📌 開催日時の確定・編集・取消（主催者 / 管理者用）", expanded=False):
-            with st.form(f"confirm_edit_form_{key_prefix}_{event_id}"):
-                def_label = existing_conf.get("label") or (best_slots[0]["label"] if best_slots else "")
-                def_start = existing_conf.get("start_dt") or (best_slots[0].get("start_dt", "") if best_slots else "")
-                def_end = existing_conf.get("end_dt") or (best_slots[0].get("end_dt", "") if best_slots else "")
-
-                inp_label = st.text_input("決定日時（表示ラベル）", value=def_label, placeholder="例: 04/15(水) 13:00〜14:00")
-                col_dt1, col_dt2 = st.columns(2)
-                with col_dt1:
-                    inp_start = st.text_input("開始日時 (GCal連携用: YYYY-MM-DD HH:MM)", value=def_start, placeholder="2026-04-15 13:00")
-                with col_dt2:
-                    inp_end = st.text_input("終了日時 (GCal連携用: YYYY-MM-DD HH:MM)", value=def_end, placeholder="2026-04-15 14:00")
-                inp_loc = st.text_input("場所 / 会議URL (任意)", value=existing_conf.get("location", ""), placeholder="例: B4棟 201 / Zoom URL")
-                inp_note = st.text_input("参加者への一言メモ (任意)", value=existing_conf.get("note", ""), placeholder="例: PC持参でお願いします")
-                notify_slack = st.checkbox("📣 確定と同時にSlackへ決定通知を送る", value=False)
-
-                c_sv, c_rm = st.columns([2, 1])
-                with c_sv:
-                    save_btn = st.form_submit_button("💾 この内容で確定・更新", type="primary", use_container_width=True)
-                with c_rm:
-                    clear_btn = st.form_submit_button("🗑️ 確定を取り消す", use_container_width=True)
-
-                if save_btn:
-                    if not inp_label.strip():
-                        st.error("決定日時（表示ラベル）を入力してください。")
-                    else:
-                        _save_confirmed_info(event_id, {
-                            "label": inp_label.strip(),
-                            "start_dt": inp_start.strip(),
-                            "end_dt": inp_end.strip(),
-                            "location": inp_loc.strip(),
-                            "note": inp_note.strip(),
-                            "confirmed_by": user.get("name", ""),
-                            "confirmed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        }, notify_slack=notify_slack)
-                        st.toast("🎉 開催日時を確定しました！")
-                        st.rerun()
-                elif clear_btn:
-                    _save_confirmed_info(event_id, None)
-                    st.toast("確定日時を取り消しました。")
+        if can_confirm:
+            c_card, c_act = st.columns([4.2, 1])
+            with c_card:
+                st.markdown(card_html, unsafe_allow_html=True)
+            with c_act:
+                if st.button("📌 確定", key=f"{key_prefix}_pin_{i}_{event_id}", use_container_width=True):
+                    new_conf = {
+                        "label": slot["label"],
+                        "start_dt": slot.get("start_dt", ""),
+                        "end_dt": slot.get("end_dt", ""),
+                        "location": existing_conf.get("location", ""),
+                        "note": existing_conf.get("note", ""),
+                        "confirmed_by": user.get("name", ""),
+                        "confirmed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    }
+                    _save_confirmed_info(event_id, new_conf)
+                    st.toast(f"📌 「{slot['label']}」で確定しました！")
                     st.rerun()
+        else:
+            st.markdown(card_html, unsafe_allow_html=True)
+
+    for i, slot in enumerate(best_slots[:3]):
+        _draw_slot(i, slot)
+
+    if len(best_slots) > 3:
+        with st.expander(f"➕ 4〜{len(best_slots)}位の候補を見る", expanded=False):
+            for i, slot in enumerate(best_slots[3:], start=3):
+                _draw_slot(i, slot)
+
+    slack_txt = format_slack_ranking_text(event, best_slots, share_url)
+    render_copy_button(
+        slack_txt,
+        btn_label="📋 Slack投稿用テキストをコピー",
+        key_suffix=f"{key_prefix}_slack_{event_id}",
+    )
+
+
+def render_confirm_editor_expander(event, user, best_slots, can_confirm, key_prefix):
+    """主催者・管理者向けの開催日時 確定・編集・取消フォーム（画面下部に収納）"""
+    if not can_confirm:
+        return
+    event_id = event.get("event_id")
+    existing_conf = parse_confirmed_info(event.get("confirmed_info")) or {}
+
+    with st.expander("📌 開催日時の確定・編集・取消（主催者 / 管理者用）", expanded=False):
+        with st.form(f"confirm_edit_form_{key_prefix}_{event_id}"):
+            def_label = existing_conf.get("label") or (best_slots[0]["label"] if best_slots else "")
+            def_start = existing_conf.get("start_dt") or (best_slots[0].get("start_dt", "") if best_slots else "")
+            def_end = existing_conf.get("end_dt") or (best_slots[0].get("end_dt", "") if best_slots else "")
+
+            inp_label = st.text_input("決定日時（表示ラベル）", value=def_label, placeholder="例: 04/15(水) 13:00〜14:00")
+            col_dt1, col_dt2 = st.columns(2)
+            with col_dt1:
+                inp_start = st.text_input("開始日時 (GCal連携用: YYYY-MM-DD HH:MM)", value=def_start, placeholder="2026-04-15 13:00")
+            with col_dt2:
+                inp_end = st.text_input("終了日時 (GCal連携用: YYYY-MM-DD HH:MM)", value=def_end, placeholder="2026-04-15 14:00")
+            inp_loc = st.text_input("場所 / 会議URL (任意)", value=existing_conf.get("location", ""), placeholder="例: B4棟 201 / Zoom URL")
+            inp_note = st.text_input("参加者への一言メモ (任意)", value=existing_conf.get("note", ""), placeholder="例: PC持参でお願いします")
+            notify_slack = st.checkbox("📣 確定と同時にSlackへ決定通知を送る", value=False)
+
+            c_sv, c_rm = st.columns([2, 1])
+            with c_sv:
+                save_btn = st.form_submit_button("💾 この内容で確定・更新", type="primary", use_container_width=True)
+            with c_rm:
+                clear_btn = st.form_submit_button("🗑️ 確定を取り消す", use_container_width=True)
+
+            if save_btn:
+                if not inp_label.strip():
+                    st.error("決定日時（表示ラベル）を入力してください。")
+                else:
+                    _save_confirmed_info(event_id, {
+                        "label": inp_label.strip(),
+                        "start_dt": inp_start.strip(),
+                        "end_dt": inp_end.strip(),
+                        "location": inp_loc.strip(),
+                        "note": inp_note.strip(),
+                        "confirmed_by": user.get("name", ""),
+                        "confirmed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    }, notify_slack=notify_slack)
+                    st.toast("🎉 開催日時を確定しました！")
+                    st.rerun()
+            elif clear_btn:
+                _save_confirmed_info(event_id, None)
+                st.toast("確定日時を取り消しました。")
+                st.rerun()
 
 
 def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed, share_url):
@@ -4582,8 +4817,52 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
     active_view = st.session_state.get("event_view_tab", "input")
 
     if active_view == "input":
-        if event_type == "time":
-            with st.expander("📅 Googleカレンダー連携（自動反映）", expanded=False):
+        matrix_list = st.session_state.df_input[date_strs].values.tolist()
+        raw = grid_editor(
+            eventId=event_id,
+            eventType=event_type,
+            isTimeMode=(event_type == "time"),
+            dateStrs=date_strs,
+            cleanLabels=clean_date_labels,
+            weekBreaks=week_breaks,
+            dayKinds=day_kinds,
+            timeLabels=time_labels,
+            matrix=matrix_list,
+            cellDetails=st.session_state.get("my_cell_details", {}),
+            unavailColRows=unavail_col_rows,
+            myComment=st.session_state.get("my_comment", ""),
+            isClosed=is_closed,
+            saveTs=st.session_state.get("last_saved_ts", 0),
+            importTs=st.session_state.get("cal_import_ts", 0),
+            defaultCellH=(36 if event_type == "time" else 50),
+            key=f"editor_v16_{event_id}",
+        )
+
+        if raw and isinstance(raw, dict) and "data" in raw:
+            if raw.get("trigger_save") and st.session_state.get("last_saved_ts") != raw.get("ts"):
+                st.session_state.last_saved_ts = raw.get("ts")
+                st.session_state.df_input = pd.DataFrame(raw["data"], index=time_labels, columns=date_strs)
+                st.session_state.my_comment = raw.get("comment", "")
+                cell_details_json = raw.get("cell_details", {}) or {}
+                st.session_state.my_cell_details = cell_details_json
+                cell_details_str = json.dumps(cell_details_json, separators=(",", ":")) if cell_details_json else "{}"
+                all_res = encode_matrix_to_responses(
+                    st.session_state.df_input, date_strs, time_labels, event_type, s_idx=s_idx
+                )
+                payload = {
+                    "event_id": event_id,
+                    "user_id": user.get("user_id"),
+                    "comment": st.session_state.my_comment,
+                    "cell_details": cell_details_str,
+                    "responses": all_res,
+                }
+                if save_response_hybrid(payload):
+                    st.session_state.save_success_msg = "回答を保存しました！みんなの集計を確認しましょう👀"
+                    st.session_state.event_view_tab = "graph"
+                    st.rerun()
+
+        if event_type == "time" and not is_closed:
+            with st.expander("📅 Googleカレンダー連携（外部予定を自動反映）", expanded=False):
                 c_imp1, c_imp2 = st.columns([3, 1])
                 with c_imp1:
                     st.write("プロフィールに設定したカレンダーの予定を読み込んで、自動で「授業等(グレー)」として反映します。")
@@ -4623,103 +4902,17 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
                                 else:
                                     st.error("取得に失敗しました。GAS側の権限承認が済んでいるか確認してください。")
 
-        matrix_list = st.session_state.df_input[date_strs].values.tolist()
-        raw = grid_editor(
-            eventId=event_id,
-            eventType=event_type,
-            isTimeMode=(event_type == "time"),
-            dateStrs=date_strs,
-            cleanLabels=clean_date_labels,
-            weekBreaks=week_breaks,
-            dayKinds=day_kinds,
-            timeLabels=time_labels,
-            matrix=matrix_list,
-            cellDetails=st.session_state.get("my_cell_details", {}),
-            unavailColRows=unavail_col_rows,
-            myComment=st.session_state.get("my_comment", ""),
-            isClosed=is_closed,
-            saveTs=st.session_state.get("last_saved_ts", 0),
-            importTs=st.session_state.get("cal_import_ts", 0),
-            defaultCellH=(36 if event_type == "time" else 50),
-            key=f"editor_v15_{event_id}",
-        )
-
-        if raw and isinstance(raw, dict) and "data" in raw:
-            if raw.get("trigger_save") and st.session_state.get("last_saved_ts") != raw.get("ts"):
-                st.session_state.last_saved_ts = raw.get("ts")
-                st.session_state.df_input = pd.DataFrame(raw["data"], index=time_labels, columns=date_strs)
-                st.session_state.my_comment = raw.get("comment", "")
-                cell_details_json = raw.get("cell_details", {}) or {}
-                st.session_state.my_cell_details = cell_details_json
-                cell_details_str = json.dumps(cell_details_json, separators=(",", ":")) if cell_details_json else "{}"
-                all_res = encode_matrix_to_responses(
-                    st.session_state.df_input, date_strs, time_labels, event_type, s_idx=s_idx
-                )
-                payload = {
-                    "event_id": event_id,
-                    "user_id": user.get("user_id"),
-                    "comment": st.session_state.my_comment,
-                    "cell_details": cell_details_str,
-                    "responses": all_res,
-                }
-                if save_response_hybrid(payload):
-                    st.session_state.save_success_msg = "回答を保存しました！みんなの集計を確認しましょう👀"
-                    st.session_state.event_view_tab = "graph"
-                    st.rerun()
-
-        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
         if st.button("📊 みんなの集計を見る →", key=f"bottom_to_graph_{event_id}", use_container_width=True):
             st.session_state.event_view_tab = "graph"
             st.rerun()
         return
 
     # ========================================
-    # 📊 みんなの集計ビュー（白枠なし・新機能1〜4対応）
+    # 📊 みんなの集計ビュー（結果ファースト・設定は折りたたみに収納）
     # ========================================
-    st.subheader("📊 全体の集計結果")
-    c_ctrl1, c_ctrl2, c_ctrl3 = st.columns([2, 1.3, 1])
-    with c_ctrl1:
-        policy = st.radio(
-            "「未定(△)」の計算",
-            [0.5, 1.0, 0.0],
-            format_func=lambda x: f"{x}人としてカウント",
-            horizontal=True,
-            key=f"policy_{event_id}",
-        )
-    with c_ctrl2:
-        show_my_overlay = st.checkbox("🙋 自分の回答を重ねる", value=False, key=f"overlay_{event_id}")
-    with c_ctrl3:
-        if st.button("🔄 最新の回答を取得", use_container_width=True, key=f"refresh_grid_{event_id}"):
-            invalidate_cache("responses")
-            invalidate_cache("events")
-            st.rerun()
-
     all_res_data = st.session_state.event_responses
     all_names = sorted({r.get("user_name", "不明") for r in all_res_data})
-
-    if can_view_details:
-        with st.expander(f"🙋 回答済みのメンバー ({len(all_names)}名)", expanded=False):
-            st.write(", ".join(all_names) if all_names else "まだ回答がありません。")
-
-    req_user_ids = set()
-    allow_maybe_req = True
-    if can_view_details and all_res_data:
-        uid_to_name = {str(r.get("user_id")): r.get("user_name", "不明") for r in all_res_data}
-        name_to_uid = {}
-        for uid, uname in uid_to_name.items():
-            name_to_uid.setdefault(uname, []).append(uid)
-        c_req1, c_req2 = st.columns([3, 1.2])
-        with c_req1:
-            req_names = st.multiselect(
-                "⭐ 必須メンバー指定（全員参加できる枠のみ強調・ランキング）",
-                options=all_names,
-                key=f"req_members_{event_id}",
-            )
-            for rn in req_names:
-                req_user_ids.update(name_to_uid.get(rn, []))
-        with c_req2:
-            st.markdown("<div style='height:26px;'></div>", unsafe_allow_html=True)
-            allow_maybe_req = st.checkbox("△(未定)も許容", value=True, key=f"req_maybe_{event_id}")
 
     all_g1, all_g2, all_g3 = set(), set(), set()
     for r in all_res_data:
@@ -4734,31 +4927,90 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
     all_g2_sorted = sort_groups(list(all_g2), MASTER_G2)
     all_g3_sorted = sort_groups(list(all_g3), MASTER_G3)
 
-    with st.expander("🔍 絞り込みフィルター（回答者・時間帯・日付）", expanded=False):
-        with st.form("filter_form"):
-            st.markdown("<span style='font-size:13px; color:#555;'>指定した条件に合致するデータだけを集計します。（未選択は全員）</span>", unsafe_allow_html=True)
-            f_col1, f_col2 = st.columns(2)
-            with f_col1:
-                f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted)
-                f_g3 = st.multiselect("🏢 委員会", all_g3_sorted)
-                f_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS)
-            with f_col2:
-                f_g2 = st.multiselect("🔧 系", all_g2_sorted)
-                f_names = st.multiselect("👤 特定の個人", all_names)
+    req_user_ids = set()
+    req_names = []
+    allow_maybe_req = True
+    duration_slots = 1
+    sel_dur_label = ""
+
+    # 設定・絞り込みはすべて折りたたみ内に収納（初見の画面をシンプルに保つ）
+    c_set, c_ref = st.columns([3.5, 1])
+    with c_ref:
+        if st.button("🔄 最新に更新", use_container_width=True, key=f"refresh_grid_{event_id}"):
+            invalidate_cache("responses")
+            invalidate_cache("events")
+            st.rerun()
+    with c_set:
+        with st.expander("⚙️ 表示設定・絞り込み（未定の扱い・必須メンバー・グループ等）", expanded=False):
+            c_p1, c_p2 = st.columns([2, 1.3])
+            with c_p1:
+                policy = st.radio(
+                    "「未定(△)」の計算",
+                    [0.5, 1.0, 0.0],
+                    format_func=lambda x: f"{x}人",
+                    horizontal=True,
+                    key=f"policy_{event_id}",
+                )
+            with c_p2:
+                show_my_overlay = st.checkbox("🙋 自分の回答を重ねる", value=False, key=f"overlay_{event_id}")
+
+            if event_type == "time":
+                all_dur_opts = [("15分", 1), ("30分", 2), ("45分", 3), ("60分", 4), ("90分", 6), ("120分", 8)]
+                valid_dur_opts = [opt for opt in all_dur_opts if opt[1] <= len(time_labels)] or [("15分", 1)]
+                def_dur_idx = next((idx for idx, opt in enumerate(valid_dur_opts) if opt[1] == 4), len(valid_dur_opts) - 1)
+                sel_dur = st.selectbox(
+                    "⏱️ おすすめ候補の所要時間",
+                    options=valid_dur_opts,
+                    index=def_dur_idx,
+                    format_func=lambda x: x[0],
+                    key=f"dur_sel_{event_id}",
+                )
+                duration_slots = sel_dur[1]
+                sel_dur_label = sel_dur[0]
+
+            if can_view_details and all_res_data:
+                st.markdown("---")
+                uid_to_name = {str(r.get("user_id")): r.get("user_name", "不明") for r in all_res_data}
+                name_to_uid = {}
+                for uid, uname in uid_to_name.items():
+                    name_to_uid.setdefault(uname, []).append(uid)
+                c_req1, c_req2 = st.columns([3, 1.3])
+                with c_req1:
+                    req_names = st.multiselect(
+                        "⭐ 必須メンバー指定（全員参加できる枠のみ強調）",
+                        options=all_names,
+                        key=f"req_members_{event_id}",
+                    )
+                    for rn in req_names:
+                        req_user_ids.update(name_to_uid.get(rn, []))
+                with c_req2:
+                    st.markdown("<div style='height:26px;'></div>", unsafe_allow_html=True)
+                    allow_maybe_req = st.checkbox("△(未定)も許容", value=True, key=f"req_maybe_{event_id}")
 
             st.markdown("---")
-            f_time = st.select_slider("⏰ 表示する時間帯", options=time_labels, value=(time_labels[0], time_labels[-1]))
-            if event_type in ["time", "date_timetable"] and len(date_objs) > 1:
-                f_d_col1, f_d_col2 = st.columns(2)
-                with f_d_col1:
-                    f_dates = st.date_input("📅 表示する期間", value=(date_objs[0], date_objs[-1]), min_value=date_objs[0], max_value=date_objs[-1])
-                with f_d_col2:
-                    f_wdays = st.multiselect("📆 表示する曜日", ["月", "火", "水", "木", "金", "土", "日"], default=["月", "火", "水", "木", "金", "土", "日"])
-            else:
-                f_dates = None
-                f_wdays = ["月", "火", "水", "木", "金", "土", "日"]
+            with st.form("filter_form"):
+                st.caption("🔍 グループ・時間帯・日付で絞り込み（未選択は全員）")
+                f_col1, f_col2 = st.columns(2)
+                with f_col1:
+                    f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted)
+                    f_g3 = st.multiselect("🏢 委員会", all_g3_sorted)
+                    f_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS)
+                with f_col2:
+                    f_g2 = st.multiselect("🔧 系", all_g2_sorted)
+                    f_names = st.multiselect("👤 特定の個人", all_names)
 
-            st.form_submit_button("✅ フィルターを適用して集計", type="primary")
+                f_time = st.select_slider("⏰ 表示する時間帯", options=time_labels, value=(time_labels[0], time_labels[-1]))
+                if event_type in ["time", "date_timetable"] and len(date_objs) > 1:
+                    f_d_col1, f_d_col2 = st.columns(2)
+                    with f_d_col1:
+                        f_dates = st.date_input("📅 表示する期間", value=(date_objs[0], date_objs[-1]), min_value=date_objs[0], max_value=date_objs[-1])
+                    with f_d_col2:
+                        f_wdays = st.multiselect("📆 表示する曜日", ["月", "火", "水", "木", "金", "土", "日"], default=["月", "火", "水", "木", "金", "土", "日"])
+                else:
+                    f_dates = None
+                    f_wdays = ["月", "火", "水", "木", "金", "土", "日"]
+
+                st.form_submit_button("✅ 絞り込みを適用", type="primary")
 
     filtered_data = filter_responses(all_res_data, f_names, f_g1, f_g2, f_g3, f_g4)
     t_start_idx = time_labels.index(f_time[0])
@@ -4782,13 +5034,26 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
         disp_week_breaks = week_breaks
         disp_day_kinds = day_kinds
 
+    # アクティブなフィルターがあれば1行チップで分かりやすく通知
     unique_all = len({r.get("user_id") for r in all_res_data})
     unique_filtered = len({r.get("user_id") for r in filtered_data})
+    active_tags = []
     if unique_all != unique_filtered:
-        st.info(f"🔍 フィルター適用中： 回答者 **{unique_all}人** 中、条件に合う **{unique_filtered}人** のデータを集計しています。")
+        active_tags.append(f"回答者 {unique_filtered}/{unique_all}名")
+    if req_names:
+        active_tags.append(f"⭐ 必須: {', '.join(req_names)}")
+    if show_my_overlay:
+        active_tags.append("🙋 自分の回答表示中")
+    if policy != 0.5:
+        active_tags.append(f"△={policy:g}人")
+    if active_tags:
+        st.markdown(
+            f"<div class='active-filter-pill'>🔍 適用中: {' ／ '.join(html_lib.escape(t) for t in active_tags)}</div>",
+            unsafe_allow_html=True,
+        )
 
     if not disp_date_strs or not disp_time_labels:
-        st.warning("⚠️ 指定された条件に合う日付または時間帯がありません。フィルター条件を広げてください。")
+        st.warning("⚠️ 指定された条件に合う日付または時間帯がありません。「⚙️ 表示設定・絞り込み」から条件を広げてください。")
         return
 
     # ユーザーごとの回答マトリクスとセル詳細を構築
@@ -4848,7 +5113,6 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
                 user_notes[uid][(d_str, disp_r)] = c_note
 
     # 自分の回答重ね合わせ用マップ
-    my_uid = str(user.get("user_id"))
     my_overlay_grid = {}
     if show_my_overlay and "df_input" in st.session_state:
         df_my = st.session_state.df_input
@@ -4858,23 +5122,7 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
                     if t_str in df_my.index:
                         my_overlay_grid[(disp_r, c_idx)] = int(df_my.loc[t_str, d_str])
 
-    # 所要時間設定 & ベスト候補ランキング
-    duration_slots = 1
-    if event_type == "time":
-        all_dur_opts = [("15分", 1), ("30分", 2), ("45分", 3), ("60分", 4), ("90分", 6), ("120分", 8)]
-        valid_dur_opts = [opt for opt in all_dur_opts if opt[1] <= len(disp_time_labels)]
-        if not valid_dur_opts:
-            valid_dur_opts = [("15分", 1)]
-        def_dur_idx = next((idx for idx, opt in enumerate(valid_dur_opts) if opt[1] == 4), len(valid_dur_opts) - 1)
-        sel_dur = st.selectbox(
-            "⏱️ 会議の所要時間（連続参加可能な候補をランキング）",
-            options=valid_dur_opts,
-            index=def_dur_idx,
-            format_func=lambda x: x[0],
-            key=f"dur_sel_{event_id}",
-        )
-        duration_slots = sel_dur[1]
-
+    effective_dur = min(duration_slots, len(disp_time_labels))
     best_slots = compute_best_slots_grid(
         user_grid=user_grid,
         user_meta=user_meta,
@@ -4886,13 +5134,14 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
         policy=policy,
         required_user_ids=req_user_ids,
         allow_maybe_for_required=allow_maybe_req,
-        duration_slots=duration_slots,
+        duration_slots=effective_dur,
         top_n=5,
     )
 
-    render_ranking_and_confirm_section(event, user, best_slots, share_url, can_confirm, key_prefix="grid")
+    dur_suffix = f"（{sel_dur_label}枠）" if sel_dur_label else ""
+    st.markdown(f"#### 🏆 おすすめ候補{dur_suffix}")
+    render_ranking_cards(event, user, best_slots, share_url, can_confirm, key_prefix="grid")
 
-    st.markdown("---")
     st.markdown("#### 🟩 時間帯別ヒートマップ")
 
     z = np.zeros((len(disp_time_labels), len(disp_date_strs)))
@@ -4955,16 +5204,22 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
         hasRequiredFilter=bool(req_user_ids),
         canViewDetails=can_view_details,
         defaultCellH=(36 if event_type == "time" else 48),
-        key=f"agg_v1_{event_id}",
+        key=f"agg_v2_{event_id}",
     )
 
+    if can_view_details:
+        with st.expander(f"🙋 回答済みのメンバー ({len(all_names)}名)", expanded=False):
+            st.write(", ".join(all_names) if all_names else "まだ回答がありません。")
+
     if comments_list and can_view_details:
-        st.markdown("### 💬 参加者からのコメント")
+        st.markdown("##### 💬 参加者からのコメント")
         for c in comments_list:
             st.info(f"**{c['user']}**: {c['comment']}")
 
+    render_confirm_editor_expander(event, user, best_slots, can_confirm, key_prefix="grid")
+
     if not is_closed:
-        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
         if st.button("← ✏️ 自分の回答を入力・修正する", key=f"bottom_to_in_{event_id}", use_container_width=True):
             st.session_state.event_view_tab = "input"
             st.rerun()
@@ -5013,46 +5268,10 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
         return
 
     # ========================================
-    # 📊 予定候補 集計ビュー
+    # 📊 予定候補 集計ビュー（結果ファースト・設定は折りたたみに収納）
     # ========================================
-    st.subheader("📊 予定の集計結果")
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        policy = st.radio(
-            "「未定(△)」の計算方法",
-            [0.5, 1.0, 0.0],
-            format_func=lambda x: f"{x}人としてカウント",
-            horizontal=True,
-            key=f"opt_policy_{event_id}",
-        )
-    with col2:
-        if st.button("🔄 最新の回答を取得", use_container_width=True, key=f"opt_refresh_{event_id}"):
-            invalidate_cache("responses")
-            invalidate_cache("events")
-            st.rerun()
-
     all_res_data = st.session_state.event_responses
     all_names = sorted({r.get("user_name", "不明") for r in all_res_data})
-
-    if can_view_details:
-        with st.expander(f"🙋 回答済みのメンバー ({len(all_names)}名)", expanded=False):
-            st.write(", ".join(all_names) if all_names else "まだ回答がありません。")
-
-    req_user_ids = set()
-    allow_maybe_req = True
-    if can_view_details and all_res_data:
-        uid_to_name = {str(r.get("user_id")): r.get("user_name", "不明") for r in all_res_data}
-        name_to_uid = {}
-        for uid, uname in uid_to_name.items():
-            name_to_uid.setdefault(uname, []).append(uid)
-        c_req1, c_req2 = st.columns([3, 1.2])
-        with c_req1:
-            req_names = st.multiselect("⭐ 必須メンバー指定", options=all_names, key=f"opt_req_{event_id}")
-            for rn in req_names:
-                req_user_ids.update(name_to_uid.get(rn, []))
-        with c_req2:
-            st.markdown("<div style='height:26px;'></div>", unsafe_allow_html=True)
-            allow_maybe_req = st.checkbox("△(未定)も許容", value=True, key=f"opt_req_maybe_{event_id}")
 
     all_g1, all_g2, all_g3 = set(), set(), set()
     for r in all_res_data:
@@ -5067,24 +5286,68 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
     all_g2_sorted = sort_groups(list(all_g2), MASTER_G2)
     all_g3_sorted = sort_groups(list(all_g3), MASTER_G3)
 
-    with st.expander("🔍 絞り込みフィルター（回答者）", expanded=False):
-        with st.form("opt_filter_form"):
-            st.markdown("<span style='font-size:13px; color:#555;'>指定した条件に合致する人の回答だけを集計します。（未選択は全員）</span>", unsafe_allow_html=True)
-            f_col1, f_col2 = st.columns(2)
-            with f_col1:
-                f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted, key="f2_g1")
-                f_g3 = st.multiselect("🏢 委員会", all_g3_sorted, key="f2_g3")
-                f_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS, key="f2_g4")
-            with f_col2:
-                f_g2 = st.multiselect("🔧 系", all_g2_sorted, key="f2_g2")
-                f_names = st.multiselect("👤 特定の個人", all_names, key="f2_names")
-            st.form_submit_button("✅ フィルターを適用して集計", type="primary")
+    req_user_ids = set()
+    req_names = []
+    allow_maybe_req = True
+
+    c_set, c_ref = st.columns([3.5, 1])
+    with c_ref:
+        if st.button("🔄 最新に更新", use_container_width=True, key=f"opt_refresh_{event_id}"):
+            invalidate_cache("responses")
+            invalidate_cache("events")
+            st.rerun()
+    with c_set:
+        with st.expander("⚙️ 表示設定・絞り込み（未定の扱い・必須メンバー・グループ等）", expanded=False):
+            policy = st.radio(
+                "「未定(△)」の計算",
+                [0.5, 1.0, 0.0],
+                format_func=lambda x: f"{x}人",
+                horizontal=True,
+                key=f"opt_policy_{event_id}",
+            )
+            if can_view_details and all_res_data:
+                st.markdown("---")
+                uid_to_name = {str(r.get("user_id")): r.get("user_name", "不明") for r in all_res_data}
+                name_to_uid = {}
+                for uid, uname in uid_to_name.items():
+                    name_to_uid.setdefault(uname, []).append(uid)
+                c_req1, c_req2 = st.columns([3, 1.3])
+                with c_req1:
+                    req_names = st.multiselect("⭐ 必須メンバー指定", options=all_names, key=f"opt_req_{event_id}")
+                    for rn in req_names:
+                        req_user_ids.update(name_to_uid.get(rn, []))
+                with c_req2:
+                    st.markdown("<div style='height:26px;'></div>", unsafe_allow_html=True)
+                    allow_maybe_req = st.checkbox("△(未定)も許容", value=True, key=f"opt_req_maybe_{event_id}")
+
+            st.markdown("---")
+            with st.form("opt_filter_form"):
+                st.caption("🔍 回答者グループ・個人で絞り込み（未選択は全員）")
+                f_col1, f_col2 = st.columns(2)
+                with f_col1:
+                    f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted, key="f2_g1")
+                    f_g3 = st.multiselect("🏢 委員会", all_g3_sorted, key="f2_g3")
+                    f_g4 = st.multiselect("👑 役職", MASTER_G4_OPTS, key="f2_g4")
+                with f_col2:
+                    f_g2 = st.multiselect("🔧 系", all_g2_sorted, key="f2_g2")
+                    f_names = st.multiselect("👤 特定の個人", all_names, key="f2_names")
+                st.form_submit_button("✅ 絞り込みを適用", type="primary")
 
     filtered_data = filter_responses(all_res_data, f_names, f_g1, f_g2, f_g3, f_g4)
     unique_all = len({r.get("user_id") for r in all_res_data})
     unique_filtered = len({r.get("user_id") for r in filtered_data})
+    active_tags = []
     if unique_all != unique_filtered:
-        st.info(f"🔍 フィルター適用中： 回答者 **{unique_all}人** 中、条件に合う **{unique_filtered}人** のデータを集計しています。")
+        active_tags.append(f"回答者 {unique_filtered}/{unique_all}名")
+    if req_names:
+        active_tags.append(f"⭐ 必須: {', '.join(req_names)}")
+    if policy != 0.5:
+        active_tags.append(f"△={policy:g}人")
+    if active_tags:
+        st.markdown(
+            f"<div class='active-filter-pill'>🔍 適用中: {' ／ '.join(html_lib.escape(t) for t in active_tags)}</div>",
+            unsafe_allow_html=True,
+        )
 
     best_slots = compute_best_slots_options(
         opts=opts,
@@ -5094,9 +5357,9 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
         allow_maybe_for_required=allow_maybe_req,
         top_n=5,
     )
-    render_ranking_and_confirm_section(event, user, best_slots, share_url, can_confirm, key_prefix="opt")
+    st.markdown("#### 🏆 おすすめ候補")
+    render_ranking_cards(event, user, best_slots, share_url, can_confirm, key_prefix="opt")
 
-    st.markdown("---")
     st.markdown("#### 📊 各候補の詳細集計")
 
     my_ans_row = next((r for r in all_res_data if str(r.get("user_id")) == str(user.get("user_id"))), None)
@@ -5148,13 +5411,13 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
         card_opacity = "opacity:0.65;" if details[i]["req_ng"] else ""
 
         st.markdown(f"""
-        <div style="background:#fff; border:1px solid #e0e0e0; border-radius:12px; padding:14px; margin-bottom:5px; box-shadow:0 2px 6px rgba(0,0,0,0.04); {card_opacity}">
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:13px 14px; margin-bottom:5px; box-shadow:0 2px 6px rgba(15,23,42,0.04); {card_opacity}">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
-                <div style="font-size:15px; font-weight:bold; color:#333;">📅 {html_lib.escape(opt)}{my_tag}{req_tag}</div>
-                <div style="font-size:14px; font-weight:bold; color:#4CAF50;">参加目安: {count:g} 人</div>
+                <div style="font-size:15px; font-weight:bold; color:#0f172a;">📅 {html_lib.escape(opt)}{my_tag}{req_tag}</div>
+                <div style="font-size:14px; font-weight:bold; color:#047857;">参加目安: {count:g} 人</div>
             </div>
-            <div style="width:100%; background:#f0f2f6; border-radius:8px; height:12px; overflow:hidden;">
-                <div style="width:{bar_width}; background:linear-gradient(90deg, #81c784, #4CAF50); height:100%; border-radius:8px;"></div>
+            <div style="width:100%; background:#f1f5f9; border-radius:8px; height:12px; overflow:hidden;">
+                <div style="width:{bar_width}; background:linear-gradient(90deg, #34d399, #10b981); height:100%; border-radius:8px;"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -5163,26 +5426,31 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
             with st.expander("👥 参加者内訳を見る"):
                 c_yes, c_maybe, c_no = st.columns(3)
                 with c_yes:
-                    st.markdown("<span style='color:#4CAF50; font-weight:bold;'>◯ 参加可能</span>", unsafe_allow_html=True)
+                    st.markdown("<span style='color:#166534; font-weight:bold;'>◯ 参加可能</span>", unsafe_allow_html=True)
                     if details[i]["yes"]:
                         st.code("\n".join(details[i]["yes"]), language="text")
                     else:
                         st.write("なし")
                 with c_maybe:
-                    st.markdown("<span style='color:#FF9800; font-weight:bold;'>△ 未定</span>", unsafe_allow_html=True)
+                    st.markdown("<span style='color:#d97706; font-weight:bold;'>△ 未定</span>", unsafe_allow_html=True)
                     st.markdown("<br>".join([f"△ {html_lib.escape(n)}" for n in details[i]["maybe"]]) if details[i]["maybe"] else "なし", unsafe_allow_html=True)
                 with c_no:
-                    st.markdown("<span style='color:#F44336; font-weight:bold;'>× 不可</span>", unsafe_allow_html=True)
+                    st.markdown("<span style='color:#64748b; font-weight:bold;'>× 不可</span>", unsafe_allow_html=True)
                     st.markdown("<br>".join([f"× {html_lib.escape(n)}" for n in details[i]["no"]]) if details[i]["no"] else "なし", unsafe_allow_html=True)
 
+    if can_view_details:
+        with st.expander(f"🙋 回答済みのメンバー ({len(all_names)}名)", expanded=False):
+            st.write(", ".join(all_names) if all_names else "まだ回答がありません。")
+
     if comments_list and can_view_details:
-        st.markdown("---")
-        st.markdown("### 💬 参加者からのコメント")
+        st.markdown("##### 💬 参加者からのコメント")
         for c in comments_list:
             st.info(f"**{c['user']}**: {c['comment']}")
 
+    render_confirm_editor_expander(event, user, best_slots, can_confirm, key_prefix="opt")
+
     if not is_closed:
-        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
         if st.button("← ✏️ 自分の回答を入力・修正する", key=f"opt_bottom_to_in_{event_id}", use_container_width=True):
             st.session_state.event_view_tab = "input"
             st.rerun()
@@ -5200,9 +5468,10 @@ def render_event_detail_view(user, events, user_map_fs, current_ev_id):
     st.session_state.event_responses = fetch_responses_for_event(current_ev_id, user_map_fs)
     share_url = f"{APP_BASE_URL}?event={current_ev_id}"
 
-    c_top1, c_top2 = st.columns([2, 1.5])
+    st.markdown('<div class="sss-top-action-marker"></div>', unsafe_allow_html=True)
+    c_top1, c_top2 = st.columns([1.4, 1.4])
     with c_top1:
-        if st.button("🔙 ダッシュボードへ戻る", type="primary"):
+        if st.button("🔙 一覧へ戻る", type="secondary", use_container_width=True):
             st.session_state.target_ev_id = ""
             st.rerun()
     with c_top2:
@@ -5215,8 +5484,6 @@ def render_event_detail_view(user, events, user_map_fs, current_ev_id):
             full_width=True,
         )
 
-    st.markdown(f"<h2 style='margin-top:8px; margin-bottom:6px;'>{html_lib.escape(event.get('title', ''))}</h2>", unsafe_allow_html=True)
-
     is_closed = event.get("status") == "closed"
     is_private_event = event.get("is_private", False)
     can_view_details = not (is_private_event and user.get("role") not in ["admin", "top_admin"])
@@ -5225,28 +5492,38 @@ def render_event_detail_view(user, events, user_map_fs, current_ev_id):
         or str(event.get("created_by", "")) == str(user.get("user_id", ""))
     )
 
-    # 開催日時確定バナー（設定されている場合）
-    render_confirmed_banner(event, share_url)
-
-    if event.get("is_answered"):
-        st.success("✅ **あなたは回答済みです（修正して再提出も可能です）**")
-
+    # タイトル＋ステータスを1枚のすっきりしたヒーローカードに集約
     ev_close_time = event.get("deadline") or event.get("close_time", "")
+    pills = []
+    if event.get("is_answered"):
+        pills.append("<span class='hero-pill pill-answered'>✅ 回答済（修正可）</span>")
+    elif not is_closed:
+        pills.append("<span class='hero-pill pill-unanswered'>📝 未回答</span>")
     if is_closed:
-        st.markdown("<div style='background:#ffebee; color:#c62828; padding:10px; border-radius:6px; font-weight:bold; margin-bottom:10px;'>🔒 このイベントは締め切られました。</div>", unsafe_allow_html=True)
+        pills.append("<span class='hero-pill pill-closed'>🔒 締切済</span>")
     elif ev_close_time:
-        st.markdown(f"<div style='color:#E91E63; font-weight:bold; margin-bottom:10px;'>⏳ 回答期限: {html_lib.escape(format_deadline_jp(ev_close_time))}</div>", unsafe_allow_html=True)
-
+        pills.append(f"<span class='hero-pill pill-deadline'>⏳ 締切 {html_lib.escape(format_deadline_jp(ev_close_time))}</span>")
+    if is_private_event:
+        pills.append("<span class='hero-pill pill-private'>🤫 プライベート</span>")
     if event.get("is_out_of_scope"):
-        st.warning("⚠️ **対象外イベントの閲覧・回答中**\n\nこのイベントは別グループを対象として作成されていますが、**有志メンバー（外部）**としての閲覧・回答が許可されています。")
+        pills.append("<span class='hero-pill pill-outscope'>⚠️ 対象外イベント（有志参加）</span>")
+
+    st.markdown(
+        f"""
+        <div class="event-hero">
+            <div class="event-hero-title">{html_lib.escape(event.get('title', ''))}</div>
+            <div class="event-hero-pills">{''.join(pills)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 開催日時確定バナー（主催者・管理者用の取り消しメニュー付き）
+    render_confirmed_banner(event, share_url, can_confirm=can_confirm)
 
     if event.get("description"):
-        st.markdown("##### 📝 イベントの説明・管理者からのメッセージ")
         desc_html = event["description"].replace("\n", "<br>")
         st.markdown(f"<div class='event-desc'>{desc_html}</div>", unsafe_allow_html=True)
-
-    if is_private_event:
-        st.info("🤫 **このイベントはプライベート設定されています。** 管理者以外には、誰が回答したかの名前やコメントは表示されず、全体の人数のみが表示されます。")
 
     # イベント開いた直後の初期タブ設定
     if st.session_state.get("last_opened_ev_id") != current_ev_id:
@@ -5259,7 +5536,7 @@ def render_event_detail_view(user, events, user_map_fs, current_ev_id):
     # 大きく分かりやすいセグメントスイッチャー（入力 ⇔ 集計）
     st.markdown('<div class="sss-tab-switcher-marker"></div>', unsafe_allow_html=True)
     sw_col1, sw_col2 = st.columns(2)
-    in_label = "✏️ 自分の回答を修正 (提出済✓)" if event.get("is_answered") else "✏️ 予定を入力する"
+    in_label = "✏️ 回答を修正 (済✓)" if event.get("is_answered") else "✏️ 予定を入力する"
     if is_closed:
         in_label = "🔒 自分の回答を見る"
     gr_label = f"📊 みんなの集計 ({respondent_count}名)"

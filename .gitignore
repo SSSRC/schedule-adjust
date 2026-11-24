@@ -223,8 +223,11 @@ options_editor/
 options_editor_v2/
 custom_editor_v14/
 custom_editor_v15/
+custom_editor_v16/
 agg_viewer_v1/
+agg_viewer_v2/
 auth_storage_v1/
+type_picker_v1/
 
 # Pythonのキャッシュ
 __pycache__/

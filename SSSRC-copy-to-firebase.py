@@ -102,6 +102,7 @@ def sync_spreadsheet_to_firestore():
         # [2] Events の同期
         # ------------------------------------------------
         print("📅 イベント情報を同期中...")
+        existing_events = {doc.id: doc.to_dict() for doc in db.collection("events").stream()}
         events = payload.get("events", [])
         current_eids = set()
         batch = db.batch()
@@ -113,10 +114,17 @@ def sync_spreadsheet_to_firestore():
             # 数値型とBoolean型の調整
             for k in ['start_time_idx', 'end_time_idx', 'start_idx', 'end_idx']:
                 if k in ev and str(ev[k]).isdigit(): ev[k] = int(ev[k])
-            for k in ['auto_close', 'is_private']:
+            for k in ['auto_close', 'auto_archive', 'is_private']:
                 if k in ev: ev[k] = (str(ev[k]).lower() == 'true')
                 
             event_data = clean_dict(ev)
+            if eid in existing_events:
+                exist_ev = existing_events[eid]
+                for keep_key in ['confirmed_info', 'created_by']:
+                    if not event_data.get(keep_key) and exist_ev.get(keep_key):
+                        event_data[keep_key] = exist_ev[keep_key]
+                if 'auto_archive' not in ev and 'auto_archive' in exist_ev:
+                    event_data['auto_archive'] = exist_ev['auto_archive']
             doc_ref = db.collection("events").document(eid)
             batch.set(doc_ref, event_data)
             

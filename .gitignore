@@ -217,6 +217,15 @@ schedule-adjust-v-station-firebase-adminsdk-fbsvc-4ff4ea3c98.json
 .streamlit/config.toml
 .streamlit/secrets.toml
 
+# 自動生成されるStreamlitカスタムコンポーネント
+rt_editor/
+options_editor/
+options_editor_v2/
+custom_editor_v14/
+custom_editor_v15/
+agg_viewer_v1/
+auth_storage_v1/
+
 # Pythonのキャッシュ
 __pycache__/
 *.pyc

@@ -220,14 +220,11 @@ schedule-adjust-v-station-firebase-adminsdk-fbsvc-4ff4ea3c98.json
 # 自動生成されるStreamlitカスタムコンポーネント
 rt_editor/
 options_editor/
-options_editor_v2/
-custom_editor_v14/
-custom_editor_v15/
-custom_editor_v16/
-agg_viewer_v1/
-agg_viewer_v2/
-auth_storage_v1/
-type_picker_v1/
+options_editor_v*/
+custom_editor_v*/
+agg_viewer_v*/
+auth_storage_v*/
+type_picker_v*/
 
 # Pythonのキャッシュ
 __pycache__/

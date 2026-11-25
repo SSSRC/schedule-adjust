@@ -19,7 +19,7 @@ import html as html_lib
 # ==========================================
 # 基本設定・定数
 # ==========================================
-st.set_page_config(page_title="SSScheduler", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="SSScheduler", layout="wide", initial_sidebar_state="auto")
 
 APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 GAS_URL = "https://script.google.com/macros/s/AKfycbx8GCHdyb9DDFIUajiKjceSn20-rfuEtsqrxCm-dD_pYsKou2Ie8mDkaM4oX3sKRX4SDQ/exec"
@@ -65,247 +65,334 @@ EVENT_TYPE_LABELS = {
 }
 
 
+def _compact_html(raw_html):
+    """Markdownの4スペースコードブロック誤判定を防ぐため、各行の先頭空白と空行を除去する"""
+    return "\n".join(line.strip() for line in raw_html.splitlines() if line.strip())
+
+
 # ==========================================
 # グローバルCSS
 # ==========================================
-st.markdown("""
-    <style>
-        @media (max-width: 650px) {
-            .main .block-container,
-            div[data-testid="stAppViewBlockContainer"] {
-                padding-left: 0.75rem !important;
-                padding-right: 0.75rem !important;
-                padding-top: 0.75rem !important;
-            }
-            iframe { max-width: 100vw !important; width: 100% !important; }
-        }
+st.markdown(_compact_html("""
+<style>
+:root {
+    --sss-menu-label: "メニュー";
+}
+.main .block-container,
+div[data-testid="stAppViewBlockContainer"] {
+    padding-top: 2.3rem !important;
+    padding-bottom: 2rem !important;
+}
+@media (max-width: 650px) {
+    .main .block-container,
+    div[data-testid="stAppViewBlockContainer"] {
+        padding-left: 0.65rem !important;
+        padding-right: 0.65rem !important;
+        padding-top: 2.6rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+    iframe { max-width: 100vw !important; width: 100% !important; }
+}
 
-        iframe { border: none !important; background: transparent !important; }
+iframe { border: none !important; background: transparent !important; }
 
-        /* 上部ナビに完全統一するため左サイドバーと開閉トグルを非表示にする */
-        section[data-testid="stSidebar"],
-        div[data-testid="collapsedControl"],
-        button[data-testid="stExpandSidebarButton"] {
-            display: none !important;
-        }
+/* 上部ヘッダーを極薄＆透過にしつつ、左上のサイドバー開閉ボタンを「メニュー」ピルとして目立たせる */
+header[data-testid="stHeader"] {
+    height: 2.5rem !important;
+    min-height: 2.5rem !important;
+    background: transparent !important;
+    pointer-events: none !important;
+}
+header[data-testid="stHeader"] button,
+header[data-testid="stHeader"] a,
+div[data-testid="collapsedControl"],
+div[data-testid="stSidebarCollapsedControl"],
+div[data-testid="stToolbar"] {
+    pointer-events: auto !important;
+}
+button[data-testid="stExpandSidebarButton"],
+div[data-testid="collapsedControl"] button,
+div[data-testid="stSidebarCollapsedControl"] button {
+    background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+    color: #ffffff !important;
+    border: 1.5px solid #10b981 !important;
+    border-radius: 999px !important;
+    padding: 4px 12px 4px 8px !important;
+    height: 33px !important;
+    min-height: 33px !important;
+    width: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.22) !important;
+    margin-top: 2px !important;
+    margin-left: 4px !important;
+}
+button[data-testid="stExpandSidebarButton"]:hover,
+div[data-testid="collapsedControl"] button:hover,
+div[data-testid="stSidebarCollapsedControl"] button:hover {
+    background: #047857 !important;
+    border-color: #34d399 !important;
+}
+button[data-testid="stExpandSidebarButton"] svg,
+div[data-testid="collapsedControl"] button svg,
+div[data-testid="stSidebarCollapsedControl"] button svg {
+    fill: #34d399 !important;
+    color: #34d399 !important;
+}
+button[data-testid="stExpandSidebarButton"]::after,
+div[data-testid="collapsedControl"] button::after,
+div[data-testid="stSidebarCollapsedControl"] button::after {
+    content: var(--sss-menu-label, "メニュー");
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    letter-spacing: 0.02em !important;
+    white-space: nowrap !important;
+}
 
-        /* localStorage用非表示コンポーネントが空白や白い枠を作らないようにする */
-        div.element-container:has(iframe[title*="auth_storage"]),
-        div[data-testid="stElementContainer"]:has(iframe[title*="auth_storage"]) {
-            display: none !important;
-            height: 0 !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: hidden !important;
-        }
-        iframe[title*="auth_storage"] {
-            height: 0 !important;
-            min-height: 0 !important;
-            display: none !important;
-        }
+section[data-testid="stSidebar"] {
+    background: #f8fafc !important;
+    border-right: 1px solid #e2e8f0 !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stSidebarUserContent"] {
+    padding-top: 0.8rem !important;
+}
 
-        .stDeployStatus, [data-testid="stStatusWidget"] label { display: none !important; }
-        [data-testid="stStatusWidget"] {
-            visibility: visible !important; display: flex !important;
-            position: fixed !important; top: 50% !important; left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            background: rgba(255, 255, 255, 0.95) !important; color: #333 !important;
-            padding: 20px 40px !important; border-radius: 12px !important;
-            z-index: 999999 !important; border: 2px solid #4CAF50 !important;
-            text-align: center !important; justify-content: center !important;
-        }
-        [data-testid="stStatusWidget"]::after {
-            content: "⏳ 通信中 \\A 処理しています...";
-            white-space: pre-wrap; font-size: 18px !important; font-weight: bold !important; line-height: 1.5 !important;
-        }
+/* localStorage用非表示コンポーネントが空白や白い枠を作らないようにする */
+div.element-container:has(iframe[title*="auth_storage"]),
+div[data-testid="stElementContainer"]:has(iframe[title*="auth_storage"]) {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+iframe[title*="auth_storage"] {
+    height: 0 !important;
+    min-height: 0 !important;
+    display: none !important;
+}
 
-        .stApp, .stApp [data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"], div[data-testid="stForm"], iframe {
-            opacity: 1 !important; transition: none !important; filter: none !important;
-        }
+.stDeployStatus, [data-testid="stStatusWidget"] label { display: none !important; }
+[data-testid="stStatusWidget"] {
+    visibility: visible !important; display: flex !important;
+    position: fixed !important; top: 50% !important; left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    background: rgba(255, 255, 255, 0.95) !important; color: #333 !important;
+    padding: 20px 40px !important; border-radius: 12px !important;
+    z-index: 999999 !important; border: 2px solid #4CAF50 !important;
+    text-align: center !important; justify-content: center !important;
+}
+[data-testid="stStatusWidget"]::after {
+    content: "⏳ 通信中 \\A 処理しています...";
+    white-space: pre-wrap; font-size: 18px !important; font-weight: bold !important; line-height: 1.5 !important;
+}
 
-        /* ヘッダー・カード・バナー */
-        .user-header {
-            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
-            background: linear-gradient(135deg, #f8fafc, #ecfdf5);
-            padding: 9px 14px; border-radius: 12px; border: 1px solid #d1fae5; border-left: 5px solid #10b981;
-            margin-bottom: 8px; box-shadow: 0 2px 6px rgba(16,185,129,0.06);
-        }
-        .event-hero {
-            background: linear-gradient(135deg, #ffffff, #f8fafc);
-            border: 1px solid #e2e8f0; border-radius: 14px;
-            padding: 14px 16px; margin: 6px 0 10px 0;
-            box-shadow: 0 2px 10px rgba(15,23,42,0.04);
-        }
-        .event-hero-title {
-            font-size: 21px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; line-height: 1.3;
-        }
-        .event-hero-pills {
-            display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-        }
-        .hero-pill {
-            display: inline-flex; align-items: center; gap: 4px;
-            font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
-        }
-        .pill-answered { background: #dcfce7; color: #166534; }
-        .pill-unanswered { background: #fef3c7; color: #92400e; }
-        .pill-deadline { background: #fce7f3; color: #be185d; }
-        .pill-closed { background: #fee2e2; color: #b91c1c; }
-        .pill-private { background: #ede9fe; color: #5b21b6; }
-        .pill-outscope { background: #fff7ed; color: #c2410c; }
+.stApp, .stApp [data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"], div[data-testid="stForm"], iframe {
+    opacity: 1 !important; transition: none !important; filter: none !important;
+}
 
-        .event-desc {
-            background: #f8fafc; padding: 12px 14px; border-radius: 10px;
-            border: 1px solid #e2e8f0; border-left: 4px solid #10b981;
-            margin: 6px 0 10px 0; font-size: 13.5px; line-height: 1.6; color: #334155;
-        }
-        .event-desc a { color: #2563eb; font-weight: 700; text-decoration: none; }
+/* サイドバー内ユーザーカード・イベント詳細コンパクトヘッダー */
+.sb-user-card {
+    background: linear-gradient(135deg, #ffffff, #ecfdf5);
+    padding: 10px 12px; border-radius: 12px;
+    border: 1px solid #d1fae5; border-left: 4px solid #10b981;
+    margin-bottom: 10px; box-shadow: 0 2px 6px rgba(16,185,129,0.06);
+}
+.event-hero {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 8px 12px; margin: 2px 0 5px 0;
+    box-shadow: 0 1px 6px rgba(15,23,42,0.04);
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px;
+}
+.event-hero-title {
+    font-size: 18px; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.25;
+}
+@media (max-width: 650px) {
+    .event-hero { padding: 7px 10px; margin: 0 0 4px 0; }
+    .event-hero-title { font-size: 16px; }
+}
+.event-hero-pills {
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+}
+.hero-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+}
+.pill-answered { background: #dcfce7; color: #166534; }
+.pill-unanswered { background: #fef3c7; color: #92400e; }
+.pill-deadline { background: #fce7f3; color: #be185d; }
+.pill-closed { background: #fee2e2; color: #b91c1c; }
+.pill-private { background: #ede9fe; color: #5b21b6; }
+.pill-outscope { background: #fff7ed; color: #c2410c; }
 
-        /* 開催日時確定の統一カード（通知・カレンダー追加・コピー・取消を1区画に集約） */
-        div[data-testid="stVerticalBlockBorderWrapper"]:has(.sss-confirmed-box-marker) {
-            background: linear-gradient(135deg, #ecfdf5, #f0fdf4) !important;
-            border: 2px solid #10b981 !important;
-            border-radius: 14px !important;
-            box-shadow: 0 4px 14px rgba(16,185,129,0.12) !important;
-            margin: 8px 0 12px 0 !important;
-        }
-        .confirmed-banner-title {
-            font-size: 12px; font-weight: 800; color: #047857; letter-spacing: 0.04em; margin-bottom: 3px;
-        }
-        .confirmed-banner-dt {
-            font-size: 19px; font-weight: 800; color: #064e3b; margin-bottom: 4px;
-        }
-        .confirmed-banner-meta {
-            font-size: 13px; color: #334155; line-height: 1.5; margin-bottom: 8px;
-        }
+.event-desc {
+    background: #f8fafc; padding: 7px 11px; border-radius: 9px;
+    border: 1px solid #e2e8f0; border-left: 4px solid #10b981;
+    margin: 2px 0 5px 0; font-size: 12.5px; line-height: 1.5; color: #334155;
+    max-height: 86px; overflow-y: auto;
+}
+.event-desc a { color: #2563eb; font-weight: 700; text-decoration: none; }
 
-        .dash-stats {
-            display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px 0;
-        }
-        .dash-stat-pill {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800;
-            border: 1px solid transparent;
-        }
+/* 開催日時確定の統一カード（通知・カレンダー追加・コピー・取消を1区画に集約） */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.sss-confirmed-box-marker) {
+    background: linear-gradient(135deg, #ecfdf5, #f0fdf4) !important;
+    border: 2px solid #10b981 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 14px rgba(16,185,129,0.12) !important;
+    margin: 4px 0 8px 0 !important;
+}
+.confirmed-banner-title {
+    font-size: 12px; font-weight: 800; color: #047857; letter-spacing: 0.04em; margin-bottom: 3px;
+}
+.confirmed-banner-dt {
+    font-size: 18px; font-weight: 800; color: #064e3b; margin-bottom: 4px;
+}
+.confirmed-banner-meta {
+    font-size: 12.5px; color: #334155; line-height: 1.45; margin-bottom: 6px;
+}
 
-        .rank-card {
-            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 10px 12px; margin-bottom: 6px;
-            box-shadow: 0 2px 6px rgba(15,23,42,0.04);
-        }
-        .rank-card-1 { border-left: 5px solid #f59e0b; background: linear-gradient(90deg, #fffbeb, #ffffff 40%); }
-        .rank-card-2 { border-left: 5px solid #94a3b8; background: linear-gradient(90deg, #f8fafc, #ffffff 40%); }
-        .rank-card-3 { border-left: 5px solid #d97706; background: linear-gradient(90deg, #fff7ed, #ffffff 40%); }
-        .rank-dt { font-size: 14.5px; font-weight: 800; color: #0f172a; line-height: 1.3; margin-bottom: 5px; }
-        .rank-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-        .r-chip { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-        .r-chip-score { background: #dcfce7; color: #166534; }
-        .r-chip-yes { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-        .r-chip-maybe { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-        .r-chip-no { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+.dash-stats {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0 12px 0;
+}
+.dash-stat-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800;
+    border: 1px solid transparent;
+}
+.menu-hint-banner {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155;
+    padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+}
 
-        .active-filter-pill {
-            display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
-            background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
-            border-radius: 10px; padding: 6px 12px; font-size: 12.5px; font-weight: 700;
-            margin: 4px 0 10px 0;
-        }
+.rank-card {
+    background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 10px 12px; margin-bottom: 6px;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+}
+.rank-card-1 { border-left: 5px solid #f59e0b; background: linear-gradient(90deg, #fffbeb, #ffffff 40%); }
+.rank-card-2 { border-left: 5px solid #94a3b8; background: linear-gradient(90deg, #f8fafc, #ffffff 40%); }
+.rank-card-3 { border-left: 5px solid #d97706; background: linear-gradient(90deg, #fff7ed, #ffffff 40%); }
+.rank-dt { font-size: 14.5px; font-weight: 800; color: #0f172a; line-height: 1.3; margin-bottom: 5px; }
+.rank-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.r-chip { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.r-chip-score { background: #dcfce7; color: #166534; }
+.r-chip-yes { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.r-chip-maybe { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.r-chip-no { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
 
-        .sss-badge {
-            display: inline-block; font-size: 11px; font-weight: 700;
-            padding: 2px 8px; border-radius: 999px; margin-right: 5px; margin-bottom: 3px;
-        }
-        .sss-badge-type { background: #e0f2fe; color: #0369a1; }
-        .sss-badge-confirmed { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-        .sss-badge-closed { background: #fee2e2; color: #b91c1c; }
+.active-filter-pill {
+    display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+    border-radius: 10px; padding: 6px 12px; font-size: 12.5px; font-weight: 700;
+    margin: 4px 0 10px 0;
+}
 
-        /* スマホでもナビ・上部操作・ランキング・入力/結果スイッチを最適化 */
-        @media (max-width: 650px) {
-            div[data-testid="stVerticalBlock"]:has(> div .sss-compact-nav-marker) div[data-testid="stHorizontalBlock"] {
-                flex-direction: row !important;
-                flex-wrap: wrap !important;
-                gap: 6px !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-compact-nav-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-                flex: 1 1 30% !important;
-                min-width: 30% !important;
-                width: auto !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-compact-nav-marker) button {
-                padding: 6px 4px !important;
-                font-size: 12px !important;
-                min-height: 36px !important;
-            }
+.sss-badge {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; margin-right: 5px; margin-bottom: 3px;
+}
+.sss-badge-type { background: #e0f2fe; color: #0369a1; }
+.sss-badge-confirmed { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.sss-badge-closed { background: #fee2e2; color: #b91c1c; }
 
-            div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"],
-            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"],
-            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"],
-            div[data-testid="stVerticalBlock"]:has(> div .sss-tt-row-marker) div[data-testid="stHorizontalBlock"] {
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                gap: 6px !important;
-                align-items: center !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-                flex: 1 1 48% !important;
-                min-width: 0 !important;
-                width: auto !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
-                flex: 0 0 34% !important;
-                min-width: 0 !important;
-                width: auto !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
-                flex: 1 1 64% !important;
-                min-width: 0 !important;
-                width: auto !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
-                flex: 1 1 auto !important;
-                min-width: 0 !important;
-                width: auto !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
-                flex: 0 0 74px !important;
-                min-width: 74px !important;
-                width: 74px !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) button {
-                padding: 6px 4px !important;
-                font-size: 12px !important;
-            }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-tt-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-                flex: 1 1 0 !important;
-                min-width: 0 !important;
-                width: auto !important;
-            }
-        }
+/* マーカー用空divの余白をゼロにする */
+div.element-container:has(.sss-tab-switcher-marker),
+div.element-container:has(.sss-top-action-marker),
+div.element-container:has(.sss-rank-row-marker),
+div.element-container:has(.sss-tt-row-marker),
+div[data-testid="stElementContainer"]:has(.sss-tab-switcher-marker),
+div[data-testid="stElementContainer"]:has(.sss-top-action-marker),
+div[data-testid="stElementContainer"]:has(.sss-rank-row-marker),
+div[data-testid="stElementContainer"]:has(.sss-tt-row-marker) {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
 
-        /* 入力/集計 セグメントスイッチャー強調 */
-        div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] {
-            background: #f1f5f9;
-            padding: 5px;
-            border-radius: 14px;
-            border: 1px solid #cbd5e1;
-            margin: 6px 0 12px 0;
-        }
-        div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) button {
-            border-radius: 10px !important;
-            font-weight: 800 !important;
-            min-height: 44px !important;
-            font-size: 14.5px !important;
-        }
+/* スマホでも上部操作・ランキング・入力/結果スイッチを省スペース横並びに最適化 */
+@media (max-width: 650px) {
+    div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"],
+    div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"],
+    div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"],
+    div[data-testid="stVerticalBlock"]:has(> div .sss-tt-row-marker) div[data-testid="stHorizontalBlock"] {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        align-items: center !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+        flex: 1 1 48% !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+        flex: 0 0 32% !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+        flex: 1 1 66% !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) button {
+        min-height: 36px !important;
+        padding: 4px 8px !important;
+        font-size: 12.5px !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+        flex: 0 0 74px !important;
+        min-width: 74px !important;
+        width: 74px !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) button {
+        padding: 6px 4px !important;
+        font-size: 12px !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div .sss-tt-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+}
 
-        /* 時間割設定テーブル用 */
-        .tt-day-header { font-size: 15px; font-weight: bold; background: #4CAF50; color: white; padding: 6px 2px; border-radius: 6px; text-align: center; }
-        .tt-time-cell { font-size: 13px; font-weight: bold; background: #f0f2f6; padding: 8px 4px; border-radius: 6px; text-align: center; border-left: 4px solid #4CAF50; }
-        .tt-time-sub { font-size: 10px; color: #666; font-weight: normal; }
-        .status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #45a049); padding: 4px 0; border-radius: 6px; font-size: 11px; text-align: center; margin-top: -10px; margin-bottom: 4px; display: block; }
-        .af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; font-size: 11px; text-align: center; margin-top: -10px; margin-bottom: 4px; display: block; }
-        .status-off { color: #9e9e9e; background: #ffffff; padding: 4px 0; border-radius: 6px; border: 1px dashed #d0d0d0; font-size: 11px; text-align: center; margin-top: -10px; margin-bottom: 4px; display: block; }
-    </style>
-""", unsafe_allow_html=True)
+/* 入力/集計 セグメントスイッチャー（すぐ下に予定表が見えるよう縦幅をスリム化） */
+div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] {
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    margin: 2px 0 6px 0;
+}
+div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) button {
+    border-radius: 9px !important;
+    font-weight: 800 !important;
+    min-height: 38px !important;
+    padding: 4px 8px !important;
+    font-size: 13.5px !important;
+}
+
+/* 時間割設定テーブル用 */
+.tt-day-header { font-size: 15px; font-weight: bold; background: #4CAF50; color: white; padding: 6px 2px; border-radius: 6px; text-align: center; }
+.tt-time-cell { font-size: 13px; font-weight: bold; background: #f0f2f6; padding: 8px 4px; border-radius: 6px; text-align: center; border-left: 4px solid #4CAF50; }
+.tt-time-sub { font-size: 10px; color: #666; font-weight: normal; }
+.status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #45a049); padding: 4px 0; border-radius: 6px; font-size: 11px; text-align: center; margin-top: -10px; margin-bottom: 4px; display: block; }
+.af-status-on { color: #fff; font-weight: bold; background: linear-gradient(135deg, #2196F3, #1976D2); padding: 4px 0; border-radius: 6px; font-size: 11px; text-align: center; margin-top: -10px; margin-bottom: 4px; display: block; }
+.status-off { color: #9e9e9e; background: #ffffff; padding: 4px 0; border-radius: 6px; border: 1px dashed #d0d0d0; font-size: 11px; text-align: center; margin-top: -10px; margin-bottom: 4px; display: block; }
+</style>
+"""), unsafe_allow_html=True)
 
 
 # ==========================================
@@ -1498,56 +1585,53 @@ sendMsg("streamlit:componentReady", {apiVersion: 1});
 CUSTOM_EDITOR_V15_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: transparent; }
 * { box-sizing: border-box; }
-#app-root { --cell-h: 36px; padding: 2px 2px 6px 2px; }
+#app-root {
+    --cell-h: 36px; --col-w: 66px; --time-w: 58px; --head-h: 46px;
+    --cell-font: 13px; --head-font: 11.5px;
+    padding: 2px 2px 6px 2px; position: relative;
+}
 
 /* 便利ツール */
-details.tools-box {
-    background: #f8fafc; padding: 10px 14px; border-radius: 10px;
-    border: 1px solid #cbd5e1; margin-bottom: 12px;
-}
-details.tools-box summary {
-    font-weight: 700; cursor: pointer; font-size: 14px; color: #1e293b; outline: none; user-select: none;
-}
-.tools-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.tools-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .tool-card {
-    background: #fff; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;
-    flex: 1 1 230px; min-width: 210px;
+    background: #fff; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+    flex: 1 1 220px; min-width: 200px;
 }
-.tool-header { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
-.st-sel { padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #fff; }
+.tool-header { font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+.st-sel { padding: 5px 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px; background: #fff; }
 .st-btn {
-    padding: 7px 14px; border: none; border-radius: 6px; background: #4CAF50;
-    color: #fff; cursor: pointer; font-weight: 700; font-size: 13px;
+    padding: 6px 12px; border: none; border-radius: 6px; background: #4CAF50;
+    color: #fff; cursor: pointer; font-weight: 700; font-size: 12.5px;
 }
 .st-btn:hover { opacity: 0.9; }
-.ms-container { position: relative; display: inline-block; flex: 1; min-width: 130px; }
+.ms-container { position: relative; display: inline-block; flex: 1; min-width: 125px; }
 .ms-header {
-    border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; cursor: pointer;
-    background: #fff; font-size: 13px; user-select: none; display: flex; justify-content: space-between;
+    border: 1px solid #cbd5e1; padding: 5px 9px; border-radius: 6px; cursor: pointer;
+    background: #fff; font-size: 12.5px; user-select: none; display: flex; justify-content: space-between;
 }
 .ms-options {
     position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1;
     border-radius: 6px; z-index: 200; max-height: 200px; overflow-y: auto;
     box-shadow: 0 6px 14px rgba(0,0,0,0.12); padding: 6px; margin-top: 2px;
 }
-.ms-opt { display: block; padding: 5px 8px; font-size: 13px; cursor: pointer; border-radius: 4px; }
+.ms-opt { display: block; padding: 5px 8px; font-size: 12.5px; cursor: pointer; border-radius: 4px; }
 .ms-opt:hover { background: #f1f5f9; }
 
-/* スティッキーツールバー（ペンパレット置換） */
+/* 上部ツールバー */
 .editor-toolbar {
     position: sticky; top: 0; z-index: 60;
     background: rgba(255, 255, 255, 0.97); backdrop-filter: blur(6px);
     border: 1px solid #cbd5e1; border-radius: 10px;
-    padding: 8px 10px; margin-bottom: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    display: flex; flex-direction: column; gap: 6px;
+    padding: 6px 9px; margin-bottom: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    display: flex; flex-direction: column; gap: 5px;
 }
-.tb-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.tb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tb-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.tb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .pen-pill {
     border: 2px solid #cbd5e1; background: #fff; color: #334155;
-    padding: 6px 11px; border-radius: 999px; font-size: 13px; font-weight: 800;
-    cursor: pointer; transition: 0.12s; display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 800;
+    cursor: pointer; transition: 0.12s; display: inline-flex; align-items: center; gap: 3px;
     user-select: none;
 }
 .pen-pill:hover { background: #f8fafc; }
@@ -1558,19 +1642,31 @@ details.tools-box summary {
 
 .act-pill {
     border: 1px solid #cbd5e1; background: #f8fafc; color: #334155;
-    padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+    padding: 5px 9px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+    user-select: none;
 }
 .act-pill:hover:not(:disabled) { background: #e2e8f0; }
 .act-pill:disabled { opacity: 0.4; cursor: not-allowed; }
-.size-pill {
-    border: 1px solid #cbd5e1; background: #fff; color: #475569;
-    padding: 4px 9px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
+.act-pill.active-toggle { background: #ecfdf5; border-color: #10b981; color: #047857; }
+
+.zoom-group {
+    display: inline-flex; align-items: center; border: 1px solid #cbd5e1;
+    border-radius: 8px; overflow: hidden; background: #fff;
 }
-.size-pill.active { background: #1e293b; color: #fff; border-color: #1e293b; }
+.zoom-btn {
+    border: none; background: #f8fafc; color: #1e293b; padding: 4px 8px;
+    font-size: 12.5px; font-weight: 800; cursor: pointer; line-height: 1.2;
+}
+.zoom-btn:hover { background: #e2e8f0; }
+.zoom-lbl {
+    border: none; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;
+    background: #fff; color: #334155; padding: 4px 7px; font-size: 11px; font-weight: 800;
+    cursor: pointer; min-width: 44px; text-align: center;
+}
 
 .hint-bar {
     font-size: 11px; color: #475569; background: #f1f5f9;
-    padding: 4px 8px; border-radius: 6px; line-height: 1.4;
+    padding: 3px 8px; border-radius: 6px; line-height: 1.35;
 }
 .hint-touch { display: none; }
 @media (pointer: coarse) {
@@ -1578,33 +1674,74 @@ details.tools-box summary {
     .hint-touch { display: inline; }
 }
 
-.legend-strip {
-    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
-    font-size: 12px; font-weight: 700; color: #334155; margin: 4px 0 8px 2px;
+/* 動かせるフローティングペンパレット（スマホの上下移動コスト解消） */
+.fp-box {
+    position: absolute; z-index: 400;
+    touch-action: none; user-select: none; -webkit-user-select: none;
 }
-.lg-item { display: inline-flex; align-items: center; gap: 4px; }
-.lg-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #cbd5e1; display: inline-block; }
+.fp-main {
+    display: flex; align-items: center; gap: 4px;
+    background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(255,255,255,0.22); border-radius: 999px;
+    padding: 5px 8px; box-shadow: 0 8px 24px rgba(15,23,42,0.38);
+}
+.fp-box.fp-vert .fp-main {
+    flex-direction: column; border-radius: 18px; padding: 8px 5px;
+}
+.fp-grip {
+    color: #94a3b8; font-size: 15px; font-weight: 900; padding: 2px 4px;
+    cursor: grab; line-height: 1; letter-spacing: -1px;
+}
+.fp-grip:active { cursor: grabbing; }
+.fp-pen {
+    width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.12); color: #f8fafc; font-size: 14px; font-weight: 900;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    padding: 0; transition: transform 0.1s, background 0.1s;
+}
+.fp-pen.active[data-mode="1"] { background: #4CAF50; border-color: #bbf7d0; color: #fff; transform: scale(1.08); box-shadow: 0 0 10px rgba(76,175,80,0.65); }
+.fp-pen.active[data-mode="2"] { background: #FFEB3B; border-color: #fef08a; color: #1e293b; transform: scale(1.08); box-shadow: 0 0 10px rgba(255,235,59,0.6); }
+.fp-pen.active[data-mode="0"] { background: #f8fafc; border-color: #94a3b8; color: #0f172a; transform: scale(1.08); }
+.fp-pen.active[data-mode="-2"] { background: #38bdf8; border-color: #bae6fd; color: #0f172a; transform: scale(1.08); }
+.fp-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.2); margin: 0 1px; }
+.fp-box.fp-vert .fp-sep { width: 22px; height: 1px; margin: 1px 0; }
+.fp-act {
+    height: 30px; min-width: 28px; padding: 0 6px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
+    color: #f1f5f9; font-size: 12px; font-weight: 800; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.fp-act:disabled { opacity: 0.35; cursor: not-allowed; }
+.fp-fab {
+    background: rgba(15, 23, 42, 0.92); color: #fff; border: 1.5px solid #10b981;
+    border-radius: 999px; padding: 7px 12px; font-size: 12.5px; font-weight: 800;
+    box-shadow: 0 6px 18px rgba(15,23,42,0.35); cursor: pointer;
+}
 
 /* 上部同期スクロールバー */
 .top-scroll-wrap {
-    overflow-x: auto; overflow-y: hidden; width: 100%; height: 16px;
-    margin-bottom: 4px; display: none;
+    overflow-x: auto; overflow-y: hidden; width: 100%; height: 14px;
+    margin-bottom: 3px; display: none;
     scrollbar-width: auto; scrollbar-color: #94a3b8 #f1f5f9;
 }
-.top-scroll-wrap::-webkit-scrollbar { height: 10px; }
+.top-scroll-wrap::-webkit-scrollbar { height: 9px; }
 .top-scroll-wrap::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
 .top-scroll-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
 .top-scroll-inner { height: 1px; }
 
-/* メインスクロール枠 */
+/* メインスクロール枠（スマホでは1画面内に収まる高さにして上下往復をなくす） */
 .scroll-wrapper {
     width: 100%; overflow: auto; -webkit-overflow-scrolling: touch;
     border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; position: relative;
     scrollbar-width: auto; scrollbar-color: #94a3b8 #f1f5f9;
 }
-.scroll-wrapper.time-scroll { max-height: 580px; height: auto; }
+.scroll-wrapper.time-scroll { max-height: 550px; height: auto; }
+@media (max-width: 650px) {
+    .scroll-wrapper.time-scroll { max-height: 430px; }
+    .pen-pill { padding: 4px 8px; font-size: 12px; }
+}
 .scroll-wrapper.auto-scroll { max-height: none; height: auto; }
-.scroll-wrapper::-webkit-scrollbar { width: 11px; height: 11px; }
+.scroll-wrapper::-webkit-scrollbar { width: 10px; height: 10px; }
 .scroll-wrapper::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
 .scroll-wrapper::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 2px solid #f1f5f9; }
 .scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #64748b; }
@@ -1620,12 +1757,12 @@ details.tools-box summary {
 .top-left-cell {
     position: sticky; top: 0; left: 0; z-index: 25; background: #f1f5f9;
     border-right: 1px solid #cbd5e1; border-bottom: 2px solid #475569;
-    height: 48px; box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
+    height: var(--head-h); box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; color: #64748b; font-weight: 700;
+    font-size: 10.5px; color: #64748b; font-weight: 700;
 }
 .time-cell {
-    background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700; color: #475569;
+    background: #f1f5f9; text-align: center; font-size: 10.5px; font-weight: 700; color: #475569;
     height: var(--cell-h); line-height: var(--cell-h);
     border-right: 1px solid #cbd5e1; overflow: hidden;
 }
@@ -1633,10 +1770,10 @@ details.tools-box summary {
 .day-col.week-break { border-left: 2px solid #64748b; }
 .header-cell {
     position: sticky; top: 0; z-index: 12; background: #f8fafc;
-    text-align: center; font-size: 12px; font-weight: 800; color: #1e293b;
-    padding: 4px 2px; border-bottom: 2px solid #475569; border-right: 1px solid #e2e8f0;
-    height: 48px; display: flex; align-items: center; justify-content: center; line-height: 1.25;
-    touch-action: pan-x pan-y;
+    text-align: center; font-size: var(--head-font); font-weight: 800; color: #1e293b;
+    padding: 3px 2px; border-bottom: 2px solid #475569; border-right: 1px solid #e2e8f0;
+    height: var(--head-h); display: flex; align-items: center; justify-content: center; line-height: 1.2;
+    touch-action: pan-x pan-y; overflow: hidden;
 }
 .header-cell.day-sat { background: #eff6ff; color: #1d4ed8; }
 .header-cell.day-sun { background: #fef2f2; color: #dc2626; }
@@ -1645,31 +1782,34 @@ details.tools-box summary {
     display: flex; align-items: center; justify-content: center;
     height: var(--cell-h); cursor: pointer; position: relative;
     border-right: 1px solid #e2e8f0; touch-action: none;
-    transition: filter 0.08s;
+    transition: filter 0.08s; overflow: hidden;
 }
-.c:hover { filter: brightness(0.96); }
+@media (hover: hover) and (pointer: fine) {
+    .c:hover { filter: brightness(0.96); }
+}
+.cell-txt { font-size: var(--cell-font); font-weight: 800; pointer-events: none; line-height: 1; }
 .memo-icon {
-    position: absolute; top: 1px; right: 2px; font-size: 10px; line-height: 1; pointer-events: none;
+    position: absolute; top: 1px; right: 2px; font-size: 9px; line-height: 1; pointer-events: none;
 }
 
 /* 提出バー */
 .submit-area {
-    margin-top: 14px; background: #fff; border: 1px solid #e2e8f0;
-    border-radius: 10px; padding: 12px 14px;
+    margin-top: 10px; background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 10px; padding: 10px 12px;
 }
 #comment-box {
-    width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #cbd5e1;
-    border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;
+    width: 100%; padding: 8px 10px; margin-top: 5px; border: 1px solid #cbd5e1;
+    border-radius: 8px; font-family: inherit; font-size: 13.5px; resize: vertical;
 }
 .dirty-badge {
-    display: none; margin-top: 10px; background: #fff8e1; color: #b45309;
-    border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 12px;
-    font-size: 13px; font-weight: 700; text-align: center;
+    display: none; margin-top: 8px; background: #fff8e1; color: #b45309;
+    border: 1px solid #fcd34d; border-radius: 8px; padding: 7px 10px;
+    font-size: 12.5px; font-weight: 700; text-align: center;
 }
 .dirty-badge.show { display: block; }
 #submit-btn {
-    margin-top: 10px; width: 100%; padding: 14px; background: #FF4B4B; color: #fff;
-    border: none; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer;
+    margin-top: 8px; width: 100%; padding: 13px; background: #FF4B4B; color: #fff;
+    border: none; border-radius: 10px; font-size: 15.5px; font-weight: 800; cursor: pointer;
     box-shadow: 0 4px 10px rgba(255,75,75,0.28); transition: 0.15s;
 }
 #submit-btn:hover { background: #e03e3e; }
@@ -1767,6 +1907,25 @@ let editingCell = null;
 let modalStatus = 1;
 let lastSig = null;
 
+// ズーム状態管理（縦横同時スケール）
+let zoomScale = 1.0;
+let baseCellH = 36;
+const BASE_COL_W = 66;
+const BASE_TIME_W = 58;
+
+// フローティングパレット状態管理
+let paletteVisible = null;
+let fpVertical = false;
+let fpMinimized = false;
+let fpCustomPos = false;
+let fpLeft = 10;
+let fpTop = 120;
+let fpJustDraggedUntil = 0;
+
+function isMobileOrTouch() {
+    return window.innerWidth <= 768 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+}
+
 function markDirty() {
     const b = document.getElementById('dirty-badge');
     if (b) b.classList.add('show');
@@ -1812,7 +1971,7 @@ function updCell(el, v) {
     el.style.backgroundImage = bgImg;
     el.style.color = txtColor;
 
-    let html = `<span style="font-size:13px; font-weight:800; pointer-events:none;">${txt}</span>`;
+    let html = `<span class="cell-txt">${txt}</span>`;
     if (note !== "") {
         html += `<div class="memo-icon">💬</div>`;
     }
@@ -1876,8 +2035,11 @@ function pushUndo(snap) {
 }
 
 function updateUndoBtn() {
+    const dis = (undoStack.length === 0);
     const b = document.getElementById('btn-undo');
-    if (b) b.disabled = (undoStack.length === 0);
+    if (b) b.disabled = dis;
+    const fpb = document.getElementById('fp-undo');
+    if (fpb) fpb.disabled = dis;
 }
 
 window.doUndo = function() {
@@ -1898,19 +2060,207 @@ window.doClearAll = function() {
 
 window.setPen = function(mode) {
     selectedMode = mode;
-    document.querySelectorAll('.pen-pill').forEach(b => {
+    document.querySelectorAll('.pen-pill, .fp-pen').forEach(b => {
         b.classList.toggle('active', parseInt(b.dataset.mode, 10) === mode);
     });
 };
 
-window.setCellSize = function(px) {
-    const root = document.getElementById('app-root');
-    if (root) root.style.setProperty('--cell-h', px + 'px');
-    document.querySelectorAll('.size-pill').forEach(b => {
-        b.classList.toggle('active', parseInt(b.dataset.size, 10) === px);
-    });
-    setTimeout(() => { syncTopScrollbar(); updateFrameHeight(); }, 30);
+window.fpSetPen = function(mode) {
+    if (Date.now() < fpJustDraggedUntil) return;
+    setPen(mode);
 };
+
+window.fpAction = function(fn) {
+    if (Date.now() < fpJustDraggedUntil) return;
+    fn();
+};
+
+function applyZoom(newScale, anchor) {
+    zoomScale = Math.max(0.55, Math.min(1.65, Math.round(newScale * 100) / 100));
+    const root = document.getElementById('app-root');
+    if (!root) return;
+
+    const cellH = Math.max(18, Math.round(baseCellH * zoomScale));
+    const colW = Math.max(36, Math.round(BASE_COL_W * zoomScale));
+    const timeW = Math.max(44, Math.round(BASE_TIME_W * Math.max(0.76, Math.min(1.15, zoomScale))));
+    const headH = Math.max(34, Math.round(46 * Math.max(0.78, Math.min(1.15, zoomScale))));
+    const cellFont = Math.max(9.5, Math.round(13 * Math.max(0.74, Math.min(1.25, zoomScale)) * 10) / 10);
+    const headFont = Math.max(9.5, Math.round(11.5 * Math.max(0.78, Math.min(1.15, zoomScale)) * 10) / 10);
+
+    root.style.setProperty('--cell-h', cellH + 'px');
+    root.style.setProperty('--col-w', colW + 'px');
+    root.style.setProperty('--time-w', timeW + 'px');
+    root.style.setProperty('--head-h', headH + 'px');
+    root.style.setProperty('--cell-font', cellFont + 'px');
+    root.style.setProperty('--head-font', headFont + 'px');
+
+    const pctTxt = Math.round(zoomScale * 100) + '%';
+    const zLbl = document.getElementById('zoom-pct-lbl');
+    if (zLbl) zLbl.textContent = pctTxt;
+
+    if (anchor && anchor.sc) {
+        anchor.sc.scrollLeft = Math.max(0, anchor.ratioX * anchor.sc.scrollWidth - anchor.relX);
+        anchor.sc.scrollTop = Math.max(0, anchor.ratioY * anchor.sc.scrollHeight - anchor.relY);
+    }
+
+    requestAnimationFrame(() => {
+        syncTopScrollbar();
+        clampPalettePosition();
+        updateFrameHeight();
+    });
+}
+
+window.stepZoom = function(delta) {
+    applyZoom(zoomScale + delta, null);
+};
+
+window.resetZoom = function() {
+    applyZoom(1.0, null);
+};
+
+function clampPalettePosition() {
+    const fp = document.getElementById('floating-palette');
+    const root = document.getElementById('app-root');
+    const sc = document.getElementById('scroll-container');
+    if (!fp || !root || fp.style.display === 'none') return;
+
+    const rW = root.clientWidth;
+    const rH = root.clientHeight;
+    const pW = fp.offsetWidth || 260;
+    const pH = fp.offsetHeight || 46;
+
+    if (!fpCustomPos && sc) {
+        fpLeft = Math.max(4, Math.min(rW - pW - 6, rW - pW - 8));
+        fpTop = Math.max(54, sc.offsetTop + sc.clientHeight - pH - 10);
+    } else {
+        fpLeft = Math.max(2, Math.min(Math.max(2, rW - pW - 2), fpLeft));
+        fpTop = Math.max(2, Math.min(Math.max(2, rH - pH - 2), fpTop));
+    }
+    fp.style.left = fpLeft + 'px';
+    fp.style.top = fpTop + 'px';
+}
+
+function updatePaletteUI() {
+    const fp = document.getElementById('floating-palette');
+    const toggleBtn = document.getElementById('btn-fp-toggle');
+    if (!fp) return;
+    fp.style.display = paletteVisible ? 'block' : 'none';
+    fp.classList.toggle('fp-vert', fpVertical);
+    const fpMain = document.getElementById('fp-main');
+    const fpFab = document.getElementById('fp-fab');
+    if (fpMain && fpFab) {
+        fpMain.style.display = fpMinimized ? 'none' : 'flex';
+        fpFab.style.display = fpMinimized ? 'inline-flex' : 'none';
+    }
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active-toggle', !!paletteVisible);
+    }
+    if (paletteVisible) {
+        requestAnimationFrame(clampPalettePosition);
+    }
+}
+
+window.togglePaletteVisibility = function() {
+    paletteVisible = !paletteVisible;
+    if (paletteVisible) fpMinimized = false;
+    updatePaletteUI();
+};
+
+window.toggleFpDir = function() {
+    fpVertical = !fpVertical;
+    fpCustomPos = true;
+    updatePaletteUI();
+};
+
+window.setFpMinimized = function(val) {
+    fpMinimized = !!val;
+    updatePaletteUI();
+};
+
+function attachPaletteDrag() {
+    const fp = document.getElementById('floating-palette');
+    const root = document.getElementById('app-root');
+    if (!fp || !root) return;
+
+    let dragState = null;
+
+    fp.addEventListener('touchstart', e => {
+        e.stopPropagation();
+        if (e.touches.length !== 1) return;
+        const t = e.touches[0];
+        dragState = {
+            startX: t.clientX,
+            startY: t.clientY,
+            origLeft: fpLeft,
+            origTop: fpTop,
+            moved: false
+        };
+    }, {passive: true});
+
+    fp.addEventListener('touchmove', e => {
+        e.stopPropagation();
+        if (!dragState || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const dx = t.clientX - dragState.startX;
+        const dy = t.clientY - dragState.startY;
+        if (!dragState.moved && Math.hypot(dx, dy) > 7) {
+            dragState.moved = true;
+        }
+        if (dragState.moved) {
+            if (e.cancelable) e.preventDefault();
+            fpJustDraggedUntil = Date.now() + 350;
+            fpCustomPos = true;
+            const maxL = Math.max(2, root.clientWidth - fp.offsetWidth - 2);
+            const maxT = Math.max(2, root.clientHeight - fp.offsetHeight - 2);
+            fpLeft = Math.max(2, Math.min(maxL, dragState.origLeft + dx));
+            fpTop = Math.max(2, Math.min(maxT, dragState.origTop + dy));
+            fp.style.left = fpLeft + 'px';
+            fp.style.top = fpTop + 'px';
+        }
+    }, {passive: false});
+
+    fp.addEventListener('touchend', e => {
+        e.stopPropagation();
+        dragState = null;
+    }, {passive: true});
+
+    fp.addEventListener('mousedown', e => {
+        e.stopPropagation();
+        if (e.button !== 0) return;
+        dragState = {
+            startX: e.clientX,
+            startY: e.clientY,
+            origLeft: fpLeft,
+            origTop: fpTop,
+            moved: false
+        };
+        const onMove = ev => {
+            if (!dragState) return;
+            const dx = ev.clientX - dragState.startX;
+            const dy = ev.clientY - dragState.startY;
+            if (!dragState.moved && Math.hypot(dx, dy) > 6) {
+                dragState.moved = true;
+            }
+            if (dragState.moved) {
+                fpJustDraggedUntil = Date.now() + 300;
+                fpCustomPos = true;
+                const maxL = Math.max(2, root.clientWidth - fp.offsetWidth - 2);
+                const maxT = Math.max(2, root.clientHeight - fp.offsetHeight - 2);
+                fpLeft = Math.max(2, Math.min(maxL, dragState.origLeft + dx));
+                fpTop = Math.max(2, Math.min(maxT, dragState.origTop + dy));
+                fp.style.left = fpLeft + 'px';
+                fp.style.top = fpTop + 'px';
+            }
+        };
+        const onUp = () => {
+            dragState = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    });
+}
 
 window.scrollGridX = function(delta) {
     const sc = document.getElementById('scroll-container');
@@ -1953,7 +2303,7 @@ window.toggleToolsDrawer = function() {
         btn.style.background = isOpen ? '#f8fafc' : '#e0f2fe';
         btn.style.borderColor = isOpen ? '#cbd5e1' : '#38bdf8';
     }
-    setTimeout(updateFrameHeight, 30);
+    setTimeout(() => { clampPalettePosition(); updateFrameHeight(); }, 30);
 };
 
 window.doCopy = function(btnEl) {
@@ -2114,8 +2464,7 @@ function attachGridEvents() {
         });
     }
 
-    if (stateArgs.isClosed) return;
-
+    let lastTouchEventAt = 0;
     let isMousePainting = false;
     let mousePaintMode = 1;
     let mouseSnapshot = null;
@@ -2127,6 +2476,7 @@ function attachGridEvents() {
     let isTwoFingerPan = false;
     let blockPaintUntilLift = false;
     let lastPinchCenter = null;
+    let lastPinchDist = 0;
     let longPressTimer = null;
     let longPressOrigin = null;
     let longPressTriggered = false;
@@ -2161,14 +2511,34 @@ function attachGridEvents() {
         }, 35);
     }
 
+    function getTouchCenter(touches) {
+        return {
+            x: (touches[0].clientX + touches[1].clientX) / 2,
+            y: (touches[0].clientY + touches[1].clientY) / 2
+        };
+    }
+
+    function getTouchDist(touches) {
+        return Math.hypot(
+            touches[0].clientX - touches[1].clientX,
+            touches[0].clientY - touches[1].clientY
+        );
+    }
+
     g.addEventListener('contextmenu', e => e.preventDefault());
 
+    // PC専用のダブルクリックメモ（スマホ連続タップ時の誤発動を完全防止）
     g.addEventListener('dblclick', e => {
+        if (stateArgs.isClosed) return;
+        if (Date.now() - lastTouchEventAt < 1600) return;
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
         const cell = e.target.closest('.c');
         if (cell) openModal(cell);
     });
 
     g.addEventListener('mousedown', e => {
+        if (stateArgs.isClosed) return;
+        if (Date.now() - lastTouchEventAt < 1000) return;
         const cell = e.target.closest('.c');
         if (!cell) return;
         if (e.button === 2) {
@@ -2207,18 +2577,11 @@ function attachGridEvents() {
         mouseSnapshot = null;
     });
 
-    function getTouchCenter(touches) {
-        return {
-            x: (touches[0].clientX + touches[1].clientX) / 2,
-            y: (touches[0].clientY + touches[1].clientY) / 2
-        };
-    }
-
     g.addEventListener('touchstart', e => {
-        if (e.target.closest('.time-col') || e.target.closest('.header-cell')) return;
+        lastTouchEventAt = Date.now();
+        clearTimeout(longPressTimer);
 
         if (e.touches.length >= 2) {
-            clearTimeout(longPressTimer);
             stopAutoScroll();
             if (isTouchPainting && (Date.now() - touchStartTime) < 300 && touchSnapshot) {
                 restoreSnapshot(touchSnapshot);
@@ -2227,9 +2590,13 @@ function attachGridEvents() {
             isTwoFingerPan = true;
             blockPaintUntilLift = true;
             lastPinchCenter = getTouchCenter(e.touches);
+            lastPinchDist = getTouchDist(e.touches);
             if (e.cancelable) e.preventDefault();
             return;
         }
+
+        if (stateArgs.isClosed) return;
+        if (e.target.closest('.time-col') || e.target.closest('.header-cell')) return;
 
         if (e.touches.length === 1 && !blockPaintUntilLift) {
             const cell = e.target.closest('.c');
@@ -2254,7 +2621,6 @@ function attachGridEvents() {
             paintCell(cell, selectedMode);
             startAutoScroll(() => selectedMode);
 
-            clearTimeout(longPressTimer);
             longPressTimer = setTimeout(() => {
                 if (isTouchPainting && !touchMoved && !isTwoFingerPan) {
                     longPressTriggered = true;
@@ -2264,11 +2630,13 @@ function attachGridEvents() {
                     try { if (navigator.vibrate) navigator.vibrate(15); } catch (err) {}
                     openModal(cell);
                 }
-            }, 450);
+            }, 580);
         }
     }, {passive: false});
 
     g.addEventListener('touchmove', e => {
+        lastTouchEventAt = Date.now();
+
         if (isTwoFingerPan || e.touches.length >= 2) {
             if (e.cancelable) e.preventDefault();
             if (!isTwoFingerPan && e.touches.length >= 2) {
@@ -2281,9 +2649,12 @@ function attachGridEvents() {
                 isTwoFingerPan = true;
                 blockPaintUntilLift = true;
                 lastPinchCenter = getTouchCenter(e.touches);
+                lastPinchDist = getTouchDist(e.touches);
             }
             if (e.touches.length >= 2 && lastPinchCenter) {
                 const center = getTouchCenter(e.touches);
+                const dist = getTouchDist(e.touches);
+
                 const dx = center.x - lastPinchCenter.x;
                 const dy = center.y - lastPinchCenter.y;
                 lastPinchCenter = center;
@@ -2296,9 +2667,25 @@ function attachGridEvents() {
                 if (Math.abs(remY) > 0.5) {
                     try { window.parent.scrollBy(0, remY); } catch (err) {}
                 }
+
+                // 2本指ピンチイン・ピンチアウトによるスムーズズーム
+                if (lastPinchDist > 24 && dist > 24) {
+                    const ratio = dist / lastPinchDist;
+                    if (Math.abs(ratio - 1) > 0.025) {
+                        const rect = sc.getBoundingClientRect();
+                        const relX = center.x - rect.left;
+                        const relY = center.y - rect.top;
+                        const ratioX = (sc.scrollLeft + relX) / Math.max(1, sc.scrollWidth);
+                        const ratioY = (sc.scrollTop + relY) / Math.max(1, sc.scrollHeight);
+                        applyZoom(zoomScale * ratio, {sc: sc, relX: relX, relY: relY, ratioX: ratioX, ratioY: ratioY});
+                        lastPinchDist = dist;
+                    }
+                }
             }
             return;
         }
+
+        if (stateArgs.isClosed) return;
 
         if (selectedMode === -2 && longPressOrigin && e.touches.length === 1) {
             const t = e.touches[0];
@@ -2323,10 +2710,11 @@ function attachGridEvents() {
     }, {passive: false});
 
     const handleTouchEnd = (e) => {
+        lastTouchEventAt = Date.now();
         clearTimeout(longPressTimer);
         stopAutoScroll();
         if (e.touches.length === 0) {
-            if (selectedMode === -2 && !isTwoFingerPan && !touchMoved && tapTargetCell) {
+            if (!stateArgs.isClosed && selectedMode === -2 && !isTwoFingerPan && !touchMoved && tapTargetCell) {
                 openModal(tapTargetCell);
             } else if (isTouchPainting && !longPressTriggered && touchSnapshot) {
                 pushUndo(touchSnapshot);
@@ -2335,6 +2723,7 @@ function attachGridEvents() {
             isTwoFingerPan = false;
             blockPaintUntilLift = false;
             lastPinchCenter = null;
+            lastPinchDist = 0;
             touchSnapshot = null;
             tapTargetCell = null;
         }
@@ -2351,10 +2740,11 @@ function buildEditor(args) {
     const rows = args.timeLabels.length;
     const isClosed = !!args.isClosed;
     const isTimeMode = !!args.isTimeMode;
-    const defH = args.defaultCellH || 36;
+    baseCellH = args.defaultCellH || (isTimeMode ? 34 : 48);
 
-    const root = document.getElementById('app-root');
-    root.style.setProperty('--cell-h', defH + 'px');
+    if (paletteVisible === null) {
+        paletteVisible = !isClosed && isMobileOrTouch();
+    }
 
     const timeOptsHtml = args.timeLabels.map((t, i) => `<option value="${i}">${escapeHtml(t)}</option>`).join('');
     const timeEndOptsHtml = args.timeLabels.map((t, i) => `<option value="${i}" ${i === rows - 1 ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
@@ -2362,36 +2752,31 @@ function buildEditor(args) {
     const bDayOptsHtml = args.cleanLabels.map((l, i) => `<label class="ms-opt"><input type="checkbox" class="b-day-chk" value="${i}" checked> ${escapeHtml(l)}</label>`).join('');
     const cTgtOptsHtml = args.cleanLabels.map((l, i) => `<label class="ms-opt"><input type="checkbox" class="c-tgt-chk" value="${i}"> ${escapeHtml(l)}</label>`).join('');
 
-    const sizeBtns = isTimeMode ? `
-        <div class="tb-group">
-            <span style="font-size:12px; font-weight:700; color:#475569;">🔍 マス高さ:</span>
-            <button type="button" class="size-pill ${defH===22?'active':''}" data-size="22" onclick="setCellSize(22)">小</button>
-            <button type="button" class="size-pill ${defH===36?'active':''}" data-size="36" onclick="setCellSize(36)">標準</button>
-            <button type="button" class="size-pill ${defH===50?'active':''}" data-size="50" onclick="setCellSize(50)">大</button>
-        </div>` : "";
+    const zoomControls = `
+        <div class="zoom-group" title="予定表の縮小・拡大">
+            <button type="button" class="zoom-btn" onclick="stepZoom(-0.15)">🔍−</button>
+            <button type="button" class="zoom-lbl" id="zoom-pct-lbl" onclick="resetZoom()">100%</button>
+            <button type="button" class="zoom-btn" onclick="stepZoom(0.15)">＋</button>
+        </div>`;
 
-    const jumpBtns = cols > 7 ? `
+    const jumpBtns = cols > 6 ? `
         <div class="tb-group">
-            <button type="button" class="act-pill" onclick="scrollGridX(-280)">◀</button>
-            <span style="font-size:11px; font-weight:700; color:#475569;">全${cols}日</span>
-            <button type="button" class="act-pill" onclick="scrollGridX(280)">▶</button>
-        </div>` : "";
-
-    const extraSettingsBar = (isTimeMode || !isClosed) ? `
-        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding-bottom:10px; margin-bottom:10px; border-bottom:1px solid #e2e8f0;">
-            ${sizeBtns}
-            ${!isClosed ? `<button type="button" class="act-pill" style="color:#b91c1c; border-color:#fecaca; background:#fef2f2;" onclick="doClearAll()">🗑️ すべて白紙に戻す</button>` : ''}
+            <button type="button" class="act-pill" onclick="scrollGridX(-240)">◀</button>
+            <button type="button" class="act-pill" onclick="scrollGridX(240)">▶</button>
         </div>` : "";
 
     let toolsDrawer = "";
-    if (!isClosed || isTimeMode) {
+    if (!isClosed) {
         const ttBtnText = args.eventType === "time"
             ? "🚫 登録済みの時間割をすべて反映する"
             : "🚫 登録済みの時間割をそのまま反映する";
         toolsDrawer = `
-        <div id="tools-drawer" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:10px;">
-            ${extraSettingsBar}
-            ${!isClosed ? `<div class="tools-grid" style="margin-top:0;">
+        <div id="tools-drawer" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding-bottom:8px; margin-bottom:6px; border-bottom:1px solid #e2e8f0;">
+                <span style="font-size:12px; font-weight:700; color:#475569;">🪄 一括入力・コピー・時間割反映</span>
+                <button type="button" class="act-pill" style="color:#b91c1c; border-color:#fecaca; background:#fef2f2;" onclick="doClearAll()">🗑️ すべて白紙に戻す</button>
+            </div>
+            <div class="tools-grid" style="margin-top:0;">
                 <div class="tool-card" style="display:${args.eventType === 'timetable' ? 'none' : 'block'};">
                     <div class="tool-header">🪄 一括指定</div>
                     <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; flex-wrap:wrap; font-size:12px;">
@@ -2432,7 +2817,7 @@ function buildEditor(args) {
                     <p style="font-size:11.5px; color:#64748b; margin:0 0 8px 0;">登録済みの時間割を「授」として一括反映します。</p>
                     <button type="button" class="st-btn" style="background:#E91E63; width:100%;" onclick="doTimetable(this)">${ttBtnText}</button>
                 </div>
-            </div>` : ''}
+            </div>
         </div>`;
     }
 
@@ -2446,22 +2831,42 @@ function buildEditor(args) {
             </div>
             <div class="tb-group">
                 <button type="button" class="act-pill" id="btn-undo" onclick="doUndo()" disabled>↩ 戻す</button>
+                ${zoomControls}
+                <button type="button" class="act-pill" id="btn-fp-toggle" onclick="togglePaletteVisibility()">🎨 パレット</button>
                 <button type="button" class="act-pill" id="btn-tools-toggle" onclick="toggleToolsDrawer()">⚙️ 便利機能</button>
                 ${jumpBtns}
             </div>
-        </div>` : (isTimeMode || cols > 7 ? `
+        </div>` : `
         <div class="tb-row">
-            <div class="tb-group"><button type="button" class="act-pill" id="btn-tools-toggle" onclick="toggleToolsDrawer()">🔍 サイズ調整</button></div>
+            <div class="tb-group">${zoomControls}</div>
             ${jumpBtns}
-        </div>` : "");
+        </div>`;
 
-    const toolbarHtml = penControls ? `
+    const toolbarHtml = `
         <div class="editor-toolbar">
             ${penControls}
             ${!isClosed ? `<div class="hint-bar">
-                <span class="hint-pc">💡 ドラッグで入力 ／ 右クリックで消す ／ ダブルクリックでメモ</span>
-                <span class="hint-touch">💡 1本指で塗る ／ 2本指でスクロール ／ 長押しでメモ</span>
+                <span class="hint-pc">💡 ドラッグで塗る ／ 右クリックで消す ／ ダブルクリックでメモ</span>
+                <span class="hint-touch">💡 1本指で塗る ／ 2本指でスクロール＆ピンチ拡大縮小 ／ 長押しでメモ ／ 🎨パレットは指で移動可</span>
             </div>` : ''}
+        </div>`;
+
+    const floatingPaletteHtml = !isClosed ? `
+        <div id="floating-palette" class="fp-box" style="display:none;">
+            <div class="fp-main" id="fp-main">
+                <div class="fp-grip" id="fp-grip" title="ドラッグして移動">⠿</div>
+                <button type="button" class="fp-pen ${selectedMode===1?'active':''}" data-mode="1" onclick="fpSetPen(1)" title="◯ 可">◯</button>
+                <button type="button" class="fp-pen ${selectedMode===2?'active':''}" data-mode="2" onclick="fpSetPen(2)" title="△ 未定">△</button>
+                <button type="button" class="fp-pen ${selectedMode===0?'active':''}" data-mode="0" onclick="fpSetPen(0)" title="× 消す">×</button>
+                <button type="button" class="fp-pen ${selectedMode===-2?'active':''}" data-mode="-2" onclick="fpSetPen(-2)" title="メモ">💬</button>
+                <div class="fp-sep"></div>
+                <button type="button" class="fp-act" id="fp-undo" onclick="fpAction(doUndo)" disabled title="戻す">↩</button>
+                <button type="button" class="fp-act" onclick="fpAction(function(){stepZoom(-0.15);})" title="縮小">−</button>
+                <button type="button" class="fp-act" onclick="fpAction(function(){stepZoom(0.15);})" title="拡大">＋</button>
+                <button type="button" class="fp-act" onclick="fpAction(toggleFpDir)" title="縦横切替">⇄</button>
+                <button type="button" class="fp-act" onclick="fpAction(function(){setFpMinimized(true);})" title="最小化">＿</button>
+            </div>
+            <button type="button" class="fp-fab" id="fp-fab" style="display:none;" onclick="fpAction(function(){setFpMinimized(false);})">🎨 ペンを開く</button>
         </div>` : "";
 
     let timeCellsHtml = "";
@@ -2490,29 +2895,31 @@ function buildEditor(args) {
 
     const submitSection = !isClosed ? `
         <div class="submit-area">
-            <label style="font-size:13.5px; font-weight:700; color:#334155;">📝 全体へのコメント（任意）</label>
+            <label style="font-size:13px; font-weight:700; color:#334155;">📝 全体へのコメント（任意）</label>
             <textarea id="comment-box" rows="2" placeholder="遅刻・早退などの連絡があれば入力">${escapeHtml(args.myComment || "")}</textarea>
             <div id="dirty-badge" class="dirty-badge">⚠️ 未保存の変更があります（「提出」を押すと保存されます）</div>
             <button type="button" id="submit-btn">✅ 回答を保存して提出する</button>
         </div>` : `
         <div class="submit-area">
-            <label style="font-size:13.5px; font-weight:700; color:#334155;">📝 全体へのコメント</label>
+            <label style="font-size:13px; font-weight:700; color:#334155;">📝 全体へのコメント</label>
             <div style="margin-top:6px; padding:10px; background:#f1f5f9; border-radius:8px; font-size:14px; min-height:40px; white-space:pre-wrap;">${escapeHtml(args.myComment || "（なし）")}</div>
         </div>`;
 
     const scrollClass = isTimeMode ? "time-scroll" : "auto-scroll";
-    const lockGridStyle = isClosed ? "pointer-events:none; opacity:0.85;" : "";
+    const lockGridStyle = isClosed ? "opacity:0.85;" : "";
 
+    const root = document.getElementById('app-root');
     root.innerHTML = `
         ${toolbarHtml}
         ${toolsDrawer}
         <div class="top-scroll-wrap" id="top-scroll-wrap"><div class="top-scroll-inner" id="top-scroll-inner"></div></div>
         <div class="scroll-wrapper ${scrollClass}" id="scroll-container">
-            <div id="g" style="grid-template-columns: 62px repeat(${cols}, minmax(68px, 1fr)); ${lockGridStyle}">
+            <div id="g" style="grid-template-columns: var(--time-w) repeat(${cols}, minmax(var(--col-w), 1fr)); ${lockGridStyle}">
                 ${timeColHtml}
                 ${dayColsHtml}
             </div>
         </div>
+        ${floatingPaletteHtml}
         ${submitSection}
     `;
 
@@ -2546,18 +2953,18 @@ function buildEditor(args) {
                 dataType: "json"
             });
             setTimeout(() => {
-                submitBtn.innerText = "✅ すべて記入して提出 (全体が保存されます)";
+                submitBtn.innerText = "✅ 回答を保存して提出する";
                 submitBtn.style.opacity = "1";
                 submitBtn.style.pointerEvents = "auto";
             }, 5000);
         });
     }
 
-    const det = document.getElementById('tools-details');
-    if (det) det.addEventListener('toggle', () => setTimeout(updateFrameHeight, 30));
-
     attachGridEvents();
-    setTimeout(() => { syncTopScrollbar(); updateFrameHeight(); }, 40);
+    attachPaletteDrag();
+    applyZoom(zoomScale, null);
+    updatePaletteUI();
+    setTimeout(() => { syncTopScrollbar(); clampPalettePosition(); updateFrameHeight(); }, 45);
 }
 
 window.addEventListener("message", function(event) {
@@ -2566,6 +2973,7 @@ window.addEventListener("message", function(event) {
     const sig = `${args.eventId}|${args.saveTs}|${args.importTs}|${args.isClosed}|${args.eventType}|${(args.dateStrs||[]).length}`;
     if (lastSig === sig) {
         syncTopScrollbar();
+        clampPalettePosition();
         updateFrameHeight();
         return;
     }
@@ -2573,7 +2981,7 @@ window.addEventListener("message", function(event) {
     buildEditor(args);
 });
 
-window.addEventListener('resize', () => { syncTopScrollbar(); updateFrameHeight(); });
+window.addEventListener('resize', () => { syncTopScrollbar(); clampPalettePosition(); updateFrameHeight(); });
 const ro = new ResizeObserver(() => updateFrameHeight());
 ro.observe(document.getElementById('app-root'));
 sendMsg("streamlit:componentReady", {apiVersion: 1});
@@ -2583,31 +2991,49 @@ sendMsg("streamlit:componentReady", {apiVersion: 1});
 AGG_VIEWER_V1_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: transparent; }
 * { box-sizing: border-box; }
-#app-root { --cell-h: 36px; padding: 2px 2px 6px 2px; }
+#app-root {
+    --cell-h: 36px; --col-w: 66px; --time-w: 58px; --head-h: 46px;
+    --cell-font: 13.5px; --head-font: 11.5px;
+    padding: 2px 2px 6px 2px;
+}
 
 .agg-toolbar {
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-    gap: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px;
-    padding: 8px 12px; margin-bottom: 8px;
+    gap: 6px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px;
+    padding: 6px 10px; margin-bottom: 6px;
 }
-.tb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: #334155; font-weight: 700; }
+.tb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: #334155; font-weight: 700; }
 .grad-bar {
-    width: 72px; height: 10px; border-radius: 999px; border: 1px solid #cbd5e1;
+    width: 64px; height: 10px; border-radius: 999px; border: 1px solid #cbd5e1;
     background: linear-gradient(90deg, #f3faf4, #1b5e20); display: inline-block;
 }
-.size-pill, .jump-pill {
+.jump-pill {
     border: 1px solid #cbd5e1; background: #fff; color: #334155;
-    padding: 4px 9px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
+    padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
-.size-pill.active { background: #1e293b; color: #fff; border-color: #1e293b; }
 .jump-pill:hover { background: #e2e8f0; }
 
+.zoom-group {
+    display: inline-flex; align-items: center; border: 1px solid #cbd5e1;
+    border-radius: 8px; overflow: hidden; background: #fff;
+}
+.zoom-btn {
+    border: none; background: #f8fafc; color: #1e293b; padding: 4px 8px;
+    font-size: 12px; font-weight: 800; cursor: pointer; line-height: 1.2;
+}
+.zoom-btn:hover { background: #e2e8f0; }
+.zoom-lbl {
+    border: none; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;
+    background: #fff; color: #334155; padding: 4px 7px; font-size: 11px; font-weight: 800;
+    cursor: pointer; min-width: 44px; text-align: center;
+}
+
 .top-scroll-wrap {
-    overflow-x: auto; overflow-y: hidden; width: 100%; height: 16px;
-    margin-bottom: 4px; display: none;
+    overflow-x: auto; overflow-y: hidden; width: 100%; height: 14px;
+    margin-bottom: 3px; display: none;
     scrollbar-width: auto; scrollbar-color: #94a3b8 #f1f5f9;
 }
-.top-scroll-wrap::-webkit-scrollbar { height: 10px; }
+.top-scroll-wrap::-webkit-scrollbar { height: 9px; }
 .top-scroll-wrap::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
 .top-scroll-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
 .top-scroll-inner { height: 1px; }
@@ -2618,9 +3044,12 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
     border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; position: relative;
     scrollbar-width: auto; scrollbar-color: #94a3b8 #f1f5f9;
 }
-.agg-scroll.time-scroll { max-height: 560px; height: auto; }
+.agg-scroll.time-scroll { max-height: 550px; height: auto; }
+@media (max-width: 650px) {
+    .agg-scroll.time-scroll { max-height: 450px; }
+}
 .agg-scroll.auto-scroll { max-height: none; height: auto; }
-.agg-scroll::-webkit-scrollbar { width: 11px; height: 11px; }
+.agg-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
 .agg-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
 .agg-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 2px solid #f1f5f9; }
 .agg-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
@@ -2633,12 +3062,12 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .agg-top-left {
     position: sticky; top: 0; left: 0; z-index: 25; background: #f1f5f9;
     border-right: 1px solid #cbd5e1; border-bottom: 2px solid #475569;
-    height: 48px; box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
+    height: var(--head-h); box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; color: #64748b; font-weight: 700;
+    font-size: 10.5px; color: #64748b; font-weight: 700;
 }
 .agg-time-cell {
-    background: #f1f5f9; font-size: 11px; font-weight: 700; color: #475569;
+    background: #f1f5f9; font-size: 10.5px; font-weight: 700; color: #475569;
     display: flex; align-items: center; justify-content: center;
     height: var(--cell-h); border-right: 1px solid #cbd5e1; overflow: hidden;
 }
@@ -2646,18 +3075,18 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .agg-day-col.week-break { border-left: 2px solid #64748b; }
 .agg-header {
     position: sticky; top: 0; z-index: 12; background: #f8fafc;
-    font-size: 12px; font-weight: 800; text-align: center; color: #1e293b;
+    font-size: var(--head-font); font-weight: 800; text-align: center; color: #1e293b;
     border-bottom: 2px solid #475569; border-right: 1px solid #e2e8f0;
-    height: 48px; display: flex; align-items: center; justify-content: center;
-    padding: 4px 2px; line-height: 1.25;
+    height: var(--head-h); display: flex; align-items: center; justify-content: center;
+    padding: 3px 2px; line-height: 1.2; overflow: hidden;
 }
 .agg-header.day-sat { background: #eff6ff; color: #1d4ed8; }
 .agg-header.day-sun { background: #fef2f2; color: #dc2626; }
 
 .agg-cell {
     border-right: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center;
-    height: var(--cell-h); font-weight: 800; position: relative; cursor: pointer;
-    transition: filter 0.1s; -webkit-tap-highlight-color: rgba(16,185,129,0.22);
+    height: var(--cell-h); font-size: var(--cell-font); font-weight: 800; position: relative; cursor: pointer;
+    transition: filter 0.1s; -webkit-tap-highlight-color: rgba(16,185,129,0.22); overflow: hidden;
 }
 @media (hover: hover) and (pointer: fine) {
     .agg-cell:hover { filter: brightness(0.95); }
@@ -2676,7 +3105,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
 .my-badge-yes { background: #1565C0; color: #fff; }
 .my-badge-maybe { background: #EF6C00; color: #fff; }
 
-/* PC用ホバープレビュー（位置動的計算・はみ出しゼロ） */
+/* PC用ホバープレビュー */
 #agg-hover {
     display: none; position: fixed; z-index: 99998; pointer-events: none;
     width: 240px; max-height: calc(100vh - 16px); overflow: hidden;
@@ -2685,7 +3114,7 @@ html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFo
     box-shadow: 0 10px 26px rgba(0,0,0,0.35);
 }
 
-/* スマホ・PC共通 タップ/クリック即時モーダル（画面中央に確実に表示） */
+/* スマホ・PC共通 タップ/クリック即時モーダル */
 #agg-modal {
     display: none; position: fixed; inset: 0; z-index: 999999;
     background: rgba(15, 23, 42, 0.48); backdrop-filter: blur(2px);
@@ -2756,6 +3185,11 @@ let lastTouchTime = 0;
 let lastTapHandledAt = 0;
 let isSyncingScroll = false;
 
+let aggZoomScale = 1.0;
+let aggBaseCellH = 36;
+const AGG_BASE_COL_W = 66;
+const AGG_BASE_TIME_W = 58;
+
 function getBorderTop(tStr, eventType) {
     if (eventType === "timetable" || eventType === "date_timetable") return "1px solid #cbd5e1";
     if (tStr.endsWith(":00")) return "2px solid #475569";
@@ -2777,15 +3211,45 @@ function syncTopScrollbar() {
     }
 }
 
-window.setAggSize = function(px) {
+function applyAggZoom(newScale, anchor) {
+    aggZoomScale = Math.max(0.55, Math.min(1.65, Math.round(newScale * 100) / 100));
     const root = document.getElementById('app-root');
-    if (root) root.style.setProperty('--cell-h', px + 'px');
-    document.querySelectorAll('.size-pill').forEach(b => {
-        b.classList.toggle('active', parseInt(b.dataset.size, 10) === px);
+    if (!root) return;
+
+    const cellH = Math.max(18, Math.round(aggBaseCellH * aggZoomScale));
+    const colW = Math.max(36, Math.round(AGG_BASE_COL_W * aggZoomScale));
+    const timeW = Math.max(44, Math.round(AGG_BASE_TIME_W * Math.max(0.76, Math.min(1.15, aggZoomScale))));
+    const headH = Math.max(34, Math.round(46 * Math.max(0.78, Math.min(1.15, aggZoomScale))));
+    const cellFont = Math.max(9.5, Math.round(13.5 * Math.max(0.72, Math.min(1.25, aggZoomScale)) * 10) / 10);
+    const headFont = Math.max(9.5, Math.round(11.5 * Math.max(0.78, Math.min(1.15, aggZoomScale)) * 10) / 10);
+
+    root.style.setProperty('--cell-h', cellH + 'px');
+    root.style.setProperty('--col-w', colW + 'px');
+    root.style.setProperty('--time-w', timeW + 'px');
+    root.style.setProperty('--head-h', headH + 'px');
+    root.style.setProperty('--cell-font', cellFont + 'px');
+    root.style.setProperty('--head-font', headFont + 'px');
+
+    const zLbl = document.getElementById('agg-zoom-lbl');
+    if (zLbl) zLbl.textContent = Math.round(aggZoomScale * 100) + '%';
+
+    if (anchor && anchor.sc) {
+        anchor.sc.scrollLeft = Math.max(0, anchor.ratioX * anchor.sc.scrollWidth - anchor.relX);
+        anchor.sc.scrollTop = Math.max(0, anchor.ratioY * anchor.sc.scrollHeight - anchor.relY);
+    }
+
+    requestAnimationFrame(() => {
+        syncTopScrollbar();
+        updateFrameHeight();
     });
-    const fontSz = px <= 22 ? '11px' : '14px';
-    document.querySelectorAll('.agg-cell').forEach(c => c.style.fontSize = fontSz);
-    setTimeout(() => { syncTopScrollbar(); updateFrameHeight(); }, 30);
+}
+
+window.stepAggZoom = function(delta) {
+    applyAggZoom(aggZoomScale + delta, null);
+};
+
+window.resetAggZoom = function() {
+    applyAggZoom(1.0, null);
 };
 
 window.scrollAggX = function(delta) {
@@ -2898,7 +3362,7 @@ function openDetailPanel(cell, r, c) {
 }
 
 function showHover(cell, r, c) {
-    if (Date.now() - lastTouchTime < 700) return;
+    if (Date.now() - lastTouchTime < 900) return;
     const pop = document.getElementById('agg-hover');
     const info = (aggArgs.cellInfo || {})[`${r}_${c}`];
     if (!pop || !info) return;
@@ -2952,11 +3416,7 @@ function buildAgg(args) {
     const cols = args.dateStrs.length;
     const rows = args.timeLabels.length;
     const isTimeMode = !!args.isTimeMode;
-    const defH = args.defaultCellH || 36;
-    const fontSz = defH <= 22 ? '11px' : '14px';
-
-    const root = document.getElementById('app-root');
-    root.style.setProperty('--cell-h', defH + 'px');
+    aggBaseCellH = args.defaultCellH || (isTimeMode ? 34 : 46);
 
     const myLegend = args.showMyOverlay
         ? `<span style="color:#1565C0;">■ 自分の◯</span> <span style="color:#EF6C00;">■ 自分の△</span>`
@@ -2965,14 +3425,15 @@ function buildAgg(args) {
         ? `<span style="color:#64748b;">▨ 必須条件NG</span>`
         : "";
 
-    const sizeBtns = isTimeMode ? `
-        <button type="button" class="size-pill ${defH===22?'active':''}" data-size="22" onclick="setAggSize(22)">小</button>
-        <button type="button" class="size-pill ${defH===36?'active':''}" data-size="36" onclick="setAggSize(36)">標準</button>
-        <button type="button" class="size-pill ${defH===50?'active':''}" data-size="50" onclick="setAggSize(50)">大</button>` : "";
-    const jumpBtns = cols > 7 ? `
-        <button type="button" class="jump-pill" onclick="scrollAggX(-280)">◀</button>
-        <span>全${cols}日</span>
-        <button type="button" class="jump-pill" onclick="scrollAggX(280)">▶</button>` : "";
+    const zoomBtns = `
+        <div class="zoom-group" title="集計表の縮小・拡大">
+            <button type="button" class="zoom-btn" onclick="stepAggZoom(-0.15)">🔍−</button>
+            <button type="button" class="zoom-lbl" id="agg-zoom-lbl" onclick="resetAggZoom()">100%</button>
+            <button type="button" class="zoom-btn" onclick="stepAggZoom(0.15)">＋</button>
+        </div>`;
+    const jumpBtns = cols > 6 ? `
+        <button type="button" class="jump-pill" onclick="scrollAggX(-240)">◀</button>
+        <button type="button" class="jump-pill" onclick="scrollAggX(240)">▶</button>` : "";
 
     const toolbar = `
         <div class="agg-toolbar">
@@ -2980,9 +3441,9 @@ function buildAgg(args) {
                 <span>少</span><span class="grad-bar"></span><span>多</span>
                 ${reqLegend}
                 ${myLegend}
-                <span style="font-weight:500; color:#64748b;">（マスをタップ/クリックで内訳表示）</span>
+                <span style="font-weight:500; color:#64748b;">（タップで内訳 ／ 2本指ピンチで拡大縮小）</span>
             </div>
-            ${(sizeBtns || jumpBtns) ? `<div class="tb-group">${sizeBtns}${jumpBtns}</div>` : ''}
+            <div class="tb-group">${zoomBtns}${jumpBtns}</div>
         </div>`;
 
     let timeCells = "";
@@ -3028,17 +3489,18 @@ function buildAgg(args) {
                     myBadge = `<span class="my-badge my-badge-maybe">△</span>`;
                 }
             }
-            cells += `<div class="agg-cell ${reqCls} ${myCls}" data-r="${r}" data-c="${c}" style="background-color:${bg}; color:${txtCol}; border-top:${bTop}; font-size:${fontSz};">${escapeHtml(valTxt)}${myBadge}</div>`;
+            cells += `<div class="agg-cell ${reqCls} ${myCls}" data-r="${r}" data-c="${c}" style="background-color:${bg}; color:${txtCol}; border-top:${bTop};">${escapeHtml(valTxt)}${myBadge}</div>`;
         }
         dayCols += `<div class="agg-day-col ${wkCls}"><div class="agg-header ${kindCls}">${lbl}</div>${cells}</div>`;
     }
 
     const scrollCls = isTimeMode ? "time-scroll" : "auto-scroll";
+    const root = document.getElementById('app-root');
     root.innerHTML = `
         ${toolbar}
         <div class="top-scroll-wrap" id="agg-top-scroll"><div class="top-scroll-inner" id="agg-top-inner"></div></div>
         <div class="agg-scroll ${scrollCls}" id="agg-scroll">
-            <div id="agg-grid" style="grid-template-columns: 62px repeat(${cols}, minmax(68px, 1fr));">
+            <div id="agg-grid" style="grid-template-columns: var(--time-w) repeat(${cols}, minmax(var(--col-w), 1fr));">
                 ${timeCol}
                 ${dayCols}
             </div>
@@ -3060,10 +3522,26 @@ function buildAgg(args) {
     }
 
     const grid = document.getElementById('agg-grid');
-    if (grid) {
+    if (grid && sc) {
         let tapStart = null;
+        let pinchDist = 0;
+        let pinchCenter = null;
+
         grid.addEventListener('touchstart', e => {
             lastTouchTime = Date.now();
+            if (e.touches.length >= 2) {
+                tapStart = null;
+                pinchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                pinchCenter = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+                if (e.cancelable) e.preventDefault();
+                return;
+            }
             if (e.touches.length === 1) {
                 const cell = e.target.closest('.agg-cell');
                 tapStart = cell ? {
@@ -3072,12 +3550,53 @@ function buildAgg(args) {
                     t: Date.now(),
                     cell: cell
                 } : null;
-            } else {
-                tapStart = null;
             }
-        }, {passive: true});
+        }, {passive: false});
+
+        grid.addEventListener('touchmove', e => {
+            lastTouchTime = Date.now();
+            if (e.touches.length >= 2) {
+                tapStart = null;
+                if (e.cancelable) e.preventDefault();
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const center = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+                if (pinchCenter) {
+                    sc.scrollLeft -= (center.x - pinchCenter.x);
+                    sc.scrollTop -= (center.y - pinchCenter.y);
+                }
+                pinchCenter = center;
+                if (pinchDist > 24 && dist > 24) {
+                    const ratio = dist / pinchDist;
+                    if (Math.abs(ratio - 1) > 0.025) {
+                        const rect = sc.getBoundingClientRect();
+                        const relX = center.x - rect.left;
+                        const relY = center.y - rect.top;
+                        const ratioX = (sc.scrollLeft + relX) / Math.max(1, sc.scrollWidth);
+                        const ratioY = (sc.scrollTop + relY) / Math.max(1, sc.scrollHeight);
+                        applyAggZoom(aggZoomScale * ratio, {sc: sc, relX: relX, relY: relY, ratioX: ratioX, ratioY: ratioY});
+                        pinchDist = dist;
+                    }
+                }
+                return;
+            }
+            if (tapStart && e.touches.length === 1) {
+                const dx = e.touches[0].clientX - tapStart.x;
+                const dy = e.touches[0].clientY - tapStart.y;
+                if (Math.hypot(dx, dy) > 10) tapStart = null;
+            }
+        }, {passive: false});
 
         grid.addEventListener('touchend', e => {
+            if (e.touches.length === 0) {
+                pinchDist = 0;
+                pinchCenter = null;
+            }
             if (!tapStart || e.changedTouches.length !== 1) { tapStart = null; return; }
             const ct = e.changedTouches[0];
             const dist = Math.hypot(ct.clientX - tapStart.x, ct.clientY - tapStart.y);
@@ -3091,7 +3610,11 @@ function buildAgg(args) {
             }
         }, {passive: true});
 
-        grid.addEventListener('touchcancel', () => { tapStart = null; }, {passive: true});
+        grid.addEventListener('touchcancel', () => {
+            tapStart = null;
+            pinchDist = 0;
+            pinchCenter = null;
+        }, {passive: true});
 
         grid.addEventListener('mouseover', e => {
             const cell = e.target.closest('.agg-cell');
@@ -3111,6 +3634,7 @@ function buildAgg(args) {
         });
     }
 
+    applyAggZoom(aggZoomScale, null);
     setTimeout(() => { syncTopScrollbar(); updateFrameHeight(); }, 40);
 }
 
@@ -3260,8 +3784,8 @@ def ensure_components():
         "rt_editor": RT_EDITOR_HTML,
         "auth_storage_v1": AUTH_STORAGE_HTML,
         "options_editor_v2": OPTIONS_EDITOR_V2_HTML,
-        "custom_editor_v16": CUSTOM_EDITOR_V15_HTML,
-        "agg_viewer_v2": AGG_VIEWER_V1_HTML,
+        "custom_editor_v17": CUSTOM_EDITOR_V15_HTML,
+        "agg_viewer_v3": AGG_VIEWER_V1_HTML,
         "type_picker_v1": TYPE_PICKER_V1_HTML,
     }
     for folder, content in specs.items():
@@ -3278,8 +3802,8 @@ ensure_components()
 rt_editor = components.declare_component("rt_editor", path=os.path.join(BASE_DIR, "rt_editor"))
 auth_storage = components.declare_component("auth_storage", path=os.path.join(BASE_DIR, "auth_storage_v1"))
 options_editor = components.declare_component("options_editor", path=os.path.join(BASE_DIR, "options_editor_v2"))
-grid_editor = components.declare_component("grid_editor", path=os.path.join(BASE_DIR, "custom_editor_v16"))
-agg_viewer = components.declare_component("agg_viewer", path=os.path.join(BASE_DIR, "agg_viewer_v2"))
+grid_editor = components.declare_component("grid_editor", path=os.path.join(BASE_DIR, "custom_editor_v17"))
+agg_viewer = components.declare_component("agg_viewer", path=os.path.join(BASE_DIR, "agg_viewer_v3"))
 type_picker = components.declare_component("type_picker", path=os.path.join(BASE_DIR, "type_picker_v1"))
 
 
@@ -3484,56 +4008,63 @@ def _do_logout():
 
 
 def render_top_navigation(user, unanswered_events):
+    """メイン画面の上部を広く使えるよう、左サイドバーへメニューを集約し、折りたたみ時は左上「メニュー」ピルを強調表示する"""
     role = user.get("role", "guest")
     active_groups = [str(user.get(f"group_{i}", "")).strip() for i in range(1, 5)]
     active_groups = [g for g in active_groups if g]
-    group_str = (
-        f"<span style='color:#475569; font-size:0.88em; margin-left:8px;'>({' / '.join(active_groups)})</span>"
-        if active_groups
-        else "<span style='color:#94a3b8; font-size:0.88em; margin-left:8px;'>(未所属)</span>"
-    )
+    group_txt = " / ".join(active_groups) if active_groups else "未所属"
     role_emoji = {"top_admin": "👑", "admin": "🛠️", "user": "📝", "guest": "👤"}.get(role, "👤")
 
+    u_cnt = len(unanswered_events)
+    menu_pill_txt = f"メニュー 🔴{u_cnt}" if u_cnt > 0 else "メニュー"
     st.markdown(
-        f'<div class="user-header">'
-        f'<div style="font-size:1.05em;"><b>{role_emoji} {html_lib.escape(user.get("name", ""))}</b> さん {group_str}</div>'
-        f'<div style="font-size:0.8em; background:#e2e8f0; color:#334155; padding:3px 9px; border-radius:12px; font-weight:700;">ID: {html_lib.escape(str(user.get("user_id", "")))}</div>'
-        f'</div>',
+        f"<style>:root {{ --sss-menu-label: {json.dumps(menu_pill_txt, ensure_ascii=False)}; }}</style>",
         unsafe_allow_html=True,
     )
 
-    u_cnt = len(unanswered_events)
-    dash_lbl = f"📅 日程調整 (🔴{u_cnt})" if u_cnt > 0 else "📅 日程調整"
+    dash_lbl = f"📅 日程調整・一覧 (🔴未回答 {u_cnt})" if u_cnt > 0 else "📅 日程調整・一覧"
     nav_items = [
         ("dashboard", dash_lbl),
-        ("timetable", "⏰ 時間割"),
+        ("timetable", "⏰ 時間割の登録"),
     ]
     if role in ["user", "admin", "top_admin"]:
-        nav_items.append(("create", "➕ 新規作成"))
+        nav_items.append(("create", "➕ イベント新規作成"))
     nav_items.extend([
-        ("profile", "👤 プロフ"),
-        ("guide", "📖 ガイド"),
+        ("profile", "👤 プロフィール設定"),
+        ("guide", "📖 使い方ガイド"),
     ])
     if role in ["admin", "top_admin"]:
-        nav_items.append(("admin", "⚙️ 管理"))
+        nav_items.append(("admin", "⚙️ 管理者メニュー"))
 
     if st.session_state.get("current_menu") not in [k for k, _ in nav_items]:
         st.session_state.current_menu = "dashboard"
     cur_menu = st.session_state.current_menu
 
-    # スマホ対応のコンパクト上部ナビバー
-    st.markdown('<div class="sss-compact-nav-marker"></div>', unsafe_allow_html=True)
-    nav_cols = st.columns(len(nav_items) + 1)
-    for idx, (m_key, m_lbl) in enumerate(nav_items):
-        with nav_cols[idx]:
+    with st.sidebar:
+        st.markdown(_compact_html(f"""
+        <div style="font-size:18px; font-weight:900; color:#064e3b; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+            <span>📅 SSScheduler</span>
+        </div>
+        <div class="sb-user-card">
+            <div style="font-size:14.5px; font-weight:800; color:#0f172a;">{role_emoji} {html_lib.escape(user.get("name", ""))} さん</div>
+            <div style="font-size:11.5px; color:#475569; margin-top:3px;">{html_lib.escape(group_txt)}</div>
+            <div style="margin-top:6px;">
+                <span style="font-size:11px; background:#e2e8f0; color:#334155; padding:2px 8px; border-radius:999px; font-weight:700;">ID: {html_lib.escape(str(user.get("user_id", "")))}</span>
+            </div>
+        </div>
+        """), unsafe_allow_html=True)
+
+        st.caption("🧭 メニュー切り替え")
+        for m_key, m_lbl in nav_items:
             b_type = "primary" if cur_menu == m_key else "secondary"
-            if st.button(m_lbl, key=f"top_nav_{m_key}", use_container_width=True, type=b_type):
+            if st.button(m_lbl, key=f"sb_nav_{m_key}", use_container_width=True, type=b_type):
                 if m_key == "dashboard" and cur_menu == "dashboard":
                     st.session_state.target_ev_id = ""
                 st.session_state.current_menu = m_key
                 st.rerun()
-    with nav_cols[-1]:
-        if st.button("🚪 ログアウト", key="top_nav_logout", use_container_width=True):
+
+        st.markdown("---")
+        if st.button("🚪 ログアウト", key="sb_nav_logout", use_container_width=True):
             _do_logout()
 
 
@@ -3767,139 +4298,151 @@ def render_timetable_settings_view(user):
 
 
 def render_guide_view():
-    st.markdown("""
-    <style>
-    .g-hero {
-        background: linear-gradient(135deg, #ecfdf5, #eff6ff);
-        border: 1px solid #cbd5e1; border-radius: 16px;
-        padding: 18px 20px; margin-bottom: 16px;
-    }
-    .g-hero h2 { margin: 0 0 6px 0; font-size: 22px; color: #0f172a; }
-    .g-hero p { margin: 0; font-size: 13.5px; color: #475569; line-height: 1.6; }
-    .g-grid {
-        display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px;
-    }
-    @media (max-width: 720px) { .g-grid { grid-template-columns: 1fr; } }
-    .g-card {
-        background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px;
-        padding: 15px 16px; box-shadow: 0 2px 8px rgba(15,23,42,0.04);
-    }
-    .g-step {
-        display: inline-block; font-size: 11px; font-weight: 800; color: #047857;
-        background: #dcfce7; padding: 2px 9px; border-radius: 999px; margin-bottom: 6px;
-    }
-    .g-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
-    .g-text { font-size: 13px; color: #334155; line-height: 1.65; margin: 0; }
-    .g-demo-box {
-        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
-        padding: 10px; margin: 10px 0;
-    }
-    .g-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-    .g-pill {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800;
-    }
-    .g-switch {
-        display: flex; gap: 6px; background: #e2e8f0; padding: 4px; border-radius: 10px;
-    }
-    .g-switch-btn {
-        flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 800;
-    }
-    .g-kbd {
-        display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1;
-        border-radius: 5px; padding: 1px 6px; font-size: 11.5px; font-weight: 700; color: #1e293b;
-    }
-    </style>
-
-    <div class="g-hero">
-        <h2>📖 SSScheduler かんたん使い方ガイド</h2>
-        <p>はじめて使う方でも <b>30秒で迷わず入力・確認</b> できるように、画面イメージ付きで基本操作と便利機能をまとめました。</p>
-    </div>
-
-    <div class="g-grid">
-        <div class="g-card">
-            <span class="g-step">STEP 1・画面の見方</span>
-            <div class="g-title">🔄 「入力」と「みんなの集計」を切り替える</div>
-            <p class="g-text">イベントを開くと上部に大きな切り替えボタンがあります。自分の予定を提出すると、<b>自動で「みんなの集計」へ移動</b>します。</p>
-            <div class="g-demo-box">
-                <div class="g-switch">
-                    <div class="g-switch-btn" style="background:#ef4444; color:#fff;">✏️ 予定を入力する</div>
-                    <div class="g-switch-btn" style="background:#fff; color:#334155;">📊 みんなの集計 (12名)</div>
-                </div>
-            </div>
-            <p class="g-text">提出後も「✏️ 回答を修正」からいつでも何度でも書き直せます。</p>
-        </div>
-
-        <div class="g-card">
-            <span class="g-step">STEP 2・色の意味</span>
-            <div class="g-title">🎨 ペンを選んでカレンダーをなぞるだけ</div>
-            <p class="g-text">参加できる時間帯をペンで塗って、一番下の赤い <b>「✅ 回答を保存して提出」</b> を押せば完了です。</p>
-            <div class="g-demo-box">
-                <div class="g-pill-row">
-                    <span class="g-pill" style="background:#4CAF50; color:#fff;">🟢 ◯ 可（参加OK）</span>
-                    <span class="g-pill" style="background:#FFEB3B; color:#333;">🟡 △ 未定（微妙）</span>
-                    <span class="g-pill" style="background:#fff; color:#475569; border:1px solid #cbd5e1;">⚪ × 不可（消す）</span>
-                    <span class="g-pill" style="background:#e2e8f0; color:#475569;">授 授業等</span>
-                    <span class="g-pill" style="background:#e0f2fe; color:#0369a1;">💬 メモ付き</span>
-                </div>
-            </div>
-            <p class="g-text">間違えて塗っても <b>↩ 戻す</b> ボタンで直前に戻せます。</p>
-        </div>
-
-        <div class="g-card">
-            <span class="g-step">STEP 3・操作のコツ</span>
-            <div class="g-title">📱 スマホ ＆ 💻 PC 快適操作チートシート</div>
-            <div class="g-demo-box">
-                <div style="font-size:12.5px; font-weight:800; color:#0369a1; margin-bottom:4px;">📱 スマートフォン</div>
-                <div class="g-text" style="font-size:12.5px;">
-                    ・<b>1本指でなぞる</b> → マスを連続で塗る<br>
-                    ・<b>2本指で動かす</b> → 塗らずに上下左右スクロール<br>
-                    ・<b>時刻・日付欄</b> → 1本指でもそのままスクロール可<br>
-                    ・<b>マスを長押し</b> → 「遅刻します」などの時間メモ入力
-                </div>
-                <hr style="margin:8px 0; border:0; border-top:1px dashed #cbd5e1;">
-                <div style="font-size:12.5px; font-weight:800; color:#047857; margin-bottom:4px;">💻 パソコン</div>
-                <div class="g-text" style="font-size:12.5px;">
-                    ・<span class="g-kbd">左ドラッグ</span> 塗る ／ <span class="g-kbd">右クリック・右ドラッグ</span> すぐ消す<br>
-                    ・<span class="g-kbd">ダブルクリック</span> その時間枠に詳細メモを追加<br>
-                    ・<span class="g-kbd">Shift + ホイール</span> またはトラックパッド2本指で横移動
-                </div>
-            </div>
-        </div>
-
-        <div class="g-card">
-            <span class="g-step">STEP 4・集計と決定</span>
-            <div class="g-title">🏆 集計の見方 ＆ ワンタップでカレンダー登録</div>
-            <p class="g-text">集計画面では <b>「🏆 おすすめ候補」</b> が自動で上位表示されます。緑が濃いマスほど参加できる人が多い時間帯です。</p>
-            <div class="g-demo-box">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; font-weight:700;">
-                    <span>少</span>
-                    <div style="flex:1; height:10px; border-radius:999px; background:linear-gradient(90deg, #f0faf2, #1b5e20);"></div>
-                    <span>多</span>
-                </div>
-                <div style="font-size:12px; color:#334155;">
-                    👆 <b>マスをタップ／クリック</b>すると、その時間の <b>◯ 参加可 / △ 未定 / × 不可</b> のメンバーとメモがポップアップ表示されます。
-                </div>
-            </div>
-            <p class="g-text">絞り込みや必須メンバー指定は <b>「⚙️ 表示設定・絞り込み」</b> から開けます。</p>
-        </div>
-    </div>
-
+    st.markdown(_compact_html("""
+<style>
+.g-hero {
+    background: linear-gradient(135deg, #ecfdf5, #eff6ff);
+    border: 1px solid #cbd5e1; border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 14px;
+}
+.g-hero h2 { margin: 0 0 6px 0; font-size: 21px; color: #0f172a; }
+.g-hero p { margin: 0; font-size: 13.5px; color: #475569; line-height: 1.6; }
+.g-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px;
+}
+@media (max-width: 720px) { .g-grid { grid-template-columns: 1fr; } }
+.g-card {
+    background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 15px 16px; box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+}
+.g-step {
+    display: inline-block; font-size: 11px; font-weight: 800; color: #047857;
+    background: #dcfce7; padding: 2px 9px; border-radius: 999px; margin-bottom: 6px;
+}
+.g-title { font-size: 15.5px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+.g-text { font-size: 13px; color: #334155; line-height: 1.65; margin: 0; }
+.g-demo-box {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 10px; margin: 10px 0;
+}
+.g-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.g-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800;
+}
+.g-switch {
+    display: flex; gap: 6px; background: #e2e8f0; padding: 4px; border-radius: 10px;
+}
+.g-switch-btn {
+    flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 800;
+}
+.g-kbd {
+    display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1;
+    border-radius: 5px; padding: 1px 6px; font-size: 11.5px; font-weight: 700; color: #1e293b;
+}
+.g-fp-mock {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #0f172a; color: #fff; border-radius: 999px;
+    padding: 5px 10px; font-size: 12px; font-weight: 800; margin-top: 8px;
+}
+.g-fp-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900;
+}
+</style>
+<div class="g-hero">
+    <h2>📖 SSScheduler かんたん使い方ガイド</h2>
+    <p>はじめて使う方でも <b>30秒で迷わず入力・確認</b> できるよう、画面イメージ付きで基本操作と便利機能をまとめました。他のページへ移動するときは左上の <b>「メニュー」</b> ボタン（PCは左サイドバー）を開いてください。</p>
+</div>
+<div class="g-grid">
     <div class="g-card">
-        <span class="g-step">⚡ 時短テクニック</span>
-        <div class="g-title">🚀 毎回手入力しなくてOK！自動入力＆カレンダー連携</div>
-        <div class="g-grid" style="margin-bottom:0; margin-top:8px;">
-            <div class="g-demo-box" style="margin:0;">
-                <div style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:4px;">⏰ 1. 自分の時間割を登録しておく</div>
-                <p class="g-text" style="font-size:12.5px;">上部メニューの <b>「⏰ 時間割」</b> で授業を一度登録しておくと、入力画面の <b>「⚙️ 便利機能」→「時間割反映」</b> から1タップで授業コマを自動ブロックできます。</p>
+        <span class="g-step">STEP 1・画面の見方</span>
+        <div class="g-title">🔄 「入力」と「みんなの集計」を切り替える</div>
+        <p class="g-text">イベントを開くとすぐ上に切り替えボタンがあります。自分の予定を提出すると、<b>自動で「みんなの集計」へ移動</b>します。</p>
+        <div class="g-demo-box">
+            <div class="g-switch">
+                <div class="g-switch-btn" style="background:#ef4444; color:#fff;">✏️ 予定を入力する</div>
+                <div class="g-switch-btn" style="background:#fff; color:#334155;">📊 みんなの集計 (12名)</div>
             </div>
-            <div class="g-demo-box" style="margin:0;">
-                <div style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:4px;">📌 2. 開催日時が決まったら1タップ登録</div>
-                <p class="g-text" style="font-size:12.5px;">主催者が日時を確定するとイベント上部に緑の決定カードが表示されます。<b>「📅 Googleカレンダーに追加」</b> や <b>「📥 .ics保存」</b> で自分の予定表へすぐ登録できます。</p>
+        </div>
+        <p class="g-text">提出後も「✏️ 回答を修正」からいつでも何度でも書き直せます。</p>
+    </div>
+    <div class="g-card">
+        <span class="g-step">STEP 2・色の意味とパレット</span>
+        <div class="g-title">🎨 ペンを選んでカレンダーをなぞるだけ</div>
+        <p class="g-text">参加できる時間帯をペンで塗って、下の赤い <b>「✅ 回答を保存して提出する」</b> を押せば完了です。</p>
+        <div class="g-demo-box">
+            <div class="g-pill-row">
+                <span class="g-pill" style="background:#4CAF50; color:#fff;">🟢 ◯ 可（参加OK）</span>
+                <span class="g-pill" style="background:#FFEB3B; color:#333;">🟡 △ 未定（微妙）</span>
+                <span class="g-pill" style="background:#fff; color:#475569; border:1px solid #cbd5e1;">⚪ × 不可（消す）</span>
+                <span class="g-pill" style="background:#e2e8f0; color:#475569;">授 授業等</span>
+                <span class="g-pill" style="background:#e0f2fe; color:#0369a1;">💬 メモ付き</span>
+            </div>
+            <div>
+                <span class="g-fp-mock">
+                    <span style="color:#94a3b8;">⠿</span>
+                    <span class="g-fp-dot" style="background:#4CAF50; color:#fff;">◯</span>
+                    <span class="g-fp-dot" style="background:#FFEB3B; color:#1e293b;">△</span>
+                    <span class="g-fp-dot" style="background:#f8fafc; color:#0f172a;">×</span>
+                    <span style="font-size:11px; color:#cbd5e1;">← 指で好きな位置へ動かせるパレット</span>
+                </span>
+            </div>
+        </div>
+        <p class="g-text">スマホでは画面上に浮かぶ黒いペンパレットを指でドラッグして手元に置けるため、上下に戻る手間がありません。</p>
+    </div>
+    <div class="g-card">
+        <span class="g-step">STEP 3・操作のコツ</span>
+        <div class="g-title">📱 スマホ ＆ 💻 PC 快適操作チートシート</div>
+        <div class="g-demo-box">
+            <div style="font-size:12.5px; font-weight:800; color:#0369a1; margin-bottom:4px;">📱 スマートフォン</div>
+            <div class="g-text" style="font-size:12.5px;">
+                ・<b>1本指でなぞる</b> → マスを連続で塗る<br>
+                ・<b>2本指で動かす</b> → 塗らずに上下左右スクロール<br>
+                ・<b>2本指でピンチ操作（または 🔍−/＋）</b> → 予定表を自由にズーム拡大・縮小<br>
+                ・<b>マスを長押し（または 💬 ペン）</b> → 「遅刻します」などの時間メモ入力
+            </div>
+            <hr style="margin:8px 0; border:0; border-top:1px dashed #cbd5e1;">
+            <div style="font-size:12.5px; font-weight:800; color:#047857; margin-bottom:4px;">💻 パソコン</div>
+            <div class="g-text" style="font-size:12.5px;">
+                ・<span class="g-kbd">左ドラッグ</span> 塗る ／ <span class="g-kbd">右クリック・右ドラッグ</span> すぐ消す<br>
+                ・<span class="g-kbd">ダブルクリック</span> その時間枠に詳細メモを追加<br>
+                ・<span class="g-kbd">🔍− / ＋</span> で見やすいサイズに拡大・縮小
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    <div class="g-card">
+        <span class="g-step">STEP 4・集計と決定</span>
+        <div class="g-title">🏆 集計の見方 ＆ ワンタップでカレンダー登録</div>
+        <p class="g-text">集計画面では <b>「🏆 おすすめ候補」</b> が自動で上位表示されます。緑が濃いマスほど参加できる人が多い時間帯です。</p>
+        <div class="g-demo-box">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; font-weight:700;">
+                <span>少</span>
+                <div style="flex:1; height:10px; border-radius:999px; background:linear-gradient(90deg, #f0faf2, #1b5e20);"></div>
+                <span>多</span>
+            </div>
+            <div style="font-size:12px; color:#334155;">
+                👆 <b>マスをタップ／クリック</b>すると、その時間の <b>◯ 参加可 / △ 未定 / × 不可</b> のメンバーとメモがポップアップ表示されます。集計表も2本指ピンチや🔍ボタンでズームできます。
+            </div>
+        </div>
+        <p class="g-text">絞り込みや必須メンバー指定は <b>「⚙️ 表示設定・絞り込み」</b> から開けます。</p>
+    </div>
+</div>
+<div class="g-card">
+    <span class="g-step">⚡ 時短テクニック</span>
+    <div class="g-title">🚀 毎回手入力しなくてOK！自動入力＆カレンダー連携</div>
+    <div class="g-grid" style="margin-bottom:0; margin-top:8px;">
+        <div class="g-demo-box" style="margin:0;">
+            <div style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:4px;">⏰ 1. 自分の時間割を登録しておく</div>
+            <p class="g-text" style="font-size:12.5px;">左メニューの <b>「⏰ 時間割の登録」</b> で授業を一度登録しておくと、入力画面の <b>「⚙️ 便利機能」→「時間割反映」</b> から1タップで授業コマを自動ブロックできます。</p>
+        </div>
+        <div class="g-demo-box" style="margin:0;">
+            <div style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:4px;">📌 2. 開催日時が決まったら1タップ登録</div>
+            <p class="g-text" style="font-size:12.5px;">主催者が日時を確定するとイベント上部に緑の決定カードが表示されます。<b>「📅 Googleカレンダー追加」</b> や <b>「📥 .ics保存」</b> で自分の予定表へすぐ登録できます。</p>
+        </div>
+    </div>
+</div>
+"""), unsafe_allow_html=True)
 
 
 def render_create_event_view(user):
@@ -4630,13 +5173,14 @@ def render_dashboard_view(events):
 
     st.subheader("📋 イベント一覧")
     st.markdown(
-        f"""
+        _compact_html(f"""
         <div class="dash-stats">
             <span class="dash-stat-pill" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;">🔴 未回答 {len(unanswered_open)}件</span>
             <span class="dash-stat-pill" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0;">✅ 回答済 {len(answered_events)}件</span>
             <span class="dash-stat-pill" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">🎉 開催決定 {confirmed_cnt}件</span>
+            <span class="menu-hint-banner">👈 左上「メニュー」から時間割・新規作成・ガイドへ</span>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -4715,11 +5259,11 @@ def render_confirmed_banner(event, share_url, can_confirm=False):
     with st.container(border=True):
         st.markdown('<div class="sss-confirmed-box-marker"></div>', unsafe_allow_html=True)
         st.markdown(
-            f"""
+            _compact_html(f"""
             <div class="confirmed-banner-title">🎉 開催日時が決定しました</div>
             <div class="confirmed-banner-dt">📅 {html_lib.escape(confirmed.get('label', ''))}</div>
             <div class="confirmed-banner-meta">{loc_html}{note_html}</div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
@@ -4973,8 +5517,8 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
             isClosed=is_closed,
             saveTs=st.session_state.get("last_saved_ts", 0),
             importTs=st.session_state.get("cal_import_ts", 0),
-            defaultCellH=(36 if event_type == "time" else 50),
-            key=f"editor_v16_{event_id}",
+            defaultCellH=(34 if event_type == "time" else 48),
+            key=f"editor_v17_{event_id}",
         )
 
         if raw and isinstance(raw, dict) and "data" in raw:
@@ -5334,8 +5878,8 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
         showMyOverlay=show_my_overlay,
         hasRequiredFilter=bool(req_user_ids),
         canViewDetails=can_view_details,
-        defaultCellH=(36 if event_type == "time" else 48),
-        key=f"agg_v2_{event_id}",
+        defaultCellH=(34 if event_type == "time" else 46),
+        key=f"agg_v3_{event_id}",
     )
 
     if can_view_details:
@@ -5536,7 +6080,7 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
         req_tag = " <span style='font-size:11px; background:#fef2f2; color:#b91c1c; padding:2px 6px; border-radius:999px;'>必須NG</span>" if details[i]["req_ng"] else ""
         card_opacity = "opacity:0.65;" if details[i]["req_ng"] else ""
 
-        st.markdown(f"""
+        st.markdown(_compact_html(f"""
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:13px 14px; margin-bottom:5px; box-shadow:0 2px 6px rgba(15,23,42,0.04); {card_opacity}">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
                 <div style="font-size:15px; font-weight:bold; color:#0f172a;">📅 {html_lib.escape(opt)}{my_tag}{req_tag}</div>
@@ -5546,7 +6090,7 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
                 <div style="width:{bar_width}; background:linear-gradient(90deg, #34d399, #10b981); height:100%; border-radius:8px;"></div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
 
         if can_view_details:
             with st.expander("👥 参加者内訳を見る"):
@@ -5635,12 +6179,12 @@ def render_event_detail_view(user, events, user_map_fs, current_ev_id):
         pills.append("<span class='hero-pill pill-outscope'>⚠️ 対象外イベント（有志参加）</span>")
 
     st.markdown(
-        f"""
+        _compact_html(f"""
         <div class="event-hero">
             <div class="event-hero-title">{html_lib.escape(event.get('title', ''))}</div>
             <div class="event-hero-pills">{''.join(pills)}</div>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 

@@ -19,7 +19,7 @@ import html as html_lib
 # ==========================================
 # 基本設定・定数
 # ==========================================
-st.set_page_config(page_title="SSScheduler", layout="wide")
+st.set_page_config(page_title="SSScheduler", layout="wide", initial_sidebar_state="collapsed")
 
 APP_BASE_URL = "https://schedule-adjust-SSSRC.streamlit.app/"
 GAS_URL = "https://script.google.com/macros/s/AKfycbx8GCHdyb9DDFIUajiKjceSn20-rfuEtsqrxCm-dD_pYsKou2Ie8mDkaM4oX3sKRX4SDQ/exec"
@@ -81,6 +81,13 @@ st.markdown("""
         }
 
         iframe { border: none !important; background: transparent !important; }
+
+        /* 上部ナビに完全統一するため左サイドバーと開閉トグルを非表示にする */
+        section[data-testid="stSidebar"],
+        div[data-testid="collapsedControl"],
+        button[data-testid="stExpandSidebarButton"] {
+            display: none !important;
+        }
 
         /* localStorage用非表示コンポーネントが空白や白い枠を作らないようにする */
         div.element-container:has(iframe[title*="auth_storage"]),
@@ -154,20 +161,22 @@ st.markdown("""
         }
         .event-desc a { color: #2563eb; font-weight: 700; text-decoration: none; }
 
-        .confirmed-banner {
-            background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
-            border: 2px solid #10b981; border-radius: 14px;
-            padding: 14px 16px; margin: 8px 0 12px 0;
-            box-shadow: 0 4px 14px rgba(16,185,129,0.12);
+        /* 開催日時確定の統一カード（通知・カレンダー追加・コピー・取消を1区画に集約） */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.sss-confirmed-box-marker) {
+            background: linear-gradient(135deg, #ecfdf5, #f0fdf4) !important;
+            border: 2px solid #10b981 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 14px rgba(16,185,129,0.12) !important;
+            margin: 8px 0 12px 0 !important;
         }
         .confirmed-banner-title {
-            font-size: 12px; font-weight: 800; color: #047857; letter-spacing: 0.04em; margin-bottom: 4px;
+            font-size: 12px; font-weight: 800; color: #047857; letter-spacing: 0.04em; margin-bottom: 3px;
         }
         .confirmed-banner-dt {
             font-size: 19px; font-weight: 800; color: #064e3b; margin-bottom: 4px;
         }
         .confirmed-banner-meta {
-            font-size: 13px; color: #334155; line-height: 1.5;
+            font-size: 13px; color: #334155; line-height: 1.5; margin-bottom: 8px;
         }
 
         .dash-stats {
@@ -181,13 +190,19 @@ st.markdown("""
 
         .rank-card {
             background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 10px 14px; margin-bottom: 7px;
+            padding: 10px 12px; margin-bottom: 6px;
             box-shadow: 0 2px 6px rgba(15,23,42,0.04);
-            transition: transform 0.12s;
         }
-        .rank-card-1 { border-left: 5px solid #f59e0b; background: linear-gradient(90deg, #fffbeb, #ffffff 35%); }
-        .rank-card-2 { border-left: 5px solid #94a3b8; background: linear-gradient(90deg, #f8fafc, #ffffff 35%); }
-        .rank-card-3 { border-left: 5px solid #d97706; background: linear-gradient(90deg, #fff7ed, #ffffff 35%); }
+        .rank-card-1 { border-left: 5px solid #f59e0b; background: linear-gradient(90deg, #fffbeb, #ffffff 40%); }
+        .rank-card-2 { border-left: 5px solid #94a3b8; background: linear-gradient(90deg, #f8fafc, #ffffff 40%); }
+        .rank-card-3 { border-left: 5px solid #d97706; background: linear-gradient(90deg, #fff7ed, #ffffff 40%); }
+        .rank-dt { font-size: 14.5px; font-weight: 800; color: #0f172a; line-height: 1.3; margin-bottom: 5px; }
+        .rank-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        .r-chip { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+        .r-chip-score { background: #dcfce7; color: #166534; }
+        .r-chip-yes { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+        .r-chip-maybe { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .r-chip-no { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
 
         .active-filter-pill {
             display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
@@ -204,7 +219,7 @@ st.markdown("""
         .sss-badge-confirmed { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
         .sss-badge-closed { background: #fee2e2; color: #b91c1c; }
 
-        /* スマホでもナビ・上部操作・入力/結果スイッチを横並び・折り返しに保つ */
+        /* スマホでもナビ・上部操作・ランキング・入力/結果スイッチを最適化 */
         @media (max-width: 650px) {
             div[data-testid="stVerticalBlock"]:has(> div .sss-compact-nav-marker) div[data-testid="stHorizontalBlock"] {
                 flex-direction: row !important;
@@ -217,23 +232,48 @@ st.markdown("""
                 width: auto !important;
             }
             div[data-testid="stVerticalBlock"]:has(> div .sss-compact-nav-marker) button {
-                padding: 6px 6px !important;
+                padding: 6px 4px !important;
                 font-size: 12px !important;
                 min-height: 36px !important;
             }
 
             div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"],
             div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"],
+            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"],
             div[data-testid="stVerticalBlock"]:has(> div .sss-tt-row-marker) div[data-testid="stHorizontalBlock"] {
                 flex-direction: row !important;
                 flex-wrap: nowrap !important;
                 gap: 6px !important;
+                align-items: center !important;
             }
-            div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
-            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            div[data-testid="stVerticalBlock"]:has(> div .sss-tab-switcher-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
                 flex: 1 1 48% !important;
                 min-width: 0 !important;
                 width: auto !important;
+            }
+            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+                flex: 0 0 34% !important;
+                min-width: 0 !important;
+                width: auto !important;
+            }
+            div[data-testid="stVerticalBlock"]:has(> div .sss-top-action-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+                flex: 1 1 64% !important;
+                min-width: 0 !important;
+                width: auto !important;
+            }
+            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                width: auto !important;
+            }
+            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+                flex: 0 0 74px !important;
+                min-width: 74px !important;
+                width: 74px !important;
+            }
+            div[data-testid="stVerticalBlock"]:has(> div .sss-rank-row-marker) button {
+                padding: 6px 4px !important;
+                font-size: 12px !important;
             }
             div[data-testid="stVerticalBlock"]:has(> div .sss-tt-row-marker) div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
                 flex: 1 1 0 !important;
@@ -1078,7 +1118,7 @@ def render_copy_button(
     safe_label = html_lib.escape(btn_label)
     safe_share_title = json.dumps(share_title or "")
     safe_share_url = json.dumps(share_url or "")
-    btn_width = "width:100%;" if full_width else ""
+    btn_flex = "flex: 1 1 auto; min-width: 0;" if full_width else "flex: 0 1 auto;"
     share_html = (
         '<button id="share-btn" class="sss-act-btn sss-share-btn" style="display:none;">📤 共有</button>'
         if share_url
@@ -1090,18 +1130,22 @@ def render_copy_button(
         f"""
         <!DOCTYPE html><html><head><meta charset="utf-8"><style>
         html, body {{ margin: 0; padding: 0; background: transparent; overflow: hidden; font-family: sans-serif; }}
-        .wrap {{ display: flex; gap: 6px; align-items: center; width: 100%; }}
+        .wrap {{ display: flex; gap: 5px; align-items: center; width: 100%; box-sizing: border-box; }}
         .sss-act-btn {{
-            {btn_width}
-            height: 38px; padding: 0 12px; border-radius: 8px;
+            {btn_flex}
+            height: 38px; padding: 0 10px; border-radius: 8px;
             border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;
-            font-size: 13px; font-weight: 700; cursor: pointer;
-            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-            white-space: nowrap; box-sizing: border-box; transition: 0.15s;
+            font-size: 12.5px; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            box-sizing: border-box; transition: 0.15s;
         }}
         .sss-act-btn:hover {{ background: #f1f5f9; border-color: #94a3b8; }}
         .sss-act-btn.copied {{ background: #e8f5e9; border-color: #4CAF50; color: #2e7d32; }}
-        .sss-share-btn {{ flex: 0 0 auto; width: auto !important; background: #e3f2fd; border-color: #90caf9; color: #1565c0; }}
+        .sss-share-btn {{ flex: 0 0 auto; padding: 0 9px; background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }}
+        @media (max-width: 240px) {{
+            .sss-act-btn {{ font-size: 11.5px; padding: 0 6px; }}
+        }}
         </style></head><body>
         <div class="wrap" id="wrap-{uid_dom}">
             <button id="copy-btn" class="sss-act-btn">{safe_label}</button>
@@ -3492,38 +3536,6 @@ def render_top_navigation(user, unanswered_events):
         if st.button("🚪 ログアウト", key="top_nav_logout", use_container_width=True):
             _do_logout()
 
-    # サイドバーにも同期メニューと未回答ショートカットを表示
-    with st.sidebar:
-        st.markdown("### 📅 SSScheduler")
-        for m_key, m_lbl in nav_items:
-            b_type = "primary" if cur_menu == m_key else "secondary"
-            if st.button(m_lbl, key=f"side_nav_{m_key}", use_container_width=True, type=b_type):
-                if m_key == "dashboard" and cur_menu == "dashboard":
-                    st.session_state.target_ev_id = ""
-                st.session_state.current_menu = m_key
-                st.rerun()
-
-        if unanswered_events:
-            st.markdown("---")
-            st.markdown(
-                f"<div style='color:#FF4B4B; font-weight:bold; padding-bottom: 5px;'>📢 未回答の予定 ({len(unanswered_events)}件)</div>",
-                unsafe_allow_html=True,
-            )
-            for u_ev in unanswered_events:
-                dl_text = format_deadline_jp(u_ev.get("deadline") or u_ev.get("close_time", ""))
-                if st.button(
-                    f"🔴 {u_ev.get('title', '')} (〜{dl_text})",
-                    key=f"side_btn_{u_ev.get('event_id')}",
-                    use_container_width=True,
-                ):
-                    st.session_state.current_menu = "dashboard"
-                    st.session_state.target_ev_id = u_ev.get("event_id")
-                    st.rerun()
-
-        st.markdown("---")
-        if st.button("🚪 ログアウト", key="side_logout", use_container_width=True):
-            _do_logout()
-
 
 # ==========================================
 # プロフィール・時間割設定・ガイド・新規作成・管理者画面
@@ -3755,17 +3767,139 @@ def render_timetable_settings_view(user):
 
 
 def render_guide_view():
-    st.title("📖 SSScheduler 使い方ガイド")
-    st.write("PCでもスマホでも快適に使える基本操作と新機能を解説します。")
+    st.markdown("""
+    <style>
+    .g-hero {
+        background: linear-gradient(135deg, #ecfdf5, #eff6ff);
+        border: 1px solid #cbd5e1; border-radius: 16px;
+        padding: 18px 20px; margin-bottom: 16px;
+    }
+    .g-hero h2 { margin: 0 0 6px 0; font-size: 22px; color: #0f172a; }
+    .g-hero p { margin: 0; font-size: 13.5px; color: #475569; line-height: 1.6; }
+    .g-grid {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px;
+    }
+    @media (max-width: 720px) { .g-grid { grid-template-columns: 1fr; } }
+    .g-card {
+        background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px;
+        padding: 15px 16px; box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+    }
+    .g-step {
+        display: inline-block; font-size: 11px; font-weight: 800; color: #047857;
+        background: #dcfce7; padding: 2px 9px; border-radius: 999px; margin-bottom: 6px;
+    }
+    .g-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+    .g-text { font-size: 13px; color: #334155; line-height: 1.65; margin: 0; }
+    .g-demo-box {
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 10px; margin: 10px 0;
+    }
+    .g-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .g-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800;
+    }
+    .g-switch {
+        display: flex; gap: 6px; background: #e2e8f0; padding: 4px; border-radius: 10px;
+    }
+    .g-switch-btn {
+        flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 800;
+    }
+    .g-kbd {
+        display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1;
+        border-radius: 5px; padding: 1px 6px; font-size: 11.5px; font-weight: 700; color: #1e293b;
+    }
+    </style>
 
-    st.markdown("### 1. ✏️ 入力と 📊 集計の切り替え")
-    st.markdown("* イベント上部の大きなスイッチボタン **「✏️ 予定を入力・修正」** と **「📊 みんなの集計」** で切り替えます。\n* 回答を提出すると自動で集計画面へ移動します。")
+    <div class="g-hero">
+        <h2>📖 SSScheduler かんたん使い方ガイド</h2>
+        <p>はじめて使う方でも <b>30秒で迷わず入力・確認</b> できるように、画面イメージ付きで基本操作と便利機能をまとめました。</p>
+    </div>
 
-    st.markdown("### 2. 📅 カレンダーの塗り方・スクロール")
-    st.markdown("* **ペン切り替え**: 表のすぐ上のツールバーから `◯ 可`・`△ 未定`・`消す`・`💬 メモ` を選べます。\n* **PC操作**: 左ドラッグで塗りつぶし、**右クリック/右ドラッグで即消しゴム**、**ダブルクリックで詳細メモ**を開けます。横移動はトラックパッド・`Shift+ホイール`・スクロールバーが使えます。\n* **スマホ操作**: **1本指**で塗って、**2本指**でそのまま縦横スクロールできます（左の時刻列・上の日付欄は1本指でもスクロール可能）。**セル長押し**でメモモーダルが開きます。\n* **↩ 戻す / サイズ変更**: 間違えても `↩ 戻す` で取り消せます。`小 / 標準 / 大` ボタンで入力データを消さずに高さを変えられます。")
+    <div class="g-grid">
+        <div class="g-card">
+            <span class="g-step">STEP 1・画面の見方</span>
+            <div class="g-title">🔄 「入力」と「みんなの集計」を切り替える</div>
+            <p class="g-text">イベントを開くと上部に大きな切り替えボタンがあります。自分の予定を提出すると、<b>自動で「みんなの集計」へ移動</b>します。</p>
+            <div class="g-demo-box">
+                <div class="g-switch">
+                    <div class="g-switch-btn" style="background:#ef4444; color:#fff;">✏️ 予定を入力する</div>
+                    <div class="g-switch-btn" style="background:#fff; color:#334155;">📊 みんなの集計 (12名)</div>
+                </div>
+            </div>
+            <p class="g-text">提出後も「✏️ 回答を修正」からいつでも何度でも書き直せます。</p>
+        </div>
 
-    st.markdown("### 3. 🏆 集計画面の便利な新機能")
-    st.markdown("* **おすすめ候補日時トップ5**: 所要時間（30分〜120分など）を選ぶと、連続で参加できる最適枠を自動ランキングし、Slack共有文を1タップでコピーできます。\n* **⭐ 必須メンバー指定**: 「この人が参加できる枠だけ見たい」ときに便利です。\n* **🙋 自分の回答を重ねて表示**: みんなの集計の上に自分の `◯`/`△` を枠線で重ねて確認できます。\n* **📌 開催日時の確定**: 作成者・管理者が日時を確定すると、上部に決定バナーが表示され、Googleカレンダーや `.ics` へワンタップ登録できます。")
+        <div class="g-card">
+            <span class="g-step">STEP 2・色の意味</span>
+            <div class="g-title">🎨 ペンを選んでカレンダーをなぞるだけ</div>
+            <p class="g-text">参加できる時間帯をペンで塗って、一番下の赤い <b>「✅ 回答を保存して提出」</b> を押せば完了です。</p>
+            <div class="g-demo-box">
+                <div class="g-pill-row">
+                    <span class="g-pill" style="background:#4CAF50; color:#fff;">🟢 ◯ 可（参加OK）</span>
+                    <span class="g-pill" style="background:#FFEB3B; color:#333;">🟡 △ 未定（微妙）</span>
+                    <span class="g-pill" style="background:#fff; color:#475569; border:1px solid #cbd5e1;">⚪ × 不可（消す）</span>
+                    <span class="g-pill" style="background:#e2e8f0; color:#475569;">授 授業等</span>
+                    <span class="g-pill" style="background:#e0f2fe; color:#0369a1;">💬 メモ付き</span>
+                </div>
+            </div>
+            <p class="g-text">間違えて塗っても <b>↩ 戻す</b> ボタンで直前に戻せます。</p>
+        </div>
+
+        <div class="g-card">
+            <span class="g-step">STEP 3・操作のコツ</span>
+            <div class="g-title">📱 スマホ ＆ 💻 PC 快適操作チートシート</div>
+            <div class="g-demo-box">
+                <div style="font-size:12.5px; font-weight:800; color:#0369a1; margin-bottom:4px;">📱 スマートフォン</div>
+                <div class="g-text" style="font-size:12.5px;">
+                    ・<b>1本指でなぞる</b> → マスを連続で塗る<br>
+                    ・<b>2本指で動かす</b> → 塗らずに上下左右スクロール<br>
+                    ・<b>時刻・日付欄</b> → 1本指でもそのままスクロール可<br>
+                    ・<b>マスを長押し</b> → 「遅刻します」などの時間メモ入力
+                </div>
+                <hr style="margin:8px 0; border:0; border-top:1px dashed #cbd5e1;">
+                <div style="font-size:12.5px; font-weight:800; color:#047857; margin-bottom:4px;">💻 パソコン</div>
+                <div class="g-text" style="font-size:12.5px;">
+                    ・<span class="g-kbd">左ドラッグ</span> 塗る ／ <span class="g-kbd">右クリック・右ドラッグ</span> すぐ消す<br>
+                    ・<span class="g-kbd">ダブルクリック</span> その時間枠に詳細メモを追加<br>
+                    ・<span class="g-kbd">Shift + ホイール</span> またはトラックパッド2本指で横移動
+                </div>
+            </div>
+        </div>
+
+        <div class="g-card">
+            <span class="g-step">STEP 4・集計と決定</span>
+            <div class="g-title">🏆 集計の見方 ＆ ワンタップでカレンダー登録</div>
+            <p class="g-text">集計画面では <b>「🏆 おすすめ候補」</b> が自動で上位表示されます。緑が濃いマスほど参加できる人が多い時間帯です。</p>
+            <div class="g-demo-box">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; font-weight:700;">
+                    <span>少</span>
+                    <div style="flex:1; height:10px; border-radius:999px; background:linear-gradient(90deg, #f0faf2, #1b5e20);"></div>
+                    <span>多</span>
+                </div>
+                <div style="font-size:12px; color:#334155;">
+                    👆 <b>マスをタップ／クリック</b>すると、その時間の <b>◯ 参加可 / △ 未定 / × 不可</b> のメンバーとメモがポップアップ表示されます。
+                </div>
+            </div>
+            <p class="g-text">絞り込みや必須メンバー指定は <b>「⚙️ 表示設定・絞り込み」</b> から開けます。</p>
+        </div>
+    </div>
+
+    <div class="g-card">
+        <span class="g-step">⚡ 時短テクニック</span>
+        <div class="g-title">🚀 毎回手入力しなくてOK！自動入力＆カレンダー連携</div>
+        <div class="g-grid" style="margin-bottom:0; margin-top:8px;">
+            <div class="g-demo-box" style="margin:0;">
+                <div style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:4px;">⏰ 1. 自分の時間割を登録しておく</div>
+                <p class="g-text" style="font-size:12.5px;">上部メニューの <b>「⏰ 時間割」</b> で授業を一度登録しておくと、入力画面の <b>「⚙️ 便利機能」→「時間割反映」</b> から1タップで授業コマを自動ブロックできます。</p>
+            </div>
+            <div class="g-demo-box" style="margin:0;">
+                <div style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:4px;">📌 2. 開催日時が決まったら1タップ登録</div>
+                <p class="g-text" style="font-size:12.5px;">主催者が日時を確定するとイベント上部に緑の決定カードが表示されます。<b>「📅 Googleカレンダーに追加」</b> や <b>「📥 .ics保存」</b> で自分の予定表へすぐ登録できます。</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def render_create_event_view(user):
@@ -4556,17 +4690,6 @@ def render_confirmed_banner(event, share_url, can_confirm=False):
     loc_html = f"<br>📍 <b>場所/URL:</b> {html_lib.escape(confirmed['location'])}" if confirmed.get("location") else ""
     note_html = f"<br>📝 <b>連絡:</b> {html_lib.escape(confirmed['note'])}" if confirmed.get("note") else ""
 
-    st.markdown(
-        f"""
-        <div class="confirmed-banner">
-            <div class="confirmed-banner-title">🎉 開催日時が決定しました</div>
-            <div class="confirmed-banner-dt">📅 {html_lib.escape(confirmed.get('label', ''))}</div>
-            <div class="confirmed-banner-meta">{loc_html}{note_html}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
     start_dt = confirmed.get("start_dt", "")
     end_dt = confirmed.get("end_dt", "")
     details_txt = f"{confirmed.get('note', '')}\n詳細: {share_url}".strip()
@@ -4588,43 +4711,55 @@ def render_confirmed_banner(event, share_url, can_confirm=False):
         uid_prefix=event_id or "ssscheduler",
     )
 
-    if gcal_url and ics_data:
-        b1, b2, b3 = st.columns([1.2, 1.2, 1.2])
-        with b1:
-            st.link_button("📅 Googleカレンダーに追加", gcal_url, use_container_width=True, type="primary")
-        with b2:
-            st.download_button(
-                "📥 カレンダー(.ics)保存",
-                data=ics_data.encode("utf-8"),
-                file_name=f"{event_id or 'event'}.ics",
-                mime="text/calendar",
-                use_container_width=True,
-            )
-        with b3:
+    # 決定表示・カレンダー登録・決定連絡コピー・取り消しをすべて1つの区画（カード）内に集約
+    with st.container(border=True):
+        st.markdown('<div class="sss-confirmed-box-marker"></div>', unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="confirmed-banner-title">🎉 開催日時が決定しました</div>
+            <div class="confirmed-banner-dt">📅 {html_lib.escape(confirmed.get('label', ''))}</div>
+            <div class="confirmed-banner-meta">{loc_html}{note_html}</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if gcal_url and ics_data:
+            b1, b2, b3 = st.columns([1.2, 1.1, 1.2])
+            with b1:
+                st.link_button("📅 Googleカレンダー追加", gcal_url, use_container_width=True, type="primary")
+            with b2:
+                st.download_button(
+                    "📥 .ics 保存",
+                    data=ics_data.encode("utf-8"),
+                    file_name=f"{event_id or 'event'}.ics",
+                    mime="text/calendar",
+                    use_container_width=True,
+                )
+            with b3:
+                render_copy_button(
+                    announce_txt,
+                    btn_label="📋 決定連絡コピー",
+                    key_suffix=f"conf_cp_{event_id}",
+                    full_width=True,
+                )
+        else:
             render_copy_button(
                 announce_txt,
                 btn_label="📋 決定連絡をコピー",
                 key_suffix=f"conf_cp_{event_id}",
                 full_width=True,
             )
-    else:
-        render_copy_button(
-            announce_txt,
-            btn_label="📋 決定連絡をコピー",
-            key_suffix=f"conf_cp_{event_id}",
-        )
 
-    if can_confirm:
-        with st.expander("⚙️ 決定日時の取り消し・変更（主催者 / 管理者）", expanded=False):
-            st.caption("決定した日時を取り消して再調整に戻すことができます（詳細編集は「📊 みんなの集計」下部の編集フォームからも行えます）。")
-            if st.button("🗑️ 開催日時の決定を取り消す", key=f"banner_unconfirm_{event_id}", type="secondary"):
+        if can_confirm:
+            st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+            if st.button("🗑️ この開催日時の決定を取り消す（主催者 / 管理者）", key=f"banner_unconfirm_{event_id}", use_container_width=True):
                 _save_confirmed_info(event_id, None)
                 st.toast("開催日時の決定を取り消しました。")
                 st.rerun()
 
 
 def render_ranking_cards(event, user, best_slots, share_url, can_confirm, key_prefix):
-    """おすすめ候補日時をすっきり見やすく表示（上位3件を表示、4〜5位は展開式）"""
+    """おすすめ候補日時をスマホでも見やすく2段ピル構成で表示（上位3件＋4〜5位展開）"""
     event_id = event.get("event_id")
     existing_conf = parse_confirmed_info(event.get("confirmed_info")) or {}
 
@@ -4640,30 +4775,34 @@ def render_ranking_cards(event, user, best_slots, share_url, can_confirm, key_pr
         card_cls = rank_classes[i] if i < len(rank_classes) else "rank-card"
         card_html = (
             f"<div class='{card_cls}'>"
-            f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;'>"
-            f"<div style='font-size:14.5px; font-weight:800; color:#0f172a;'>{medal} {html_lib.escape(slot['label'])}</div>"
-            f"<div style='font-size:13px; font-weight:800; color:#047857;'>目安 {slot['score']:g}名 "
-            f"<span style='font-weight:600; color:#64748b;'>(◯{slot['yes']} / △{slot['maybe']} / ×{slot['no']})</span></div>"
+            f"<div class='rank-dt'>{medal} {html_lib.escape(slot['label'])}</div>"
+            f"<div class='rank-chips'>"
+            f"<span class='r-chip r-chip-score'>目安 {slot['score']:g}名</span>"
+            f"<span class='r-chip r-chip-yes'>◯ {slot['yes']}</span>"
+            f"<span class='r-chip r-chip-maybe'>△ {slot['maybe']}</span>"
+            f"<span class='r-chip r-chip-no'>× {slot['no']}</span>"
             f"</div></div>"
         )
         if can_confirm:
-            c_card, c_act = st.columns([4.2, 1])
-            with c_card:
-                st.markdown(card_html, unsafe_allow_html=True)
-            with c_act:
-                if st.button("📌 確定", key=f"{key_prefix}_pin_{i}_{event_id}", use_container_width=True):
-                    new_conf = {
-                        "label": slot["label"],
-                        "start_dt": slot.get("start_dt", ""),
-                        "end_dt": slot.get("end_dt", ""),
-                        "location": existing_conf.get("location", ""),
-                        "note": existing_conf.get("note", ""),
-                        "confirmed_by": user.get("name", ""),
-                        "confirmed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    }
-                    _save_confirmed_info(event_id, new_conf)
-                    st.toast(f"📌 「{slot['label']}」で確定しました！")
-                    st.rerun()
+            with st.container():
+                st.markdown('<div class="sss-rank-row-marker"></div>', unsafe_allow_html=True)
+                c_card, c_act = st.columns([4.4, 1])
+                with c_card:
+                    st.markdown(card_html, unsafe_allow_html=True)
+                with c_act:
+                    if st.button("📌 確定", key=f"{key_prefix}_pin_{i}_{event_id}", use_container_width=True):
+                        new_conf = {
+                            "label": slot["label"],
+                            "start_dt": slot.get("start_dt", ""),
+                            "end_dt": slot.get("end_dt", ""),
+                            "location": existing_conf.get("location", ""),
+                            "note": existing_conf.get("note", ""),
+                            "confirmed_by": user.get("name", ""),
+                            "confirmed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        }
+                        _save_confirmed_info(event_id, new_conf)
+                        st.toast(f"📌 「{slot['label']}」で確定しました！")
+                        st.rerun()
         else:
             st.markdown(card_html, unsafe_allow_html=True)
 
@@ -4678,7 +4817,7 @@ def render_ranking_cards(event, user, best_slots, share_url, can_confirm, key_pr
     slack_txt = format_slack_ranking_text(event, best_slots, share_url)
     render_copy_button(
         slack_txt,
-        btn_label="📋 Slack投稿用テキストをコピー",
+        btn_label="📋 Slack用ランキングをコピー",
         key_suffix=f"{key_prefix}_slack_{event_id}",
     )
 
@@ -4933,26 +5072,18 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
     duration_slots = 1
     sel_dur_label = ""
 
-    # 設定・絞り込みはすべて折りたたみ内に収納（初見の画面をシンプルに保つ）
-    c_set, c_ref = st.columns([3.5, 1])
-    with c_ref:
-        if st.button("🔄 最新に更新", use_container_width=True, key=f"refresh_grid_{event_id}"):
-            invalidate_cache("responses")
-            invalidate_cache("events")
-            st.rerun()
-    with c_set:
-        with st.expander("⚙️ 表示設定・絞り込み（未定の扱い・必須メンバー・グループ等）", expanded=False):
-            c_p1, c_p2 = st.columns([2, 1.3])
-            with c_p1:
-                policy = st.radio(
-                    "「未定(△)」の計算",
-                    [0.5, 1.0, 0.0],
-                    format_func=lambda x: f"{x}人",
-                    horizontal=True,
-                    key=f"policy_{event_id}",
-                )
-            with c_p2:
-                show_my_overlay = st.checkbox("🙋 自分の回答を重ねる", value=False, key=f"overlay_{event_id}")
+    # 設定・絞り込みはスマホでも縦長にならないよう全幅1行の折りたたみ＋内部2タブに整理
+    with st.expander("⚙️ 表示設定・絞り込み", expanded=False):
+        st_tab_disp, st_tab_flt = st.tabs(["🎛️ 表示・必須メンバー", "🔍 グループ・日時で絞る"])
+        with st_tab_disp:
+            policy = st.radio(
+                "「未定(△)」の計算",
+                [0.5, 1.0, 0.0],
+                format_func=lambda x: f"{x}人",
+                horizontal=True,
+                key=f"policy_{event_id}",
+            )
+            show_my_overlay = st.checkbox("🙋 自分の回答をヒートマップに重ねる", value=False, key=f"overlay_{event_id}")
 
             if event_type == "time":
                 all_dur_opts = [("15分", 1), ("30分", 2), ("45分", 3), ("60分", 4), ("90分", 6), ("120分", 8)]
@@ -4969,27 +5100,22 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
                 sel_dur_label = sel_dur[0]
 
             if can_view_details and all_res_data:
-                st.markdown("---")
                 uid_to_name = {str(r.get("user_id")): r.get("user_name", "不明") for r in all_res_data}
                 name_to_uid = {}
                 for uid, uname in uid_to_name.items():
                     name_to_uid.setdefault(uname, []).append(uid)
-                c_req1, c_req2 = st.columns([3, 1.3])
-                with c_req1:
-                    req_names = st.multiselect(
-                        "⭐ 必須メンバー指定（全員参加できる枠のみ強調）",
-                        options=all_names,
-                        key=f"req_members_{event_id}",
-                    )
-                    for rn in req_names:
-                        req_user_ids.update(name_to_uid.get(rn, []))
-                with c_req2:
-                    st.markdown("<div style='height:26px;'></div>", unsafe_allow_html=True)
-                    allow_maybe_req = st.checkbox("△(未定)も許容", value=True, key=f"req_maybe_{event_id}")
+                req_names = st.multiselect(
+                    "⭐ 必須メンバー指定（全員参加できる枠のみ強調）",
+                    options=all_names,
+                    key=f"req_members_{event_id}",
+                )
+                for rn in req_names:
+                    req_user_ids.update(name_to_uid.get(rn, []))
+                if req_names:
+                    allow_maybe_req = st.checkbox("必須メンバーの「△(未定)」も許容する", value=True, key=f"req_maybe_{event_id}")
 
-            st.markdown("---")
+        with st_tab_flt:
             with st.form("filter_form"):
-                st.caption("🔍 グループ・時間帯・日付で絞り込み（未選択は全員）")
                 f_col1, f_col2 = st.columns(2)
                 with f_col1:
                     f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted)
@@ -5010,7 +5136,12 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
                     f_dates = None
                     f_wdays = ["月", "火", "水", "木", "金", "土", "日"]
 
-                st.form_submit_button("✅ 絞り込みを適用", type="primary")
+                st.form_submit_button("✅ 絞り込みを適用", type="primary", use_container_width=True)
+
+        if st.button("🔄 最新の回答を取得する", use_container_width=True, key=f"refresh_grid_{event_id}"):
+            invalidate_cache("responses")
+            invalidate_cache("events")
+            st.rerun()
 
     filtered_data = filter_responses(all_res_data, f_names, f_g1, f_g2, f_g3, f_g4)
     t_start_idx = time_labels.index(f_time[0])
@@ -5290,14 +5421,9 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
     req_names = []
     allow_maybe_req = True
 
-    c_set, c_ref = st.columns([3.5, 1])
-    with c_ref:
-        if st.button("🔄 最新に更新", use_container_width=True, key=f"opt_refresh_{event_id}"):
-            invalidate_cache("responses")
-            invalidate_cache("events")
-            st.rerun()
-    with c_set:
-        with st.expander("⚙️ 表示設定・絞り込み（未定の扱い・必須メンバー・グループ等）", expanded=False):
+    with st.expander("⚙️ 表示設定・絞り込み", expanded=False):
+        st_opt_disp, st_opt_flt = st.tabs(["🎛️ 表示・必須メンバー", "🔍 グループで絞る"])
+        with st_opt_disp:
             policy = st.radio(
                 "「未定(△)」の計算",
                 [0.5, 1.0, 0.0],
@@ -5306,23 +5432,18 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
                 key=f"opt_policy_{event_id}",
             )
             if can_view_details and all_res_data:
-                st.markdown("---")
                 uid_to_name = {str(r.get("user_id")): r.get("user_name", "不明") for r in all_res_data}
                 name_to_uid = {}
                 for uid, uname in uid_to_name.items():
                     name_to_uid.setdefault(uname, []).append(uid)
-                c_req1, c_req2 = st.columns([3, 1.3])
-                with c_req1:
-                    req_names = st.multiselect("⭐ 必須メンバー指定", options=all_names, key=f"opt_req_{event_id}")
-                    for rn in req_names:
-                        req_user_ids.update(name_to_uid.get(rn, []))
-                with c_req2:
-                    st.markdown("<div style='height:26px;'></div>", unsafe_allow_html=True)
-                    allow_maybe_req = st.checkbox("△(未定)も許容", value=True, key=f"opt_req_maybe_{event_id}")
+                req_names = st.multiselect("⭐ 必須メンバー指定", options=all_names, key=f"opt_req_{event_id}")
+                for rn in req_names:
+                    req_user_ids.update(name_to_uid.get(rn, []))
+                if req_names:
+                    allow_maybe_req = st.checkbox("必須メンバーの「△(未定)」も許容する", value=True, key=f"opt_req_maybe_{event_id}")
 
-            st.markdown("---")
+        with st_opt_flt:
             with st.form("opt_filter_form"):
-                st.caption("🔍 回答者グループ・個人で絞り込み（未選択は全員）")
                 f_col1, f_col2 = st.columns(2)
                 with f_col1:
                     f_g1 = st.multiselect("🚀 プロジェクト", all_g1_sorted, key="f2_g1")
@@ -5331,7 +5452,12 @@ def render_options_event_view(event, user, can_view_details, can_confirm, is_clo
                 with f_col2:
                     f_g2 = st.multiselect("🔧 系", all_g2_sorted, key="f2_g2")
                     f_names = st.multiselect("👤 特定の個人", all_names, key="f2_names")
-                st.form_submit_button("✅ 絞り込みを適用", type="primary")
+                st.form_submit_button("✅ 絞り込みを適用", type="primary", use_container_width=True)
+
+        if st.button("🔄 最新の回答を取得する", use_container_width=True, key=f"opt_refresh_{event_id}"):
+            invalidate_cache("responses")
+            invalidate_cache("events")
+            st.rerun()
 
     filtered_data = filter_responses(all_res_data, f_names, f_g1, f_g2, f_g3, f_g4)
     unique_all = len({r.get("user_id") for r in all_res_data})
@@ -5469,15 +5595,15 @@ def render_event_detail_view(user, events, user_map_fs, current_ev_id):
     share_url = f"{APP_BASE_URL}?event={current_ev_id}"
 
     st.markdown('<div class="sss-top-action-marker"></div>', unsafe_allow_html=True)
-    c_top1, c_top2 = st.columns([1.4, 1.4])
+    c_top1, c_top2 = st.columns([1, 1.8])
     with c_top1:
-        if st.button("🔙 一覧へ戻る", type="secondary", use_container_width=True):
+        if st.button("🔙 戻る", type="secondary", use_container_width=True):
             st.session_state.target_ev_id = ""
             st.rerun()
     with c_top2:
         render_copy_button(
             share_url,
-            btn_label="🔗 招待URLをコピー",
+            btn_label="🔗 URLコピー",
             share_title=event.get("title", "SSScheduler"),
             share_url=share_url,
             key_suffix=f"ev_share_{current_ev_id}",

@@ -2476,7 +2476,6 @@ function attachGridEvents() {
     let isTwoFingerPan = false;
     let blockPaintUntilLift = false;
     let lastPinchCenter = null;
-    let lastPinchDist = 0;
     let longPressTimer = null;
     let longPressOrigin = null;
     let longPressTriggered = false;
@@ -2516,13 +2515,6 @@ function attachGridEvents() {
             x: (touches[0].clientX + touches[1].clientX) / 2,
             y: (touches[0].clientY + touches[1].clientY) / 2
         };
-    }
-
-    function getTouchDist(touches) {
-        return Math.hypot(
-            touches[0].clientX - touches[1].clientX,
-            touches[0].clientY - touches[1].clientY
-        );
     }
 
     g.addEventListener('contextmenu', e => e.preventDefault());
@@ -2590,7 +2582,6 @@ function attachGridEvents() {
             isTwoFingerPan = true;
             blockPaintUntilLift = true;
             lastPinchCenter = getTouchCenter(e.touches);
-            lastPinchDist = getTouchDist(e.touches);
             if (e.cancelable) e.preventDefault();
             return;
         }
@@ -2649,12 +2640,9 @@ function attachGridEvents() {
                 isTwoFingerPan = true;
                 blockPaintUntilLift = true;
                 lastPinchCenter = getTouchCenter(e.touches);
-                lastPinchDist = getTouchDist(e.touches);
             }
             if (e.touches.length >= 2 && lastPinchCenter) {
                 const center = getTouchCenter(e.touches);
-                const dist = getTouchDist(e.touches);
-
                 const dx = center.x - lastPinchCenter.x;
                 const dy = center.y - lastPinchCenter.y;
                 lastPinchCenter = center;
@@ -2666,20 +2654,6 @@ function attachGridEvents() {
                 const remY = (-dy) - appliedY;
                 if (Math.abs(remY) > 0.5) {
                     try { window.parent.scrollBy(0, remY); } catch (err) {}
-                }
-
-                // 2本指ピンチイン・ピンチアウトによるスムーズズーム
-                if (lastPinchDist > 24 && dist > 24) {
-                    const ratio = dist / lastPinchDist;
-                    if (Math.abs(ratio - 1) > 0.025) {
-                        const rect = sc.getBoundingClientRect();
-                        const relX = center.x - rect.left;
-                        const relY = center.y - rect.top;
-                        const ratioX = (sc.scrollLeft + relX) / Math.max(1, sc.scrollWidth);
-                        const ratioY = (sc.scrollTop + relY) / Math.max(1, sc.scrollHeight);
-                        applyZoom(zoomScale * ratio, {sc: sc, relX: relX, relY: relY, ratioX: ratioX, ratioY: ratioY});
-                        lastPinchDist = dist;
-                    }
                 }
             }
             return;
@@ -2723,7 +2697,6 @@ function attachGridEvents() {
             isTwoFingerPan = false;
             blockPaintUntilLift = false;
             lastPinchCenter = null;
-            lastPinchDist = 0;
             touchSnapshot = null;
             tapTargetCell = null;
         }
@@ -2847,7 +2820,7 @@ function buildEditor(args) {
             ${penControls}
             ${!isClosed ? `<div class="hint-bar">
                 <span class="hint-pc">💡 ドラッグで塗る ／ 右クリックで消す ／ ダブルクリックでメモ</span>
-                <span class="hint-touch">💡 1本指で塗る ／ 2本指でスクロール＆ピンチ拡大縮小 ／ 長押しでメモ ／ 🎨パレットは指で移動可</span>
+                <span class="hint-touch">💡 1本指で塗る ／ 2本指でスクロール ／ 🔍−＋で縮小・拡大 ／ 長押しでメモ ／ 🎨パレットは移動可</span>
             </div>` : ''}
         </div>`;
 
@@ -3441,7 +3414,7 @@ function buildAgg(args) {
                 <span>少</span><span class="grad-bar"></span><span>多</span>
                 ${reqLegend}
                 ${myLegend}
-                <span style="font-weight:500; color:#64748b;">（タップで内訳 ／ 2本指ピンチで拡大縮小）</span>
+                <span style="font-weight:500; color:#64748b;">（タップで内訳 ／ 🔍−＋ボタンで縮小・拡大）</span>
             </div>
             <div class="tb-group">${zoomBtns}${jumpBtns}</div>
         </div>`;
@@ -3522,26 +3495,10 @@ function buildAgg(args) {
     }
 
     const grid = document.getElementById('agg-grid');
-    if (grid && sc) {
+    if (grid) {
         let tapStart = null;
-        let pinchDist = 0;
-        let pinchCenter = null;
-
         grid.addEventListener('touchstart', e => {
             lastTouchTime = Date.now();
-            if (e.touches.length >= 2) {
-                tapStart = null;
-                pinchDist = Math.hypot(
-                    e.touches[0].clientX - e.touches[1].clientX,
-                    e.touches[0].clientY - e.touches[1].clientY
-                );
-                pinchCenter = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-                };
-                if (e.cancelable) e.preventDefault();
-                return;
-            }
             if (e.touches.length === 1) {
                 const cell = e.target.closest('.agg-cell');
                 tapStart = cell ? {
@@ -3550,39 +3507,14 @@ function buildAgg(args) {
                     t: Date.now(),
                     cell: cell
                 } : null;
+            } else {
+                tapStart = null;
             }
-        }, {passive: false});
+        }, {passive: true});
 
         grid.addEventListener('touchmove', e => {
-            lastTouchTime = Date.now();
             if (e.touches.length >= 2) {
                 tapStart = null;
-                if (e.cancelable) e.preventDefault();
-                const dist = Math.hypot(
-                    e.touches[0].clientX - e.touches[1].clientX,
-                    e.touches[0].clientY - e.touches[1].clientY
-                );
-                const center = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-                };
-                if (pinchCenter) {
-                    sc.scrollLeft -= (center.x - pinchCenter.x);
-                    sc.scrollTop -= (center.y - pinchCenter.y);
-                }
-                pinchCenter = center;
-                if (pinchDist > 24 && dist > 24) {
-                    const ratio = dist / pinchDist;
-                    if (Math.abs(ratio - 1) > 0.025) {
-                        const rect = sc.getBoundingClientRect();
-                        const relX = center.x - rect.left;
-                        const relY = center.y - rect.top;
-                        const ratioX = (sc.scrollLeft + relX) / Math.max(1, sc.scrollWidth);
-                        const ratioY = (sc.scrollTop + relY) / Math.max(1, sc.scrollHeight);
-                        applyAggZoom(aggZoomScale * ratio, {sc: sc, relX: relX, relY: relY, ratioX: ratioX, ratioY: ratioY});
-                        pinchDist = dist;
-                    }
-                }
                 return;
             }
             if (tapStart && e.touches.length === 1) {
@@ -3590,13 +3522,9 @@ function buildAgg(args) {
                 const dy = e.touches[0].clientY - tapStart.y;
                 if (Math.hypot(dx, dy) > 10) tapStart = null;
             }
-        }, {passive: false});
+        }, {passive: true});
 
         grid.addEventListener('touchend', e => {
-            if (e.touches.length === 0) {
-                pinchDist = 0;
-                pinchCenter = null;
-            }
             if (!tapStart || e.changedTouches.length !== 1) { tapStart = null; return; }
             const ct = e.changedTouches[0];
             const dist = Math.hypot(ct.clientX - tapStart.x, ct.clientY - tapStart.y);
@@ -3612,8 +3540,6 @@ function buildAgg(args) {
 
         grid.addEventListener('touchcancel', () => {
             tapStart = null;
-            pinchDist = 0;
-            pinchCenter = null;
         }, {passive: true});
 
         grid.addEventListener('mouseover', e => {
@@ -3784,8 +3710,8 @@ def ensure_components():
         "rt_editor": RT_EDITOR_HTML,
         "auth_storage_v1": AUTH_STORAGE_HTML,
         "options_editor_v2": OPTIONS_EDITOR_V2_HTML,
-        "custom_editor_v17": CUSTOM_EDITOR_V15_HTML,
-        "agg_viewer_v3": AGG_VIEWER_V1_HTML,
+        "custom_editor_v18": CUSTOM_EDITOR_V15_HTML,
+        "agg_viewer_v4": AGG_VIEWER_V1_HTML,
         "type_picker_v1": TYPE_PICKER_V1_HTML,
     }
     for folder, content in specs.items():
@@ -3802,8 +3728,8 @@ ensure_components()
 rt_editor = components.declare_component("rt_editor", path=os.path.join(BASE_DIR, "rt_editor"))
 auth_storage = components.declare_component("auth_storage", path=os.path.join(BASE_DIR, "auth_storage_v1"))
 options_editor = components.declare_component("options_editor", path=os.path.join(BASE_DIR, "options_editor_v2"))
-grid_editor = components.declare_component("grid_editor", path=os.path.join(BASE_DIR, "custom_editor_v17"))
-agg_viewer = components.declare_component("agg_viewer", path=os.path.join(BASE_DIR, "agg_viewer_v3"))
+grid_editor = components.declare_component("grid_editor", path=os.path.join(BASE_DIR, "custom_editor_v18"))
+agg_viewer = components.declare_component("agg_viewer", path=os.path.join(BASE_DIR, "agg_viewer_v4"))
 type_picker = components.declare_component("type_picker", path=os.path.join(BASE_DIR, "type_picker_v1"))
 
 
@@ -4399,7 +4325,7 @@ def render_guide_view():
             <div class="g-text" style="font-size:12.5px;">
                 ・<b>1本指でなぞる</b> → マスを連続で塗る<br>
                 ・<b>2本指で動かす</b> → 塗らずに上下左右スクロール<br>
-                ・<b>2本指でピンチ操作（または 🔍−/＋）</b> → 予定表を自由にズーム拡大・縮小<br>
+                ・<b>🔍− / ＋ ボタン</b> → 予定表を縮小・拡大して全体を見渡す<br>
                 ・<b>マスを長押し（または 💬 ペン）</b> → 「遅刻します」などの時間メモ入力
             </div>
             <hr style="margin:8px 0; border:0; border-top:1px dashed #cbd5e1;">
@@ -4407,7 +4333,7 @@ def render_guide_view():
             <div class="g-text" style="font-size:12.5px;">
                 ・<span class="g-kbd">左ドラッグ</span> 塗る ／ <span class="g-kbd">右クリック・右ドラッグ</span> すぐ消す<br>
                 ・<span class="g-kbd">ダブルクリック</span> その時間枠に詳細メモを追加<br>
-                ・<span class="g-kbd">🔍− / ＋</span> で見やすいサイズに拡大・縮小
+                ・<span class="g-kbd">🔍− / ＋</span> で見やすいサイズに縮小・拡大
             </div>
         </div>
     </div>
@@ -4422,7 +4348,7 @@ def render_guide_view():
                 <span>多</span>
             </div>
             <div style="font-size:12px; color:#334155;">
-                👆 <b>マスをタップ／クリック</b>すると、その時間の <b>◯ 参加可 / △ 未定 / × 不可</b> のメンバーとメモがポップアップ表示されます。集計表も2本指ピンチや🔍ボタンでズームできます。
+                👆 <b>マスをタップ／クリック</b>すると、その時間の <b>◯ 参加可 / △ 未定 / × 不可</b> のメンバーとメモがポップアップ表示されます。集計表も <b>🔍− / ＋ ボタン</b>で縮小・拡大できます。
             </div>
         </div>
         <p class="g-text">絞り込みや必須メンバー指定は <b>「⚙️ 表示設定・絞り込み」</b> から開けます。</p>
@@ -5518,7 +5444,7 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
             saveTs=st.session_state.get("last_saved_ts", 0),
             importTs=st.session_state.get("cal_import_ts", 0),
             defaultCellH=(34 if event_type == "time" else 48),
-            key=f"editor_v17_{event_id}",
+            key=f"editor_v18_{event_id}",
         )
 
         if raw and isinstance(raw, dict) and "data" in raw:
@@ -5879,7 +5805,7 @@ def render_grid_event_view(event, user, can_view_details, can_confirm, is_closed
         hasRequiredFilter=bool(req_user_ids),
         canViewDetails=can_view_details,
         defaultCellH=(34 if event_type == "time" else 46),
-        key=f"agg_v3_{event_id}",
+        key=f"agg_v4_{event_id}",
     )
 
     if can_view_details:
